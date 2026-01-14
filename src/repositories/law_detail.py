@@ -53,10 +53,39 @@ class LawDetailRepository(BaseLawRepository):
             search_response.raise_for_status()
             
             if search_response.text.strip().startswith('<!DOCTYPE') or '<html' in search_response.text.lower():
+                # HTML 에러 페이지 디버깅 정보 로깅
+                text = search_response.text or ""
+                try:
+                    import re as _re
+                    title_match = _re.search(r"<title[^>]*>(.*?)</title>", text, _re.IGNORECASE | _re.DOTALL)
+                    title_text = title_match.group(1).strip() if title_match else None
+                except Exception:
+                    title_text = None
+                
+                head_snippet = text[:300]
+                status_code = search_response.status_code
+                content_type = search_response.headers.get("content-type")
+                
+                logger.error(
+                    "API returned HTML error page (law_detail search) | url=%s status=%s ct=%s title=%r head=%r",
+                    search_response.url,
+                    status_code,
+                    content_type,
+                    title_text,
+                    head_snippet,
+                )
+                
                 return {
                     "error": "API가 HTML 에러 페이지를 반환했습니다. API 키를 확인하세요.",
                     "law_name": law_name,
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요. 또한 법령명이 정확한지 확인하세요.",
+                    "api_url": search_response.url,
+                    "api_error": {
+                        "status": status_code,
+                        "content_type": content_type,
+                        "title": title_text,
+                        "head": head_snippet,
+                    },
+                    "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고, 법령명을 더 단순하게 입력해 다시 시도하세요.",
                     "note": "법령명을 정확히 입력해주세요."
                 }
             
@@ -149,10 +178,38 @@ class LawDetailRepository(BaseLawRepository):
             detail_response.raise_for_status()
             
             if detail_response.text.strip().startswith('<!DOCTYPE') or '<html' in detail_response.text.lower():
+                text = detail_response.text or ""
+                try:
+                    import re as _re
+                    title_match = _re.search(r"<title[^>]*>(.*?)</title>", text, _re.IGNORECASE | _re.DOTALL)
+                    title_text = title_match.group(1).strip() if title_match else None
+                except Exception:
+                    title_text = None
+                
+                head_snippet = text[:300]
+                status_code = detail_response.status_code
+                content_type = detail_response.headers.get("content-type")
+                
+                logger.error(
+                    "API returned HTML error page (law_detail detail) | url=%s status=%s ct=%s title=%r head=%r",
+                    detail_response.url,
+                    status_code,
+                    content_type,
+                    title_text,
+                    head_snippet,
+                )
+                
                 return {
                     "error": "법령 상세 조회 실패. API 키가 필요하거나 권한이 없을 수 있습니다.",
                     "law_name": law_name,
                     "law_id": law_id,
+                    "api_url": detail_response.url,
+                    "api_error": {
+                        "status": status_code,
+                        "content_type": content_type,
+                        "title": title_text,
+                        "head": head_snippet,
+                    },
                     "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
                 }
             

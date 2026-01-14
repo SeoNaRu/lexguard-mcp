@@ -100,14 +100,40 @@ class GenericAPIRepository(BaseLawRepository):
             
             # HTML 에러 페이지인지 확인
             if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
+                text = response.text or ""
+                try:
+                    import re as _re
+                    title_match = _re.search(r"<title[^>]*>(.*?)</title>", text, _re.IGNORECASE | _re.DOTALL)
+                    title_text = title_match.group(1).strip() if title_match else None
+                except Exception:
+                    title_text = None
+                
+                head_snippet = text[:300]
+                status_code = response.status_code
+                content_type = response.headers.get("content-type")
+                
+                logger.error(
+                    "API returned HTML error page | url=%s status=%s ct=%s title=%r head=%r",
+                    response.url,
+                    status_code,
+                    content_type,
+                    title_text,
+                    head_snippet,
+                )
+                
                 error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
-                logger.error(f"API returned HTML error page | url={response.url}")
                 return {
                     "error": error_msg,
                     "api_name": api_name,
                     "api_id": api_id,
                     "api_url": response.url,
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요.",
+                    "api_error": {
+                        "status": status_code,
+                        "content_type": content_type,
+                        "title": title_text,
+                        "head": head_snippet,
+                    },
+                    "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고 검색어를 단순한 키워드로 줄여서 다시 시도하세요.",
                     "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
                 }
             

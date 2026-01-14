@@ -427,6 +427,28 @@ class SmartSearchService:
             params = self.extract_parameters(query, st)
             all_params[st] = params
         
+        # 쿼리 전처리: 긴 문장에서 핵심 키워드만 추출 (API 에러 방지)
+        def extract_keywords(text: str) -> str:
+            """긴 문장에서 핵심 키워드만 추출"""
+            # 법령명 패턴 제거 (이미 extract_parameters에서 처리)
+            # 질문어 제거
+            question_words = ["인가", "인지", "인가요", "인지요", "인가?", "인지?", "뭐야", "뭐야?", "알려줘", "알려줘요", "찾아줘", "찾아줘요"]
+            cleaned = text
+            for qw in question_words:
+                cleaned = cleaned.replace(qw, "")
+            
+            # 핵심 키워드 추출 (2-4글자 명사 위주)
+            import re
+            # 한글 명사 패턴 (2글자 이상)
+            keywords = re.findall(r'[가-힣]{2,}', cleaned)
+            # 중복 제거하고 길이 순 정렬
+            keywords = sorted(set(keywords), key=len, reverse=True)
+            # 상위 3-5개만 선택
+            return " ".join(keywords[:5])
+        
+        # 키워드 추출
+        keyword_query = extract_keywords(query)
+        
         # 병렬 검색 실행
         results = {}
         
@@ -453,6 +475,7 @@ class SmartSearchService:
                             arguments
                         )
                     else:
+                        # 첫 시도: 원본 query
                         result = await asyncio.to_thread(
                             self.law_search_repo.search_law,
                             query,
@@ -460,8 +483,39 @@ class SmartSearchService:
                             max_results_per_type,
                             arguments
                         )
+                        
+                        # 실패 시 Fallback: 키워드만으로 재시도
+                        if result and "error" in result and not result.get("laws"):
+                            if keyword_query and keyword_query != query:
+                                import logging
+                                logger = logging.getLogger("lexguard-mcp")
+                                logger.info(f"Law search fallback: using keywords '{keyword_query}' instead of full query")
+                                result = await asyncio.to_thread(
+                                    self.law_search_repo.search_law,
+                                    keyword_query,
+                                    1,
+                                    max_results_per_type,
+                                    arguments
+                                )
+                        
+                        # 여전히 실패 시: 도메인별 직접 법령명 검색
+                        if result and "error" in result and not result.get("laws"):
+                            # 노동 관련 키워드가 있으면 "근로기준법" 직접 검색
+                            if any(k in query for k in ["근로", "노동", "해고", "퇴직", "임금", "프리랜서", "근로자"]):
+                                import logging
+                                logger = logging.getLogger("lexguard-mcp")
+                                logger.info("Law search fallback: directly searching '근로기준법'")
+                                result = await asyncio.to_thread(
+                                    self.law_detail_repo.get_law,
+                                    None,
+                                    "근로기준법",
+                                    "detail",
+                                    None, None, None, None,
+                                    arguments
+                                )
                 
                 elif search_type == "precedent":
+                    # 첫 시도: 원본 query
                     result = await asyncio.to_thread(
                         self.precedent_repo.search_precedent,
                         query,
@@ -472,8 +526,46 @@ class SmartSearchService:
                         None,
                         arguments
                     )
+                    
+                    # 실패 시 Fallback: 키워드만으로 재시도
+                    if result and "error" in result and not result.get("precedents"):
+                        if keyword_query and keyword_query != query:
+                            import logging
+                            logger = logging.getLogger("lexguard-mcp")
+                            logger.info(f"Precedent search fallback: using keywords '{keyword_query}' instead of full query")
+                            result = await asyncio.to_thread(
+                                self.precedent_repo.search_precedent,
+                                keyword_query,
+                                1,
+                                max_results_per_type,
+                                None,
+                                None,
+                                None,
+                                arguments
+                            )
+                    
+                    # 여전히 실패 시: 핵심 키워드 1-2개만으로 재시도
+                    if result and "error" in result and not result.get("precedents"):
+                        keywords = keyword_query.split()
+                        if len(keywords) >= 2:
+                            # 가장 긴 키워드 2개만 사용
+                            short_query = " ".join(keywords[:2])
+                            import logging
+                            logger = logging.getLogger("lexguard-mcp")
+                            logger.info(f"Precedent search fallback: using short query '{short_query}'")
+                            result = await asyncio.to_thread(
+                                self.precedent_repo.search_precedent,
+                                short_query,
+                                1,
+                                max_results_per_type,
+                                None,
+                                None,
+                                None,
+                                arguments
+                            )
                 
                 elif search_type == "interpretation":
+                    # 첫 시도: 원본 query
                     result = await asyncio.to_thread(
                         self.interpretation_repo.search_law_interpretation,
                         query,
@@ -482,6 +574,21 @@ class SmartSearchService:
                         params.get("agency"),  # 부처명 전달
                         arguments
                     )
+                    
+                    # 실패 시 Fallback: 키워드만으로 재시도
+                    if result and "error" in result and not result.get("interpretations"):
+                        if keyword_query and keyword_query != query:
+                            import logging
+                            logger = logging.getLogger("lexguard-mcp")
+                            logger.info(f"Interpretation search fallback: using keywords '{keyword_query}' instead of full query")
+                            result = await asyncio.to_thread(
+                                self.interpretation_repo.search_law_interpretation,
+                                keyword_query,
+                                1,
+                                max_results_per_type,
+                                params.get("agency"),
+                                arguments
+                            )
                 
                 elif search_type == "administrative_appeal":
                     result = await asyncio.to_thread(
