@@ -66,60 +66,203 @@ class LawSearchRepository(BaseLawRepository):
                 logger.debug("No API key provided, using public API")
             
             # 검색은 lawSearch.do 사용
+            # 1차 시도: JSON
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
             
             # HTML 에러 페이지인지 확인
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                # HTML 에러 페이지 디버깅 정보 로깅
-                text = response.text or ""
-                try:
-                    title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-                    title_text = title_match.group(1).strip() if title_match else None
-                except Exception:
-                    title_text = None
-                
-                head_snippet = text[:300]
-                status_code = response.status_code
-                content_type = response.headers.get("content-type")
-                
-                logger.error(
-                    "API returned HTML error page | url=%s status=%s ct=%s title=%r head=%r",
-                    response.url,
-                    status_code,
-                    content_type,
-                    title_text,
-                    head_snippet,
-                )
-                
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
-                return {
-                    "error": error_msg,
-                    "query": normalized_query,
-                    "api_url": response.url,
-                    "api_error": {
-                        "status": status_code,
-                        "content_type": content_type,
-                        "title": title_text,
-                        "head": head_snippet,
-                    },
-                    "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고 검색어를 단순한 키워드로 줄여서 다시 시도하세요.",
-                    "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
-                }
+            is_html_error = response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower()
+            json_decode_failed = False
             
-            # JSON 파싱
-            try:
-                data = response.json()
-            except json.JSONDecodeError as e:
-                error_msg = f"API 응답이 유효한 JSON 형식이 아닙니다: {str(e)}"
-                logger.error("Invalid JSON response | url=%s | error=%s", response.url, str(e))
-                return {
-                    "error": error_msg,
-                    "query": normalized_query,
-                    "api_url": response.url,
-                    "raw_response": response.text[:500],
-                    "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
-                }
+            # JSON 파싱 시도
+            data = None
+            if not is_html_error:
+                try:
+                    data = response.json()
+                except json.JSONDecodeError:
+                    json_decode_failed = True
+            
+            # JSON 실패 또는 HTML 에러 시 XML로 재시도
+            if is_html_error or json_decode_failed:
+                logger.warning("JSON request failed, trying XML fallback | is_html=%s json_failed=%s", is_html_error, json_decode_failed)
+                
+                # HTML 에러 페이지 디버깅 정보 로깅 (JSON 시도 실패 시)
+                if is_html_error:
+                    text = response.text or ""
+                    try:
+                        title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+                        title_text = title_match.group(1).strip() if title_match else None
+                    except Exception:
+                        title_text = None
+                    
+                    head_snippet = text[:300]
+                    status_code = response.status_code
+                    content_type = response.headers.get("content-type")
+                    
+                    logger.error(
+                        "API returned HTML error page (JSON) | url=%s status=%s ct=%s title=%r head=%r",
+                        response.url,
+                        status_code,
+                        content_type,
+                        title_text,
+                        head_snippet,
+                    )
+                
+                # XML로 재시도
+                xml_params = params.copy()
+                xml_params["type"] = "XML"
+                
+                try:
+                    xml_response = requests.get(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
+                    xml_response.raise_for_status()
+                    
+                    # XML도 HTML 에러인지 확인
+                    if xml_response.text.strip().startswith('<!DOCTYPE') or '<html' in xml_response.text.lower():
+                        # XML도 실패
+                        text = xml_response.text or ""
+                        try:
+                            title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+                            title_text = title_match.group(1).strip() if title_match else None
+                        except Exception:
+                            title_text = None
+                        
+                        head_snippet = text[:300]
+                        status_code = xml_response.status_code
+                        content_type = xml_response.headers.get("content-type")
+                        
+                        logger.error(
+                            "API returned HTML error page (XML fallback also failed) | url=%s status=%s ct=%s title=%r head=%r",
+                            xml_response.url,
+                            status_code,
+                            content_type,
+                            title_text,
+                            head_snippet,
+                        )
+                        
+                        error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
+                        return {
+                            "error": error_msg,
+                            "query": normalized_query,
+                            "api_url": xml_response.url,
+                            "api_error": {
+                                "status": status_code,
+                                "content_type": content_type,
+                                "title": title_text,
+                                "head": head_snippet,
+                            },
+                            "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고 검색어를 단순한 키워드로 줄여서 다시 시도하세요.",
+                            "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
+                        }
+                    
+                    # XML 파싱
+                    try:
+                        root = ET.fromstring(xml_response.text)
+                        
+                        result = {
+                            "query": normalized_query,
+                            "page": page,
+                            "per_page": per_page,
+                            "total": 0,
+                            "laws": [],
+                            "api_url": xml_response.url,
+                            "format": "XML"  # XML로 가져왔음을 표시
+                        }
+                        
+                        # totalCnt 추출
+                        total_elem = root.find('.//totalCnt')
+                        if total_elem is not None and total_elem.text:
+                            result["total"] = int(total_elem.text)
+                        
+                        # 법령 추출
+                        law_elems = root.findall('.//법령')
+                        if not law_elems:
+                            law_elems = root.findall('.//law')
+                        
+                        for law_elem in law_elems[:per_page]:
+                            law_dict = {}
+                            # 법령명
+                            name_elem = law_elem.find('법령명')
+                            if name_elem is None:
+                                name_elem = law_elem.find('법령명한글')
+                            if name_elem is None:
+                                name_elem = law_elem.find('lawNm')
+                            if name_elem is not None and name_elem.text:
+                                law_dict["법령명한글"] = name_elem.text.strip()
+                            
+                            # 법령일련번호
+                            id_elem = law_elem.find('법령일련번호')
+                            if id_elem is None:
+                                id_elem = law_elem.find('일련번호')
+                            if id_elem is None:
+                                id_elem = law_elem.find('lawSeq')
+                            if id_elem is not None and id_elem.text:
+                                law_dict["법령일련번호"] = id_elem.text.strip()
+                            
+                            if law_dict:
+                                result["laws"].append(law_dict)
+                        
+                        if result["total"] == 0:
+                            result["message"] = "검색 결과가 없습니다. 법령명을 정확히 입력해주세요."
+                            logger.debug("No matching laws found for query: %s", normalized_query)
+                        
+                        search_cache[cache_key] = result
+                        logger.debug("API call successful for search (XML fallback) | query=%r total=%d", query, result["total"])
+                        
+                        return result
+                        
+                    except ET.ParseError as e:
+                        logger.warning("XML parsing failed: %s", str(e))
+                        # XML 파싱 실패 시 정규식으로 재시도
+                        total_match = re.search(r'<totalCnt>(\d+)</totalCnt>', xml_response.text)
+                        if total_match:
+                            result = {
+                                "query": normalized_query,
+                                "page": page,
+                                "per_page": per_page,
+                                "total": int(total_match.group(1)),
+                                "laws": [],
+                                "api_url": xml_response.url,
+                                "format": "XML"
+                            }
+                            # 법령명 정규식으로 추출
+                            law_names = re.findall(r'<법령명><!\[CDATA\[(.*?)\]\]></법령명>', xml_response.text)
+                            if not law_names:
+                                law_names = re.findall(r'<법령명>(.*?)</법령명>', xml_response.text)
+                            
+                            for name in law_names[:per_page]:
+                                result["laws"].append({"법령명한글": name.strip()})
+                            
+                            search_cache[cache_key] = result
+                            return result
+                        
+                        # XML 파싱도 실패
+                        error_msg = f"XML 파싱 실패: {str(e)}"
+                        logger.error("XML parsing failed | url=%s | error=%s", xml_response.url, str(e))
+                        return {
+                            "error": error_msg,
+                            "query": normalized_query,
+                            "api_url": xml_response.url,
+                            "raw_response": xml_response.text[:500],
+                            "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
+                        }
+                        
+                except requests.exceptions.RequestException as e:
+                    logger.error("XML fallback request failed: %s", str(e))
+                    # XML 재시도도 실패하면 원래 JSON 에러 반환
+                    if is_html_error:
+                        error_msg = "API가 HTML 에러 페이지를 반환했습니다. JSON과 XML 모두 실패했습니다."
+                    else:
+                        error_msg = f"API 응답이 유효한 JSON 형식이 아니고, XML 재시도도 실패했습니다: {str(e)}"
+                    
+                    return {
+                        "error": error_msg,
+                        "query": normalized_query,
+                        "api_url": response.url,
+                        "raw_response": response.text[:500],
+                        "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
+                    }
+            
+            # JSON 파싱 성공
             
             result = {
                 "query": normalized_query,
