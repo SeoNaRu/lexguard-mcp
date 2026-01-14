@@ -181,6 +181,7 @@ class SituationGuidanceService:
     ) -> Dict:
         """
         사용자 상황을 종합적으로 분석하여 관련 법적 정보를 모두 찾기
+        내부적으로 smart_search_tool을 호출하여 실제 법적 근거를 포함합니다.
         
         Args:
             situation: 사용자의 법적 상황 설명
@@ -188,7 +189,7 @@ class SituationGuidanceService:
             arguments: 추가 인자
             
         Returns:
-            종합 검색 결과 및 가이드
+            종합 검색 결과 및 가이드 (has_legal_basis, sources_count, missing_reason 포함)
         """
         # 1. 법적 영역 감지
         domains = self.detect_legal_domain(situation)
@@ -197,175 +198,92 @@ class SituationGuidanceService:
         # 2. 핵심 용어 추출
         key_terms = self.extract_key_terms(situation)
         
-        # 3. 관련 법령 검색
-        law_results = {}
-        # 법령명이 추출되지 않았으면 도메인에서 관련 법령 검색
-        if not key_terms["laws"] and detected_domains:
-            for domain in detected_domains[:2]:
-                domain_config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
-                key_terms["laws"].extend(domain_config.get("laws", [])[:2])
+        # 3. smart_search_tool 호출하여 실제 법적 근거 검색
+        from ..services.smart_search_service import SmartSearchService
+        smart_search_service = SmartSearchService()
         
-        if key_terms["laws"]:
-            for law_name in key_terms["laws"][:3]:  # 최대 3개 법령
-                try:
-                    # get_law 시그니처: get_law(law_id=None, law_name=None, mode="detail", ...)
-                    result = await asyncio.to_thread(
-                        self.law_detail_repo.get_law,
-                        None,  # law_id
-                        law_name,  # law_name
-                        "detail",  # mode
-                        None, None, None, None,  # article_number, hang, ho, mok
-                        arguments
-                    )
-                    if "error" not in result:
-                        law_results[law_name] = result
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger("lexguard-mcp")
-                    logger.debug(f"Error searching law {law_name}: {e}")
-                    pass
-        
-        # 법령명이 없으면 키워드로 법령 검색
-        if not law_results and key_terms["keywords"]:
-            for keyword in key_terms["keywords"][:2]:
-                try:
-                    result = await asyncio.to_thread(
-                        self.law_search_repo.search_law,
-                        keyword,
-                        1,
-                        max_results_per_type,
-                        arguments
-                    )
-                    if "error" not in result and result.get("laws"):
-                        law_results[f"search_{keyword}"] = result
-                        break  # 첫 번째 성공한 검색만 사용
-                except:
-                    pass
-        
-        # 4. 유사 판례 검색
-        precedent_results = {}
-        # 키워드가 없으면 도메인에서 키워드 추출
-        if not key_terms["keywords"] and detected_domains:
-            for domain in detected_domains[:2]:
-                domain_config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
-                key_terms["keywords"].extend(domain_config.get("keywords", [])[:3])
-        
-        search_queries = key_terms["keywords"][:3] if key_terms["keywords"] else [situation[:50]]
-        for query in search_queries:
-            try:
-                result = await asyncio.to_thread(
-                    self.precedent_repo.search_precedent,
-                    query,
-                    1,
-                    max_results_per_type,
-                    None, None, None,
-                    arguments
-                )
-                # 에러가 없고 precedents가 있으면 추가
-                if "error" not in result and result.get("precedents"):
-                    precedent_results[query] = result
-                # precedents가 없어도 total이 0이 아니면 추가 (빈 결과도 정보)
-                elif "error" not in result and result.get("total", 0) > 0:
-                    precedent_results[query] = result
-            except Exception as e:
-                import logging
-                logger = logging.getLogger("lexguard-mcp")
-                logger.debug(f"Error searching precedent with query '{query}': {e}")
-                pass
-        
-        # 5. 관련 기관 해석 검색
-        interpretation_results = {}
+        # 상황에서 검색 타입 자동 결정
+        search_types = []
         if detected_domains:
+            # 도메인별로 관련 검색 타입 추가
             for domain in detected_domains[:2]:
-                domain_config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
-                agencies = domain_config.get("agencies", [])
-                for agency in agencies[:2]:
-                    try:
-                        result = await asyncio.to_thread(
-                            self.interpretation_repo.search_law_interpretation,
-                            situation[:100],
-                            1,
-                            max_results_per_type,
-                            agency,
-                            arguments
-                        )
-                        if "error" not in result and (result.get("interpretations") or result.get("total", 0) > 0):
-                            interpretation_results[agency] = result
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger("lexguard-mcp")
-                        logger.debug(f"Error searching interpretation for {agency}: {e}")
-                        pass
+                if domain == "노동":
+                    search_types.extend(["precedent", "law", "interpretation"])
+                elif domain == "개인정보":
+                    search_types.extend(["law", "interpretation", "committee"])
+                elif domain == "세금":
+                    search_types.extend(["law", "interpretation", "administrative_appeal"])
+                else:
+                    search_types.extend(["precedent", "law", "interpretation"])
         
-        # 6. 행정심판 사례 검색
-        appeal_results = {}
-        try:
-            result = await asyncio.to_thread(
-                self.appeal_repo.search_administrative_appeal,
-                situation[:100],
-                1,
-                max_results_per_type,
-                None, None,
-                arguments
-            )
-            if "error" not in result and (result.get("appeals") or result.get("total", 0) > 0):
-                appeal_results = result
-        except Exception as e:
-            import logging
-            logger = logging.getLogger("lexguard-mcp")
-            logger.debug(f"Error searching administrative appeal: {e}")
-            pass
+        # 중복 제거
+        search_types = list(set(search_types))[:3]  # 최대 3개
         
-        # 7. 위원회 결정문 검색
-        committee_results = {}
-        if detected_domains:
-            for domain in detected_domains[:2]:
-                domain_config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
-                agencies = domain_config.get("agencies", [])
-                for agency in agencies:
-                    if "위원회" in agency:
-                        try:
-                            result = await asyncio.to_thread(
-                                self.committee_repo.search_committee_decision,
-                                agency,
-                                situation[:100],
-                                1,
-                                max_results_per_type,
-                                arguments
-                            )
-                            if "error" not in result and (result.get("decisions") or result.get("total", 0) > 0):
-                                committee_results[agency] = result
-                        except Exception as e:
-                            import logging
-                            logger = logging.getLogger("lexguard-mcp")
-                            logger.debug(f"Error searching committee decision for {agency}: {e}")
-                            pass
+        # smart_search 호출
+        smart_result = await smart_search_service.smart_search(
+            situation,
+            search_types if search_types else None,
+            max_results_per_type,
+            arguments
+        )
         
-        # 8. 가이드 생성
+        # smart_search 결과에서 데이터 추출
+        results = smart_result.get("results", {})
+        law_results = results.get("law", {})
+        precedent_results = results.get("precedent", {})
+        interpretation_results = results.get("interpretation", {})
+        appeal_results = results.get("administrative_appeal", {})
+        
+        # sources_count 계산
+        sources_count = {
+            "law": len(law_results.get("laws", [])) if isinstance(law_results, dict) and "laws" in law_results else (1 if law_results and "law_name" in law_results else 0),
+            "precedent": len(precedent_results.get("precedents", [])) if isinstance(precedent_results, dict) and "precedents" in precedent_results else 0,
+            "interpretation": len(interpretation_results.get("interpretations", [])) if isinstance(interpretation_results, dict) and "interpretations" in interpretation_results else 0,
+            "administrative_appeal": len(appeal_results.get("appeals", [])) if isinstance(appeal_results, dict) and "appeals" in appeal_results else 0
+        }
+        
+        # has_legal_basis 판단
+        total_sources = sum(sources_count.values())
+        has_legal_basis = total_sources > 0
+        
+        # missing_reason 판단
+        missing_reason = None
+        if not has_legal_basis:
+            # API 준비 상태 확인
+            import os
+            api_key = os.environ.get("LAW_API_KEY", "")
+            if not api_key:
+                missing_reason = "API_NOT_READY"
+            else:
+                missing_reason = "NO_MATCH"
+        
+        # 가이드 생성
         guidance = self.generate_guidance(
             situation,
             detected_domains,
             key_terms,
-            law_results,
-            precedent_results,
-            interpretation_results
+            law_results if law_results else {},
+            precedent_results if precedent_results else {},
+            interpretation_results if interpretation_results else {}
         )
         
         return {
+            "success": True,
+            "has_legal_basis": has_legal_basis,
             "situation": situation,
             "detected_domains": detected_domains,
-            "key_terms": key_terms,
-            "laws": law_results,
-            "precedents": precedent_results,
-            "interpretations": interpretation_results,
-            "administrative_appeals": appeal_results,
-            "committee_decisions": committee_results,
+            "laws": law_results if law_results else {},
+            "precedents": precedent_results if precedent_results else {},
+            "interpretations": interpretation_results if interpretation_results else {},
+            "administrative_appeals": appeal_results if appeal_results else {},
+            "sources_count": sources_count,
             "guidance": guidance,
+            "missing_reason": missing_reason,
             "summary": self.generate_summary(
                 detected_domains,
-                law_results,
-                precedent_results,
-                interpretation_results
+                law_results if law_results else {},
+                precedent_results if precedent_results else {},
+                interpretation_results if interpretation_results else {}
             )
         }
     

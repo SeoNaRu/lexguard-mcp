@@ -35,10 +35,13 @@ class HealthService:
             }
         }
         
+        # API 준비 상태 확인
+        api_ready = has_api_key  # API 키가 있으면 준비됨
+        
         # Health Check는 항상 HTTP 200을 반환해야 함 (Render가 스핀다운 방지)
         # status가 "ok"가 아니어도 200을 반환하여 서버가 살아있음을 알림
         return {
-            "status": "ok",
+            "status": "ok" if api_ready else "warning",
             "environment": {
                 "law_api_key": {
                     "configured": has_api_key,
@@ -53,10 +56,12 @@ class HealthService:
                     "loaded": env_file_exists
                 },
                 "env_vars": env_vars_status,
-                "api_ready": True
+                "api_ready": api_ready,
+                "api_status": "ready" if api_ready else "not_ready",
+                "api_status_message": "API 키가 설정되어 있어 검색 기능을 사용할 수 있습니다." if api_ready else "API 키가 설정되지 않아 일부 검색 기능이 제한될 수 있습니다."
             },
-            "message": "한국 법령 MCP 서버가 정상적으로 실행 중입니다.",
-            "note": "LAW_API_KEY가 설정되어 있으면 모든 API 요청의 OC 파라미터에 자동으로 포함됩니다.",
+            "message": "한국 법령 MCP 서버가 정상적으로 실행 중입니다." if api_ready else "서버는 실행 중이지만 API 키가 설정되지 않았습니다.",
+            "note": "LAW_API_KEY가 설정되어 있으면 모든 API 요청의 OC 파라미터에 자동으로 포함됩니다." if api_ready else "LAW_API_KEY를 설정하면 더 많은 검색 기능을 사용할 수 있습니다.",
             "server": "active"  # Render Health Check를 위한 명시적 상태 표시
         }
 

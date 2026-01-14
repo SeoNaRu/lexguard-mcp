@@ -232,7 +232,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         # async generator는 자동으로 종료됨
                         
                     elif method == "tools/list":
-                        # 기본 툴 목록
+                        # 핵심 툴 목록 (10개로 축소 - 18개 제한 대응)
                         tools_list = [
                             {
                                 "name": "health",
@@ -249,7 +249,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "smart_search_tool",
                                 "priority": 1,
                                 "category": "integrated",
-                                "description": "**통합 검색 툴 (우선 사용 권장)**: 사용자 질문을 분석하여 적절한 법적 정보를 자동으로 검색합니다. 법령, 판례, 법령해석, 행정심판, 헌재결정 등을 자동으로 찾아줍니다. LLM이 사용자 질문만 받으면 이 툴을 사용하여 모든 법적 정보를 통합 검색할 수 있습니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"query\": \"형법 제329조\",\n  \"detected_intents\": [\"law\"],\n  \"results\": {\n    \"law\": {\n      \"law_name\": \"형법\",\n      \"article\": {\n        \"article_number\": \"제329조\",\n        \"content\": \"...\"\n      }\n    }\n  },\n  \"total_types\": 1\n}\n```",
+                                "description": "**통합 검색 툴 (메인 진입점, 우선 사용 권장)**: 사용자 질문을 분석하여 적절한 법적 정보를 자동으로 검색합니다. 법령, 판례, 법령해석, 행정심판, 헌재결정 등을 자동으로 찾아줍니다. LLM이 사용자 질문만 받으면 이 툴을 사용하여 모든 법적 정보를 통합 검색할 수 있습니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"has_legal_basis\": true,\n  \"query\": \"형법 제329조\",\n  \"detected_intents\": [\"law\"],\n  \"results\": {\n    \"law\": {\n      \"law_name\": \"형법\",\n      \"article\": {\n        \"article_number\": \"제329조\",\n        \"content\": \"...\"\n      }\n    }\n  },\n  \"sources_count\": {\"law\": 1, \"precedent\": 0},\n  \"citations\": [...],\n  \"one_line_answer\": \"형법 제329조는...\",\n  \"next_questions\": [...]\n}\n```",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -280,7 +280,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "situation_guidance_tool",
                                 "priority": 1,
                                 "category": "integrated",
-                                "description": "**통합 상황 가이드 툴 (우선 사용 권장)**: 사용자의 법적 상황을 종합적으로 분석하여 관련 법령, 판례, 해석, 심판례를 모두 찾아주고 단계별 가이드를 제공합니다. 여러 법과 여러 기관의 정보를 통합하여 사용자의 법적 스트레스를 덜어주는 것이 목적입니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"situation\": \"회사에서 해고당했는데 퇴직금을 받지 못했어요\",\n  \"detected_domains\": [\"노동\"],\n  \"laws\": {...},\n  \"precedents\": {...},\n  \"interpretations\": {...},\n  \"guidance\": [\n    \"1. 근로기준법 제34조 확인\",\n    \"2. 퇴직금 지급 의무 확인\"\n  ]\n}\n```",
+                                "description": "**상황별 근거형 가이드 툴**: 사용자의 법적 상황을 분석하여 관련 법령, 판례, 해석을 찾아주고 단계별 가이드를 제공합니다. 내부적으로 smart_search_tool을 호출하여 실제 법적 근거를 포함합니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"has_legal_basis\": true,\n  \"situation\": \"회사에서 해고당했는데 퇴직금을 받지 못했어요\",\n  \"detected_domains\": [\"노동\"],\n  \"laws\": {...},\n  \"precedents\": {...},\n  \"interpretations\": {...},\n  \"sources_count\": {\"law\": 2, \"precedent\": 3},\n  \"guidance\": [\n    \"1. 근로기준법 제34조 확인\",\n    \"2. 퇴직금 지급 의무 확인\"\n  ],\n  \"missing_reason\": null\n}\n```",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -494,22 +494,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 }
                             },
                             {
-                                "name": "get_law_interpretation_tool",
-                                "priority": 2,
-                                "category": "interpretation",
-                                "description": "법령해석 상세 정보를 조회합니다. 법령해석 검색 결과에서 특정 해석의 상세 내용을 확인할 때 사용합니다. 예: '법령해석 ID 123456 상세 내용 확인', '고용노동부 법령해석 상세 조회'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "interpretation_id": {
-                                            "type": "string",
-                                            "description": "법령해석 일련번호 (필수)"
-                                        }
-                                    },
-                                    "required": ["interpretation_id"]
-                                }
-                            },
-                            {
                                 "name": "search_administrative_appeal_tool",
                                 "priority": 2,
                                 "category": "administrative",
@@ -547,185 +531,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 }
                             },
                             {
-                                "name": "get_administrative_appeal_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "행정심판 상세 정보를 조회합니다. 행정심판 검색 결과에서 특정 심판의 상세 내용과 재결 내용을 확인할 때 사용합니다. 예: '행정심판 ID 123456 상세 내용', '재결례 일련번호로 상세 조회'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "appeal_id": {
-                                            "type": "string",
-                                            "description": "행정심판 일련번호 (필수)"
-                                        }
-                                    },
-                                    "required": ["appeal_id"]
-                                }
-                            },
-                            {
-                                "name": "search_committee_decision_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "위원회 결정문을 검색합니다. 개인정보보호위원회, 금융위원회, 노동위원회 등 각종 위원회의 결정문을 검색할 수 있습니다. 예: '개인정보보호위원회 결정문 찾아줘', '금융위원회 결정 확인'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "committee_type": {
-                                            "type": "string",
-                                            "description": "위원회 종류 (예: '개인정보보호위원회', '금융위원회', '노동위원회', '고용보험심사위원회', '국민권익위원회')",
-                                            "enum": ["개인정보보호위원회", "금융위원회", "노동위원회", "고용보험심사위원회", "국민권익위원회", "방송미디어통신위원회", "산업재해보상보험재심사위원회", "중앙토지수용위원회", "중앙환경분쟁조정위원회", "증권선물위원회", "국가인권위원회"]
-                                        },
-                                        "query": {
-                                            "type": "string",
-                                            "description": "검색어 (결정문 사건명 또는 키워드)"
-                                        },
-                                        "page": {
-                                            "type": "integer",
-                                            "description": "페이지 번호",
-                                            "default": 1,
-                                            "minimum": 1
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "페이지당 결과 수",
-                                            "default": 20,
-                                            "minimum": 1,
-                                            "maximum": 100
-                                        }
-                                    },
-                                    "required": ["committee_type"]
-                                }
-                            },
-                            {
-                                "name": "get_committee_decision_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "위원회 결정문 상세 정보를 조회합니다. 위원회 결정문 검색 결과에서 특정 결정문의 상세 내용을 확인할 때 사용합니다. 예: '개인정보보호위원회 결정문 ID 123456 상세 내용', '금융위원회 결정문 상세 조회'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "committee_type": {
-                                            "type": "string",
-                                            "description": "위원회 종류 (예: '개인정보보호위원회', '금융위원회')",
-                                            "enum": ["개인정보보호위원회", "금융위원회", "노동위원회", "고용보험심사위원회", "국민권익위원회", "방송미디어통신위원회", "산업재해보상보험재심사위원회", "중앙토지수용위원회", "중앙환경분쟁조정위원회", "증권선물위원회", "국가인권위원회"]
-                                        },
-                                        "decision_id": {
-                                            "type": "string",
-                                            "description": "결정문 일련번호 (필수)"
-                                        }
-                                    },
-                                    "required": ["committee_type", "decision_id"]
-                                }
-                            },
-                            {
-                                "name": "search_constitutional_decision_tool",
-                                "priority": 2,
-                                "category": "constitutional",
-                                "description": "헌법재판소 결정례를 검색합니다. 법률이나 행정처분의 위헌 여부를 확인하거나 헌법재판소의 결정례를 참고할 때 사용합니다. 예: '헌재결정례 검색', '위헌 결정례 찾기', '2020년 헌재결정 확인', '개인정보보호법 위헌 결정'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {
-                                            "type": "string",
-                                            "description": "검색어 (헌재결정 사건명 또는 키워드)"
-                                        },
-                                        "page": {
-                                            "type": "integer",
-                                            "description": "페이지 번호",
-                                            "default": 1,
-                                            "minimum": 1
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "페이지당 결과 수",
-                                            "default": 20,
-                                            "minimum": 1,
-                                            "maximum": 100
-                                        },
-                                        "date_from": {
-                                            "type": "string",
-                                            "description": "시작일자 (YYYYMMDD)"
-                                        },
-                                        "date_to": {
-                                            "type": "string",
-                                            "description": "종료일자 (YYYYMMDD)"
-                                        }
-                                    },
-                                    "required": []
-                                }
-                            },
-                            {
-                                "name": "get_constitutional_decision_tool",
-                                "priority": 2,
-                                "category": "constitutional",
-                                "description": "헌법재판소 결정 상세 정보를 조회합니다. 헌재결정 검색 결과에서 특정 결정의 상세 내용과 결정 이유를 확인할 때 사용합니다. 예: '헌재결정 ID 123456 상세 내용', '헌재결정례 일련번호로 상세 조회'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "decision_id": {
-                                            "type": "string",
-                                            "description": "헌재결정 일련번호 (필수)"
-                                        }
-                                    },
-                                    "required": ["decision_id"]
-                                }
-                            },
-                            {
-                                "name": "search_special_administrative_appeal_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "특별행정심판을 검색합니다. 조세심판원, 해양안전심판원 등 특별행정심판원의 재결례를 검색할 수 있습니다. 세금 관련 분쟁이나 해양사고 관련 심판 사례를 찾을 때 사용합니다. 예: '조세심판원 재결례 검색', '해양안전심판원 특별행정심판 찾기', '소득세 관련 조세심판 사례'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "tribunal_type": {
-                                            "type": "string",
-                                            "description": "심판원 종류 (예: '조세심판원', '해양안전심판원', '인사혁신처 소청심사위원회', '국민권익위원회')",
-                                            "enum": ["조세심판원", "해양안전심판원", "국민권익위원회", "인사혁신처 소청심사위원회"]
-                                        },
-                                        "query": {
-                                            "type": "string",
-                                            "description": "검색어 (재결례 사건명 또는 키워드)"
-                                        },
-                                        "page": {
-                                            "type": "integer",
-                                            "description": "페이지 번호",
-                                            "default": 1,
-                                            "minimum": 1
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "페이지당 결과 수",
-                                            "default": 20,
-                                            "minimum": 1,
-                                            "maximum": 100
-                                        }
-                                    },
-                                    "required": ["tribunal_type"]
-                                }
-                            },
-                            {
-                                "name": "get_special_administrative_appeal_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "특별행정심판 상세 정보를 조회합니다. 특별행정심판 검색 결과에서 특정 심판의 상세 내용과 재결 내용을 확인할 때 사용합니다. 예: '조세심판원 재결례 ID 123456 상세 내용', '특별행정심판 상세 조회'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "tribunal_type": {
-                                            "type": "string",
-                                            "description": "심판원 종류 (예: '조세심판원', '해양안전심판원')",
-                                            "enum": ["조세심판원", "해양안전심판원", "국민권익위원회", "인사혁신처 소청심사위원회"]
-                                        },
-                                        "appeal_id": {
-                                            "type": "string",
-                                            "description": "재결례 일련번호 (필수)"
-                                        }
-                                    },
-                                    "required": ["tribunal_type", "appeal_id"]
-                                }
-                            },
-                            {
                                 "name": "compare_laws_tool",
                                 "priority": 2,
                                 "category": "utility",
@@ -745,122 +550,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": ["law_name"]
-                                }
-                            },
-                            {
-                                "name": "search_local_ordinance_tool",
-                                "priority": 2,
-                                "category": "local",
-                                "description": "지방자치단체의 조례, 규칙을 검색합니다. 예: '서울시 조례 검색', '부산시 규칙 찾기'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {
-                                            "type": "string",
-                                            "description": "검색어 (조례명 또는 키워드)"
-                                        },
-                                        "local_government": {
-                                            "type": "string",
-                                            "enum": [
-                                                "서울특별시", "부산광역시", "대구광역시", "인천광역시", 
-                                                "광주광역시", "대전광역시", "울산광역시", "세종특별자치시",
-                                                "경기도", "강원특별자치도", "충청북도", "충청남도", 
-                                                "전북특별자치도", "전라남도", "경상북도", "경상남도", 
-                                                "제주특별자치도",
-                                                "수원시", "성남시", "고양시", "용인시", "부천시", 
-                                                "안산시", "안양시", "남양주시", "화성시", "평택시",
-                                                "의정부시", "시흥시", "김포시", "광명시", "광주시",
-                                                "군포시", "하남시", "오산시", "이천시", "안성시",
-                                                "포천시", "의왕시", "양주시", "구리시", "여주시",
-                                                "양평군", "동두천시", "과천시", "가평군", "연천군",
-                                                "춘천시", "원주시", "강릉시", "동해시", "태백시",
-                                                "속초시", "삼척시", "홍천군", "횡성군", "영월군",
-                                                "평창군", "정선군", "철원군", "화천군", "양구군",
-                                                "인제군", "고성군", "양양군", "청주시", "충주시",
-                                                "제천시", "보은군", "옥천군", "영동군", "증평군",
-                                                "진천군", "괴산군", "음성군", "단양군", "천안시",
-                                                "공주시", "보령시", "아산시", "서산시", "논산시",
-                                                "계룡시", "당진시", "금산군", "부여군", "서천군",
-                                                "청양군", "홍성군", "예산군", "태안군", "전주시",
-                                                "군산시", "익산시", "정읍시", "남원시", "김제시",
-                                                "완주군", "진안군", "무주군", "장수군", "임실군",
-                                                "순창군", "고창군", "부안군", "목포시", "여수시",
-                                                "순천시", "나주시", "광양시", "담양군", "곡성군",
-                                                "구례군", "고흥군", "보성군", "화순군", "장흥군",
-                                                "강진군", "해남군", "영암군", "무안군", "함평군",
-                                                "영광군", "장성군", "완도군", "진도군", "신안군",
-                                                "포항시", "경주시", "김천시", "안동시", "구미시",
-                                                "영주시", "영천시", "상주시", "문경시", "경산시",
-                                                "의성군", "청송군", "영양군", "영덕군", "청도군",
-                                                "고령군", "성주군", "칠곡군", "예천군", "봉화군",
-                                                "울진군", "울릉군", "창원시", "진주시", "통영시",
-                                                "사천시", "김해시", "밀양시", "거제시", "양산시",
-                                                "의령군", "함안군", "창녕군", "고성군", "남해군",
-                                                "하동군", "산청군", "함양군", "거창군", "합천군",
-                                                "제주시", "서귀포시"
-                                            ],
-                                            "description": "지방자치단체명. 특별시/광역시: '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시'. 도: '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도', '전라남도', '경상북도', '경상남도', '제주특별자치도'. 주요 시/군도 포함. 생략 가능."
-                                        },
-                                        "page": {
-                                            "type": "integer",
-                                            "description": "페이지 번호",
-                                            "default": 1,
-                                            "minimum": 1
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "페이지당 결과 수",
-                                            "default": 20,
-                                            "minimum": 1,
-                                            "maximum": 100
-                                        }
-                                    },
-                                    "required": []
-                                }
-                            },
-                            {
-                                "name": "search_administrative_rule_tool",
-                                "priority": 2,
-                                "category": "administrative",
-                                "description": "행정규칙을 검색합니다. 정부 부처의 행정규칙, 훈령, 예규, 고시를 검색할 수 있습니다. 예: '고용노동부 행정규칙', '국세청 훈령 검색'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {
-                                            "type": "string",
-                                            "description": "검색어 (행정규칙명 또는 키워드)"
-                                        },
-                                        "agency": {
-                                            "type": "string",
-                                            "enum": [
-                                                "기획재정부", "국세청", "관세청", "고용노동부", "교육부", 
-                                                "보건복지부", "질병관리청", "식품의약품안전처", "법무부", 
-                                                "외교부", "국방부", "방위사업청", "병무청", "행정안전부", 
-                                                "경찰청", "소방청", "해양경찰청", "문화체육관광부", 
-                                                "농림축산식품부", "농촌진흥청", "산림청", "산업통상부", 
-                                                "중소벤처기업부", "과학기술정보통신부", "국가데이터처", 
-                                                "지식재산처", "기상청", "해양수산부", "국토교통부", 
-                                                "행정중심복합도시건설청", "기후에너지환경부", "통일부", 
-                                                "국가보훈부", "성평등가족부", "재외동포청", "인사혁신처", 
-                                                "법제처", "조달청", "국가유산청"
-                                            ],
-                                            "description": "부처명. 주요 부처: '기획재정부', '국세청', '고용노동부', '교육부', '보건복지부', '법무부', '외교부', '국방부', '행정안전부', '문화체육관광부', '농림축산식품부', '산업통상부', '중소벤처기업부', '과학기술정보통신부', '해양수산부', '국토교통부', '기후에너지환경부', '통일부', '국가보훈부', '성평등가족부' 등. 생략 가능."
-                                        },
-                                        "page": {
-                                            "type": "integer",
-                                            "description": "페이지 번호",
-                                            "default": 1,
-                                            "minimum": 1
-                                        },
-                                        "per_page": {
-                                            "type": "integer",
-                                            "description": "페이지당 결과 수",
-                                            "default": 20,
-                                            "minimum": 1,
-                                            "maximum": 100
-                                        }
-                                    },
-                                    "required": []
                                 }
                             }
                         ]
@@ -984,11 +673,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 logger.debug("Calling search_law_interpretation | query=%s page=%d per_page=%d agency=%s", 
                                            query, page, per_page, agency)
                                 result = await law_interpretation_service.search_law_interpretation(req, None)
-                            elif tool_name == "get_law_interpretation_tool":
-                                interpretation_id = arguments.get("interpretation_id")
-                                req = GetLawInterpretationRequest(interpretation_id=interpretation_id)
-                                logger.debug("Calling get_law_interpretation | interpretation_id=%s", interpretation_id)
-                                result = await law_interpretation_service.get_law_interpretation(req, None)
                             elif tool_name == "search_administrative_appeal_tool":
                                 query = arguments.get("query")
                                 page = arguments.get("page", 1)
@@ -1004,77 +688,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 )
                                 logger.debug("Calling search_administrative_appeal | query=%s page=%d per_page=%d", query, page, per_page)
                                 result = await administrative_appeal_service.search_administrative_appeal(req, None)
-                            elif tool_name == "get_administrative_appeal_tool":
-                                appeal_id = arguments.get("appeal_id")
-                                req = GetAdministrativeAppealRequest(appeal_id=appeal_id)
-                                logger.debug("Calling get_administrative_appeal | appeal_id=%s", appeal_id)
-                                result = await administrative_appeal_service.get_administrative_appeal(req, None)
-                            elif tool_name == "search_committee_decision_tool":
-                                committee_type = arguments.get("committee_type")
-                                query = arguments.get("query")
-                                page = arguments.get("page", 1)
-                                per_page = arguments.get("per_page", 20)
-                                req = SearchCommitteeDecisionRequest(
-                                    committee_type=committee_type,
-                                    query=query,
-                                    page=page,
-                                    per_page=per_page
-                                )
-                                logger.debug("Calling search_committee_decision | committee_type=%s query=%s page=%d per_page=%d", 
-                                           committee_type, query, page, per_page)
-                                result = await committee_decision_service.search_committee_decision(req, None)
-                            elif tool_name == "get_committee_decision_tool":
-                                committee_type = arguments.get("committee_type")
-                                decision_id = arguments.get("decision_id")
-                                req = GetCommitteeDecisionRequest(
-                                    committee_type=committee_type,
-                                    decision_id=decision_id
-                                )
-                                logger.debug("Calling get_committee_decision | committee_type=%s decision_id=%s", committee_type, decision_id)
-                                result = await committee_decision_service.get_committee_decision(req, None)
-                            elif tool_name == "search_constitutional_decision_tool":
-                                query = arguments.get("query")
-                                page = arguments.get("page", 1)
-                                per_page = arguments.get("per_page", 20)
-                                date_from = arguments.get("date_from")
-                                date_to = arguments.get("date_to")
-                                req = SearchConstitutionalDecisionRequest(
-                                    query=query,
-                                    page=page,
-                                    per_page=per_page,
-                                    date_from=date_from,
-                                    date_to=date_to
-                                )
-                                logger.debug("Calling search_constitutional_decision | query=%s page=%d per_page=%d", query, page, per_page)
-                                result = await constitutional_decision_service.search_constitutional_decision(req, None)
-                            elif tool_name == "get_constitutional_decision_tool":
-                                decision_id = arguments.get("decision_id")
-                                req = GetConstitutionalDecisionRequest(decision_id=decision_id)
-                                logger.debug("Calling get_constitutional_decision | decision_id=%s", decision_id)
-                                result = await constitutional_decision_service.get_constitutional_decision(req, None)
-                            elif tool_name == "search_special_administrative_appeal_tool":
-                                tribunal_type = arguments.get("tribunal_type")
-                                query = arguments.get("query")
-                                page = arguments.get("page", 1)
-                                per_page = arguments.get("per_page", 20)
-                                req = SearchSpecialAdministrativeAppealRequest(
-                                    tribunal_type=tribunal_type,
-                                    query=query,
-                                    page=page,
-                                    per_page=per_page
-                                )
-                                logger.debug("Calling search_special_administrative_appeal | tribunal_type=%s query=%s page=%d per_page=%d", 
-                                           tribunal_type, query, page, per_page)
-                                result = await special_administrative_appeal_service.search_special_administrative_appeal(req, None)
-                            elif tool_name == "get_special_administrative_appeal_tool":
-                                tribunal_type = arguments.get("tribunal_type")
-                                appeal_id = arguments.get("appeal_id")
-                                req = GetSpecialAdministrativeAppealRequest(
-                                    tribunal_type=tribunal_type,
-                                    appeal_id=appeal_id
-                                )
-                                logger.debug("Calling get_special_administrative_appeal | tribunal_type=%s appeal_id=%s", tribunal_type, appeal_id)
-                                result = await special_administrative_appeal_service.get_special_administrative_appeal(req, None)
                             elif tool_name == "compare_laws_tool":
                                 law_name = arguments.get("law_name")
                                 compare_type = arguments.get("compare_type", "신구법")
@@ -1084,34 +697,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 )
                                 logger.debug("Calling compare_laws | law_name=%s compare_type=%s", law_name, compare_type)
                                 result = await law_comparison_service.compare_laws(req, None)
-                            elif tool_name == "search_local_ordinance_tool":
-                                query = arguments.get("query")
-                                local_government = arguments.get("local_government")
-                                page = arguments.get("page", 1)
-                                per_page = arguments.get("per_page", 20)
-                                req = SearchLocalOrdinanceRequest(
-                                    query=query,
-                                    local_government=local_government,
-                                    page=page,
-                                    per_page=per_page
-                                )
-                                logger.debug("Calling search_local_ordinance | query=%s local_government=%s page=%d per_page=%d", 
-                                           query, local_government, page, per_page)
-                                result = await local_ordinance_service.search_local_ordinance(req, None)
-                            elif tool_name == "search_administrative_rule_tool":
-                                query = arguments.get("query")
-                                agency = arguments.get("agency")
-                                page = arguments.get("page", 1)
-                                per_page = arguments.get("per_page", 20)
-                                req = SearchAdministrativeRuleRequest(
-                                    query=query,
-                                    agency=agency,
-                                    page=page,
-                                    per_page=per_page
-                                )
-                                logger.debug("Calling search_administrative_rule | query=%s agency=%s page=%d per_page=%d", 
-                                           query, agency, page, per_page)
-                                result = await administrative_rule_service.search_administrative_rule(req, None)
                             elif tool_name.startswith("call_api_"):
                                 # 동적 API 호출 툴
                                 api_id = arguments.get("_api_id")

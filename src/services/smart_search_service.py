@@ -632,14 +632,156 @@ class SmartSearchService:
                 else:
                     failed_types.append(search_type)
         
+        # sources_count 계산
+        sources_count = {
+            "law": 0,
+            "precedent": 0,
+            "interpretation": 0,
+            "administrative_appeal": 0,
+            "constitutional": 0,
+            "committee": 0,
+            "special_appeal": 0,
+            "ordinance": 0,
+            "rule": 0
+        }
+        
+        for search_type, result in results.items():
+            if isinstance(result, dict):
+                if search_type == "law":
+                    if "laws" in result:
+                        sources_count["law"] = len(result.get("laws", []))
+                    elif "law_name" in result:
+                        sources_count["law"] = 1
+                elif search_type == "precedent" and "precedents" in result:
+                    sources_count["precedent"] = len(result.get("precedents", []))
+                elif search_type == "interpretation" and "interpretations" in result:
+                    sources_count["interpretation"] = len(result.get("interpretations", []))
+                elif search_type == "administrative_appeal" and "appeals" in result:
+                    sources_count["administrative_appeal"] = len(result.get("appeals", []))
+                elif search_type == "constitutional" and "decisions" in result:
+                    sources_count["constitutional"] = len(result.get("decisions", []))
+                elif search_type == "committee" and "decisions" in result:
+                    sources_count["committee"] = len(result.get("decisions", []))
+                elif search_type == "special_appeal" and "appeals" in result:
+                    sources_count["special_appeal"] = len(result.get("appeals", []))
+                elif search_type == "ordinance" and "ordinances" in result:
+                    sources_count["ordinance"] = len(result.get("ordinances", []))
+                elif search_type == "rule" and "rules" in result:
+                    sources_count["rule"] = len(result.get("rules", []))
+        
+        # has_legal_basis 판단
+        total_sources = sum(sources_count.values())
+        has_legal_basis = total_sources > 0
+        
+        # missing_reason 판단
+        missing_reason = None
+        if not has_legal_basis:
+            import os
+            api_key = os.environ.get("LAW_API_KEY", "")
+            if not api_key:
+                missing_reason = "API_NOT_READY"
+            else:
+                missing_reason = "NO_MATCH"
+        
+        # citations 생성
+        citations = []
+        for search_type, result in results.items():
+            if isinstance(result, dict):
+                if search_type == "law" and "law_name" in result:
+                    citations.append({
+                        "type": "law",
+                        "id": result.get("law_id"),
+                        "name": result.get("law_name"),
+                        "source": "국가법령정보센터"
+                    })
+                elif search_type == "precedent" and "precedents" in result:
+                    for prec in result.get("precedents", [])[:3]:
+                        citations.append({
+                            "type": "precedent",
+                            "id": prec.get("precedent_id"),
+                            "case_number": prec.get("case_number"),
+                            "court": prec.get("court_name"),
+                            "date": prec.get("judgment_date"),
+                            "source": "대법원/법원"
+                        })
+                elif search_type == "interpretation" and "interpretations" in result:
+                    for interp in result.get("interpretations", [])[:3]:
+                        citations.append({
+                            "type": "interpretation",
+                            "id": interp.get("interpretation_id"),
+                            "agency": interp.get("agency_name"),
+                            "date": interp.get("issue_date"),
+                            "source": "정부 부처"
+                        })
+        
+        # one_line_answer 생성 (근거 있을 때만)
+        one_line_answer = None
+        if has_legal_basis:
+            if "law" in results and results["law"]:
+                law_result = results["law"]
+                if "article" in law_result:
+                    article = law_result["article"]
+                    one_line_answer = f"{law_result.get('law_name', '법령')} {article.get('article_number', '')}: {article.get('content', '')[:100]}..."
+                elif "law_name" in law_result:
+                    one_line_answer = f"{law_result.get('law_name', '법령')} 관련 정보를 찾았습니다."
+            elif "precedent" in results and results["precedent"]:
+                prec_result = results["precedent"]
+                if "precedents" in prec_result and prec_result["precedents"]:
+                    prec = prec_result["precedents"][0]
+                    one_line_answer = f"{prec.get('case_number', '')} 사건: {prec.get('case_name', '')[:100]}..."
+        
+        # next_questions 생성 (사실관계 질문 5개)
+        next_questions = []
+        if detected_domains:
+            domain = detected_domains[0]
+            if domain == "노동":
+                next_questions = [
+                    "근로 기간은 얼마나 되나요?",
+                    "해고 사유는 무엇인가요?",
+                    "퇴직금 지급 여부는 어떻게 되나요?",
+                    "근로계약서에 명시된 내용은 무엇인가요?",
+                    "노동위원회에 신고하셨나요?"
+                ]
+            elif domain == "개인정보":
+                next_questions = [
+                    "개인정보 유출 경로는 무엇인가요?",
+                    "유출된 정보의 종류는 무엇인가요?",
+                    "유출 사실을 언제 알게 되셨나요?",
+                    "개인정보보호위원회에 신고하셨나요?",
+                    "피해 규모는 어느 정도인가요?"
+                ]
+            elif domain == "세금":
+                next_questions = [
+                    "부과된 세금의 종류는 무엇인가요?",
+                    "세금 부과 근거는 무엇인가요?",
+                    "이의신청 기간은 언제까지인가요?",
+                    "조세심판원에 심판을 제기하셨나요?",
+                    "관련 서류는 준비되어 있나요?"
+                ]
+            else:
+                next_questions = [
+                    "구체적인 상황을 더 자세히 설명해주세요.",
+                    "관련 서류나 증거가 있나요?",
+                    "언제부터 문제가 시작되었나요?",
+                    "관련 기관에 신고하셨나요?",
+                    "피해 규모는 어느 정도인가요?"
+                ]
+        
         response = {
+            "success": True,
+            "has_legal_basis": has_legal_basis,
             "query": query,
             "detected_intents": search_types,
             "results": results,
             "total_types": len(results),
             "successful_types": successful_types,
             "failed_types": failed_types if failed_types else None,
-            "partial_success": partial_success or (successful_types and failed_types)
+            "partial_success": partial_success or (successful_types and failed_types),
+            "sources_count": sources_count,
+            "missing_reason": missing_reason,
+            "citations": citations[:10],  # 최대 10개
+            "one_line_answer": one_line_answer,
+            "next_questions": next_questions[:5]  # 최대 5개
         }
         
         # 안내 메시지 추가
