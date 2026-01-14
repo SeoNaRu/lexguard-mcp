@@ -411,7 +411,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         "use_fallback": {
                                             "type": "boolean",
                                             "description": "다단계 fallback 전략 사용 여부 (검색 결과가 0일 때 자동으로 동의어 확장, 날짜 범위 확장 등을 시도)",
-                                            "default": false
+                                            "default": False
                                         },
                                         "issue_type": {
                                             "type": "string",

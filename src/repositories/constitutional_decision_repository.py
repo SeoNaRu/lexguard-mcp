@@ -91,21 +91,37 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                 if "DetcSearch" in data:
                     detc_search = data["DetcSearch"]
                     if isinstance(detc_search, dict):
-                        result["total"] = detc_search.get("totalCnt", 0)
+                        total_raw = detc_search.get("totalCnt", 0)
+                        try:
+                            result["total"] = int(total_raw)
+                        except (TypeError, ValueError):
+                            result["total"] = 0
                         decisions = detc_search.get("detc", [])
                     else:
                         decisions = []
                 elif "detc" in data:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     decisions = data.get("detc", [])
                 else:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     decisions = data.get("detc", [])
                 
                 if not isinstance(decisions, list):
                     decisions = [decisions] if decisions else []
                 
                 result["decisions"] = decisions[:per_page]
+            
+            # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
+            if result["total"] and not result["decisions"]:
+                result["note"] = "API 응답에서 totalCnt는 있으나 헌재결정 목록(detc)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
             
             search_cache[cache_key] = result
             return result

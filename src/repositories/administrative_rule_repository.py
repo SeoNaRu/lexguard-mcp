@@ -97,21 +97,37 @@ class AdministrativeRuleRepository(BaseLawRepository):
                 if "AdmrulSearch" in data:
                     admrul_search = data["AdmrulSearch"]
                     if isinstance(admrul_search, dict):
-                        result["total"] = admrul_search.get("totalCnt", 0)
+                        total_raw = admrul_search.get("totalCnt", 0)
+                        try:
+                            result["total"] = int(total_raw)
+                        except (TypeError, ValueError):
+                            result["total"] = 0
                         rules = admrul_search.get("admrul", [])
                     else:
                         rules = []
                 elif "admrul" in data:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     rules = data.get("admrul", [])
                 else:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     rules = data.get("admrul", [])
                 
                 if not isinstance(rules, list):
                     rules = [rules] if rules else []
                 
                 result["rules"] = rules[:per_page]
+            
+            # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
+            if result["total"] and not result["rules"]:
+                result["note"] = "API 응답에서 totalCnt는 있으나 행정규칙 목록(admrul)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
             
             search_cache[cache_key] = result
             return result

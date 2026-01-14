@@ -127,15 +127,27 @@ class PrecedentRepository(BaseLawRepository):
                 if "PrecSearch" in data:
                     prec_search = data["PrecSearch"]
                     if isinstance(prec_search, dict):
-                        result["total"] = prec_search.get("totalCnt", 0)
+                        total_raw = prec_search.get("totalCnt", 0)
+                        try:
+                            result["total"] = int(total_raw)
+                        except (TypeError, ValueError):
+                            result["total"] = 0
                         precedents = prec_search.get("prec", [])
                     else:
                         precedents = []
                 elif "prec" in data:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     precedents = data.get("prec", [])
                 else:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     precedents = data.get("prec", [])
                 
                 if not isinstance(precedents, list):
@@ -145,6 +157,9 @@ class PrecedentRepository(BaseLawRepository):
             
             if result["total"] == 0:
                 result["message"] = "검색 결과가 없습니다."
+            elif result["total"] and not result["precedents"]:
+                # total은 있는데 목록이 비어 있는 경우, 디버깅용 메타 정보 추가
+                result["note"] = "API 응답에서 totalCnt는 있으나 개별 판례 목록(prec)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
             
             search_cache[cache_key] = result
             logger.debug("API call successful for precedent search | total=%d", result["total"])
@@ -249,15 +264,27 @@ class PrecedentRepository(BaseLawRepository):
                 if "PrecSearch" in data:
                     prec_search = data["PrecSearch"]
                     if isinstance(prec_search, dict):
-                        result["total"] = prec_search.get("totalCnt", 0)
+                        total_raw = prec_search.get("totalCnt", 0)
+                        try:
+                            result["total"] = int(total_raw)
+                        except (TypeError, ValueError):
+                            result["total"] = 0
                         precedents = prec_search.get("prec", [])
                     else:
                         precedents = []
                 elif "prec" in data:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     precedents = data.get("prec", [])
                 else:
-                    result["total"] = data.get("totalCnt", 0)
+                    total_raw = data.get("totalCnt", 0)
+                    try:
+                        result["total"] = int(total_raw)
+                    except (TypeError, ValueError):
+                        result["total"] = 0
                     precedents = data.get("prec", [])
                 
                 if not isinstance(precedents, list):

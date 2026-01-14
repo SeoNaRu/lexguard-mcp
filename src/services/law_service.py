@@ -57,7 +57,8 @@ class LawService:
             normalized_ho = normalize_ho(req.ho) if req.ho else None
             normalized_mok = normalize_mok(req.mok) if req.mok else None
             
-            return await asyncio.to_thread(
+            # Repository에서 원본 결과 조회
+            raw_result = await asyncio.to_thread(
                 self.repository.get_law,
                 req.law_id,
                 req.law_name,
@@ -68,6 +69,67 @@ class LawService:
                 normalized_mok,
                 arguments
             )
+            
+            # 에러면 그대로 반환
+            if isinstance(raw_result, dict) and "error" in raw_result:
+                return raw_result
+            
+            # MCP 툴 스키마(get_law_tool)에 맞게 응답 형태를 정규화
+            mode = req.mode or "detail"
+            
+            # 상세 조회: detail 필드에 전체 상세 정보 배치
+            if mode == "detail":
+                return {
+                    "law_name": raw_result.get("law_name") or req.law_name,
+                    "law_id": raw_result.get("law_id") or req.law_id,
+                    "mode": "detail",
+                    "detail": raw_result,
+                    "articles": None,
+                    "article": None,
+                    "api_url": raw_result.get("api_url")
+                }
+            
+            # 전체 조문 조회: articles 배열에 조문 목록 배치
+            if mode == "articles":
+                return {
+                    "law_name": raw_result.get("law_name") or req.law_name,
+                    "law_id": raw_result.get("law_id") or req.law_id,
+                    "mode": "articles",
+                    "detail": None,
+                    "articles": raw_result.get("articles", []),
+                    "article": None,
+                    "api_url": raw_result.get("api_url")
+                }
+            
+            # 단일 조문 조회: article 객체로 래핑
+            if mode == "single":
+                # repository.get_law(mode='single')는 get_single_article의 결과를 그대로 반환하므로,
+                # 이를 article 필드 안으로 넣어준다.
+                article_obj = {
+                    "law_id": raw_result.get("law_id") or req.law_id,
+                    "article_number": raw_result.get("article_number") or normalized_article_number,
+                    "hang": raw_result.get("hang") or normalized_hang,
+                    "ho": raw_result.get("ho") or normalized_ho,
+                    "mok": raw_result.get("mok") or normalized_mok,
+                    "title": raw_result.get("title"),
+                    "content": raw_result.get("content"),
+                    "api_url": raw_result.get("api_url"),
+                    "note": raw_result.get("note"),
+                    "raw_data": raw_result.get("raw_data")
+                }
+                
+                return {
+                    "law_name": req.law_name,
+                    "law_id": article_obj["law_id"],
+                    "mode": "single",
+                    "detail": None,
+                    "articles": None,
+                    "article": article_obj,
+                    "api_url": raw_result.get("api_url")
+                }
+            
+            # 알 수 없는 mode는 Repository의 원본 결과를 그대로 반환 (하위 호환)
+            return raw_result
         except Exception as e:
             return {
                 "error": f"법령 조회 중 오류 발생: {str(e)}",
