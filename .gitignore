@@ -57,5 +57,5 @@ start_server.ps1
 # railway.json
 
 # Development intermediate documents (not needed for end users)
-docs/development/
+docs/
 

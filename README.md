@@ -102,9 +102,25 @@ python -m src.main
 
 ## 🔌 MCP 클라이언트 설정
 
-### Claude Desktop
+### 원격 서버 사용 (권장)
 
-`claude_desktop_config.json`에 다음을 추가합니다:
+배포된 서버를 사용하는 경우:
+
+**Claude Desktop 설정:**
+
+```json
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "url": "https://lexguard-mcp.onrender.com/mcp"
+    }
+  }
+}
+```
+
+### 로컬 서버 사용
+
+로컬에서 실행하는 경우:
 
 **파일 위치:**
 
@@ -128,21 +144,64 @@ python -m src.main
 }
 ```
 
+### Cursor 설정
+
+Cursor에서 MCP 서버를 사용하려면 Settings → MCP Servers에서 위 설정을 추가하세요.
+
 ### ChatGPT / Gemini 설정
 
 ChatGPT나 Gemini에서 MCP 서버를 사용하려면 각 플랫폼의 MCP 설정 방법을 참고하세요.
 
 ## 🧰 제공 툴
 
-현재 **7개의 핵심 툴**을 제공합니다:
+현재 **20개의 툴**을 제공합니다:
 
-1. **`health`** - 서비스 상태 확인
-2. **`search_law_tool`** - 법령 검색
-3. **`list_law_names_tool`** - 법령명 목록 조회
-4. **`get_law_detail_tool`** - 법령 상세 정보 조회
-5. **`get_law_articles_tool`** - 법령 조문 전체 목록 조회
-6. **`get_single_article_tool`** - 단일 조문 조회
-7. **`list_available_apis`** - 사용 가능한 API 목록 조회 (159개)
+### 통합 검색 툴 (우선 사용 권장)
+
+1. **`smart_search_tool`** - 통합 검색 (법령, 판례, 해석 등 자동 검색)
+2. **`situation_guidance_tool`** - 상황별 가이드 (법적 상황 종합 분석)
+
+### 법령 관련 툴
+
+3. **`search_law_tool`** - 법령 검색
+4. **`get_law_tool`** - 법령 조회 (상세/전체 조문/단일 조문)
+
+### 판례 관련 툴
+
+5. **`search_precedent_tool`** - 판례 검색
+6. **`get_precedent_tool`** - 판례 상세 조회
+
+### 법령해석 관련 툴
+
+7. **`search_law_interpretation_tool`** - 법령해석 검색
+8. **`get_law_interpretation_tool`** - 법령해석 상세 조회
+
+### 행정심판 관련 툴
+
+9. **`search_administrative_appeal_tool`** - 행정심판 검색
+10. **`get_administrative_appeal_tool`** - 행정심판 상세 조회
+
+### 위원회 결정 관련 툴
+
+11. **`search_committee_decision_tool`** - 위원회 결정문 검색
+12. **`get_committee_decision_tool`** - 위원회 결정문 상세 조회
+
+### 헌법재판소 관련 툴
+
+13. **`search_constitutional_decision_tool`** - 헌재결정 검색
+14. **`get_constitutional_decision_tool`** - 헌재결정 상세 조회
+
+### 특별행정심판 관련 툴
+
+15. **`search_special_administrative_appeal_tool`** - 특별행정심판 검색
+16. **`get_special_administrative_appeal_tool`** - 특별행정심판 상세 조회
+
+### 기타 툴
+
+17. **`compare_laws_tool`** - 법령 비교 (신구법, 연혁)
+18. **`search_local_ordinance_tool`** - 지방자치단체 조례/규칙 검색
+19. **`search_administrative_rule_tool`** - 행정규칙 검색
+20. **`health`** - 서비스 상태 확인
 
 **상세 정보**: MCP 서버의 `tools/list` 엔드포인트를 통해 확인할 수 있습니다.
 
@@ -151,21 +210,25 @@ ChatGPT나 Gemini에서 MCP 서버를 사용하려면 각 플랫폼의 MCP 설�
 모든 가이드 문서는 [`docs/guides/`](./docs/guides/) 폴더에 있습니다.
 
 ### 주요 가이드
+
 - **[해커톤 제출 가이드](./docs/guides/HACKATHON_GUIDE.md)** - 해커톤 제출 전 체크리스트 ⭐
 - **[배포 가이드](./docs/guides/DEPLOYMENT_GUIDE.md)** - 원격 서버 배포 가이드 ⭐
 - **[검증 체크리스트](./docs/guides/VERIFICATION_CHECKLIST.md)** - 해커톤 제출 전 검증 체크리스트
 - **[MCP Inspector 가이드](./docs/guides/MCP_INSPECTOR_GUIDE.md)** - MCP Inspector 검증 가이드
 
 ### 개발 가이드
+
 - **[툴 추가 가이드](./docs/guides/TOOL_ADDITION_GUIDE.md)** - 새 툴 추가 방법
 - **[개발 가이드](./docs/guides/LEXGUARD_TOOL_GUIDE.md)** - 개발 가이드
 - **[MCP 규격 준수](./docs/guides/MCP_COMPLIANCE_RULES.md)** - MCP 심사 가이드
 
 ### 기능 가이드
+
 - **[스마트 검색 가이드](./docs/guides/SMART_SEARCH_GUIDE.md)** - 스마트 검색 사용법
 - **[상황별 가이드](./docs/guides/SITUATION_GUIDANCE_GUIDE.md)** - 상황별 가이드 사용법
 
 ### 문제 해결
+
 - **[문제 해결 가이드](./docs/guides/TROUBLESHOOTING.md)** - 자주 발생하는 문제 해결
 
 **전체 문서 목록**: [`docs/guides/README.md`](./docs/guides/README.md)
@@ -234,9 +297,17 @@ LexGuardMcp/
 
 - `.env` 파일 (개인 API 키 포함)
 
+## 🌐 배포 상태
+
+**배포 완료**: 서버가 Render에 배포되어 공개 URL로 접근 가능합니다.
+
+- **서버 URL**: `https://lexguard-mcp.onrender.com`
+- **MCP 엔드포인트**: `https://lexguard-mcp.onrender.com/mcp`
+- **Health Check**: `https://lexguard-mcp.onrender.com/health`
+
 ## 🏆 해커톤 제출
 
-해커톤에 제출하기 전에 [HACKATHON_GUIDE.md](./HACKATHON_GUIDE.md)를 확인하세요.
+해커톤에 제출하기 전에 [해커톤 제출 가이드](./docs/guides/HACKATHON_GUIDE.md)를 확인하세요.
 
 ## 📝 라이선스
 

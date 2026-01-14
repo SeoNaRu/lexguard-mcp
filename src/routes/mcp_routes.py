@@ -238,7 +238,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "health",
                                 "priority": 2,
                                 "category": "utility",
-                                "description": "서비스 상태 확인 (API 키 설정 등)",
+                                "description": "서비스 상태를 확인합니다. API 키 설정 상태, 환경 변수, 서버 상태 등을 확인할 때 사용합니다. 예: '서버 상태 확인', 'API 키 설정 확인'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {},
@@ -416,7 +416,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_precedent_tool",
                                 "priority": 2,
                                 "category": "precedent",
-                                "description": "판례 상세 정보를 조회합니다. 판례 ID 또는 사건번호로 조회할 수 있습니다.",
+                                "description": "판례 상세 정보를 조회합니다. 판례 ID 또는 사건번호로 조회할 수 있습니다. 유사한 사건의 판례를 찾은 후 상세 내용을 확인할 때 사용합니다. 예: '판례 ID 123456 상세 내용 확인', '사건번호 2020다12345 판례 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -436,7 +436,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "search_law_interpretation_tool",
                                 "priority": 2,
                                 "category": "interpretation",
-                                "description": "법령해석을 검색합니다. 정부 기관의 공식 법령 해석을 확인할 때 사용합니다.",
+                                "description": "법령해석을 검색합니다. 정부 기관의 공식 법령 해석을 확인할 때 사용합니다. 특정 법령에 대한 정부의 공식 해석이나 의견을 찾을 때 사용합니다. 예: '개인정보보호법 해석 검색', '소득세 관련 법령해석 찾기', '고용노동부 법령해석 확인'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -481,7 +481,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_law_interpretation_tool",
                                 "priority": 2,
                                 "category": "interpretation",
-                                "description": "법령해석 상세 정보를 조회합니다. 예: '법령해석 ID 123456 상세 내용 확인', '고용노동부 법령해석 상세 조회'.",
+                                "description": "법령해석 상세 정보를 조회합니다. 법령해석 검색 결과에서 특정 해석의 상세 내용을 확인할 때 사용합니다. 예: '법령해석 ID 123456 상세 내용 확인', '고용노동부 법령해석 상세 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -497,7 +497,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "search_administrative_appeal_tool",
                                 "priority": 2,
                                 "category": "administrative",
-                                "description": "행정심판 사례를 검색합니다. 예: '행정심판 사례 검색', '2020년 행정심판 재결례 찾기'.",
+                                "description": "행정심판 사례를 검색합니다. 행정기관의 처분이나 부작위에 대한 심판 사례를 찾을 때 사용합니다. 유사한 행정심판 사례를 참고하거나 선례를 확인할 때 사용합니다. 예: '행정심판 사례 검색', '2020년 행정심판 재결례 찾기', '세금 관련 행정심판 사례'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -534,7 +534,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_administrative_appeal_tool",
                                 "priority": 2,
                                 "category": "administrative",
-                                "description": "행정심판 상세 정보를 조회합니다. 예: '행정심판 ID 123456 상세 내용', '재결례 일련번호로 상세 조회'.",
+                                "description": "행정심판 상세 정보를 조회합니다. 행정심판 검색 결과에서 특정 심판의 상세 내용과 재결 내용을 확인할 때 사용합니다. 예: '행정심판 ID 123456 상세 내용', '재결례 일련번호로 상세 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -584,7 +584,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_committee_decision_tool",
                                 "priority": 2,
                                 "category": "administrative",
-                                "description": "위원회 결정문 상세 정보를 조회합니다. 예: '개인정보보호위원회 결정문 ID 123456 상세 내용', '금융위원회 결정문 상세 조회'.",
+                                "description": "위원회 결정문 상세 정보를 조회합니다. 위원회 결정문 검색 결과에서 특정 결정문의 상세 내용을 확인할 때 사용합니다. 예: '개인정보보호위원회 결정문 ID 123456 상세 내용', '금융위원회 결정문 상세 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -605,7 +605,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "search_constitutional_decision_tool",
                                 "priority": 2,
                                 "category": "constitutional",
-                                "description": "헌법재판소 결정례를 검색합니다. 예: '헌재결정례 검색', '위헌 결정례 찾기', '2020년 헌재결정 확인'.",
+                                "description": "헌법재판소 결정례를 검색합니다. 법률이나 행정처분의 위헌 여부를 확인하거나 헌법재판소의 결정례를 참고할 때 사용합니다. 예: '헌재결정례 검색', '위헌 결정례 찾기', '2020년 헌재결정 확인', '개인정보보호법 위헌 결정'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -642,7 +642,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_constitutional_decision_tool",
                                 "priority": 2,
                                 "category": "constitutional",
-                                "description": "헌법재판소 결정 상세 정보를 조회합니다. 예: '헌재결정 ID 123456 상세 내용', '헌재결정례 일련번호로 상세 조회'.",
+                                "description": "헌법재판소 결정 상세 정보를 조회합니다. 헌재결정 검색 결과에서 특정 결정의 상세 내용과 결정 이유를 확인할 때 사용합니다. 예: '헌재결정 ID 123456 상세 내용', '헌재결정례 일련번호로 상세 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -658,7 +658,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "search_special_administrative_appeal_tool",
                                 "priority": 2,
                                 "category": "administrative",
-                                "description": "특별행정심판을 검색합니다. 조세심판원, 해양안전심판원 등 특별행정심판원의 재결례를 검색할 수 있습니다. 예: '조세심판원 재결례 검색', '해양안전심판원 특별행정심판 찾기'.",
+                                "description": "특별행정심판을 검색합니다. 조세심판원, 해양안전심판원 등 특별행정심판원의 재결례를 검색할 수 있습니다. 세금 관련 분쟁이나 해양사고 관련 심판 사례를 찾을 때 사용합니다. 예: '조세심판원 재결례 검색', '해양안전심판원 특별행정심판 찾기', '소득세 관련 조세심판 사례'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -692,7 +692,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "get_special_administrative_appeal_tool",
                                 "priority": 2,
                                 "category": "administrative",
-                                "description": "특별행정심판 상세 정보를 조회합니다. 예: '조세심판원 재결례 ID 123456 상세 내용', '특별행정심판 상세 조회'.",
+                                "description": "특별행정심판 상세 정보를 조회합니다. 특별행정심판 검색 결과에서 특정 심판의 상세 내용과 재결 내용을 확인할 때 사용합니다. 예: '조세심판원 재결례 ID 123456 상세 내용', '특별행정심판 상세 조회'.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
