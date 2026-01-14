@@ -33,6 +33,10 @@ register_http_routes(api, law_service, health_service)
 if __name__ == "__main__":
     # Streamable HTTP 모드로 실행 (MCP 규칙 준수)
     import uvicorn
+    import logging
+    import signal
+    import atexit
+    
     port = int(os.environ.get('PORT', 8099))
     
     print("한국 법령 MCP 서버 시작 중...", file=sys.stderr)
@@ -46,4 +50,47 @@ if __name__ == "__main__":
     # 개발 환경에서는 reload=True로 설정 (코드 변경 시 자동 재시작)
     # 프로덕션에서는 환경 변수로 reload=False 설정
     reload = os.environ.get('RELOAD', 'true').lower() == 'true'
-    uvicorn.run("src.main:api", host="0.0.0.0", port=port, reload=reload)
+    
+    # uvicorn access log 필터링: Health Check 요청 제외
+    class HealthCheckFilter(logging.Filter):
+        """Health Check 요청을 access log에서 필터링"""
+        def filter(self, record):
+            # uvicorn access log 형식: "GET /health HTTP/1.1" 200 OK
+            message = record.getMessage()
+            # Health Check 경로나 render-health-check 헤더가 있는 요청은 로깅하지 않음
+            if "/health" in message or "render-health-check" in message:
+                return False
+            return True
+    
+    # uvicorn access logger에 필터 추가
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.addFilter(HealthCheckFilter())
+    
+    # Graceful shutdown 핸들러
+    def signal_handler(signum, frame):
+        """시그널 핸들러: 서버 종료 시 로그 출력"""
+        logger.info(f"🛑 종료 시그널 수신: {signum}")
+        logger.info("서버 종료 중...")
+        sys.exit(0)
+    
+    # SIGTERM, SIGINT 핸들러 등록 (Render가 SIGTERM을 보냄)
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # 종료 시 실행되는 핸들러
+    def exit_handler():
+        logger.info("🛑 서버 종료 완료")
+    
+    atexit.register(exit_handler)
+    
+    # uvicorn 실행 (graceful shutdown 활성화)
+    config = uvicorn.Config(
+        "src.main:api",
+        host="0.0.0.0",
+        port=port,
+        reload=reload,
+        log_level="info",
+        access_log=True,
+    )
+    server = uvicorn.Server(config)
+    server.run()

@@ -35,6 +35,8 @@ class HealthService:
             }
         }
         
+        # Health Check는 항상 HTTP 200을 반환해야 함 (Render가 스핀다운 방지)
+        # status가 "ok"가 아니어도 200을 반환하여 서버가 살아있음을 알림
         return {
             "status": "ok",
             "environment": {
@@ -54,6 +56,7 @@ class HealthService:
                 "api_ready": True
             },
             "message": "한국 법령 MCP 서버가 정상적으로 실행 중입니다.",
-            "note": "LAW_API_KEY가 설정되어 있으면 모든 API 요청의 OC 파라미터에 자동으로 포함됩니다."
+            "note": "LAW_API_KEY가 설정되어 있으면 모든 API 요청의 OC 파라미터에 자동으로 포함됩니다.",
+            "server": "active"  # Render Health Check를 위한 명시적 상태 표시
         }
 

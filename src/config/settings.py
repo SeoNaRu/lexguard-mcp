@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 # Load .env file
 load_dotenv()
@@ -31,7 +32,17 @@ def setup_logging() -> logging.Logger:
 
 def get_api() -> FastAPI:
     """FastAPI 앱 인스턴스 반환"""
-    api = FastAPI()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """서버 시작/종료 시 실행되는 lifespan 이벤트"""
+        # 서버 시작 시
+        logger = logging.getLogger("lexguard-mcp")
+        logger.info("🚀 LexGuard MCP 서버 시작")
+        yield
+        # 서버 종료 시
+        logger.info("🛑 LexGuard MCP 서버 종료 중...")
+    
+    api = FastAPI(lifespan=lifespan)
     
     # CORS 설정 추가 (Cursor 등 클라이언트에서 접근 가능하도록)
     api.add_middleware(

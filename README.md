@@ -205,34 +205,6 @@ ChatGPT나 Gemini에서 MCP 서버를 사용하려면 각 플랫폼의 MCP 설�
 
 **상세 정보**: MCP 서버의 `tools/list` 엔드포인트를 통해 확인할 수 있습니다.
 
-## 📚 문서
-
-모든 가이드 문서는 [`docs/guides/`](./docs/guides/) 폴더에 있습니다.
-
-### 주요 가이드
-
-- **[해커톤 제출 가이드](./docs/guides/HACKATHON_GUIDE.md)** - 해커톤 제출 전 체크리스트 ⭐
-- **[배포 가이드](./docs/guides/DEPLOYMENT_GUIDE.md)** - 원격 서버 배포 가이드 ⭐
-- **[검증 체크리스트](./docs/guides/VERIFICATION_CHECKLIST.md)** - 해커톤 제출 전 검증 체크리스트
-- **[MCP Inspector 가이드](./docs/guides/MCP_INSPECTOR_GUIDE.md)** - MCP Inspector 검증 가이드
-
-### 개발 가이드
-
-- **[툴 추가 가이드](./docs/guides/TOOL_ADDITION_GUIDE.md)** - 새 툴 추가 방법
-- **[개발 가이드](./docs/guides/LEXGUARD_TOOL_GUIDE.md)** - 개발 가이드
-- **[MCP 규격 준수](./docs/guides/MCP_COMPLIANCE_RULES.md)** - MCP 심사 가이드
-
-### 기능 가이드
-
-- **[스마트 검색 가이드](./docs/guides/SMART_SEARCH_GUIDE.md)** - 스마트 검색 사용법
-- **[상황별 가이드](./docs/guides/SITUATION_GUIDANCE_GUIDE.md)** - 상황별 가이드 사용법
-
-### 문제 해결
-
-- **[문제 해결 가이드](./docs/guides/TROUBLESHOOTING.md)** - 자주 발생하는 문제 해결
-
-**전체 문서 목록**: [`docs/guides/README.md`](./docs/guides/README.md)
-
 ## 🏗️ 프로젝트 구조
 
 ```
@@ -271,11 +243,104 @@ LexGuardMcp/
 
 ## 🎯 사용 사례
 
-### 일반인 사용자
+### 🧑‍💼 일반인 사용 예시
 
-- "형법 제1조 내용 알려줘"
-- "개인정보보호법 관련 법령 검색해줘"
-- "근로기준법에서 해고 관련 조문 찾아줘"
+#### 🔍 통합 검색 툴 (가장 많이 사용)
+
+**smart_search_tool** - 법적으로 문제가 있는지 확인하고 싶을 때
+
+- "이 계약서 괜찮은 거야?"
+- "회사에서 갑자기 계약 끝낸다는데 이거 문제 없어?"
+- "프리랜서인데 출근 시간 정해놓고 일 시키면 괜찮은 거야?"
+- "이거 불공정 계약 같은데 관련 법 있어?"
+
+**situation_guidance_tool** - 내 상황에 맞는 법적 정보가 필요할 때
+
+- "회사에서 해고 통보 받았는데 이유를 안 알려줘"
+- "집주인이 보증금 못 준다는데 이게 가능한 거야?"
+- "일은 직원처럼 하는데 계약은 용역이래"
+
+#### 📖 법령 검색 및 조회
+
+**search_law_tool** - 법 이름을 몰라도 키워드로 검색
+
+- "해고 관련된 법 뭐 있어?"
+- "전세 보증금 보호하는 법 찾아줘"
+- "프리랜서 보호해주는 법 있어?"
+
+**get_law_tool** - 특정 법령의 조문 확인
+
+- "근로기준법에서 해고 관련 조항 보여줘"
+- "계약 일방 해지에 관한 법 조항 알려줘"
+- "손해배상 관련 민법 조문 뭐야?"
+
+#### ⚖️ 판례 검색
+
+**search_precedent_tool** - 유사한 사건의 판례 찾기
+
+- "회사 마음대로 계약 끊은 판례 있어?"
+- "프리랜서인데 근로자로 인정된 사례"
+- "불공정 계약 무효된 사례"
+
+**get_precedent_tool** - 판례 상세 내용 확인
+
+- "아까 말한 판례 내용 좀 더 알려줘"
+- "법원이 어떤 점을 중요하게 봤어?"
+
+#### 🧾 법령해석 및 행정심판
+
+**search_law_interpretation_tool** - 정부의 공식 해석 확인
+
+- "이 법을 정부에서는 어떻게 보고 있어?"
+- "근로자 기준에 대한 공식 해석 있어?"
+
+**search_administrative_appeal_tool** - 행정기관 처분 관련 사례
+
+- "구청 결정에 이의 제기한 사례 있어?"
+- "과태료 부과 취소된 경우 있어?"
+
+**search_committee_decision_tool** - 위원회 결정문 검색
+
+- "위원회에서 판단한 사례 있어?"
+- "분쟁 조정 같은 거에서 나온 결정문"
+
+#### ⚖️ 헌법재판소 결정
+
+**search_constitutional_decision_tool** - 위헌 여부 확인
+
+- "이 법이 헌법에 어긋난다고 나온 적 있어?"
+- "재산권 침해라고 인정된 사례"
+
+#### 🔄 기타 기능
+
+**compare_laws_tool** - 법령 변경사항 확인
+
+- "이 법 예전이랑 지금 뭐가 달라?"
+- "최근에 바뀐 해고 관련 법 내용"
+
+**search_local_ordinance_tool** - 지방자치단체 조례/규칙
+
+- "서울시 전세 관련 조례 있어?"
+- "우리 구청에서 따로 정한 규칙 있어?"
+
+**search_administrative_rule_tool** - 행정규칙 검색
+
+- "부처 내부 규정 같은 것도 있어?"
+- "행정기관이 실제로 따르는 기준 뭐야?"
+
+### 🔑 핵심 사용 패턴
+
+일반인은 **툴을 직접 고르지 않고**, 자연스러운 질문을 합니다:
+
+```
+일반인 질문 (애매하고, 상황 중심, 감정 포함)
+  ↓
+smart_search_tool / situation_guidance_tool (자동 선택)
+  ↓
+필요 시 개별 검색 툴로 상세 조회
+```
+
+이 구조로 **"법을 아는 사람"도, "아예 모르는 사람"도 모두 사용 가능**합니다.
 
 ### 개발자
 
@@ -304,10 +369,6 @@ LexGuardMcp/
 - **서버 URL**: `https://lexguard-mcp.onrender.com`
 - **MCP 엔드포인트**: `https://lexguard-mcp.onrender.com/mcp`
 - **Health Check**: `https://lexguard-mcp.onrender.com/health`
-
-## 🏆 해커톤 제출
-
-해커톤에 제출하기 전에 [해커톤 제출 가이드](./docs/guides/HACKATHON_GUIDE.md)를 확인하세요.
 
 ## 📝 라이선스
 
