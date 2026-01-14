@@ -1,0 +1,59 @@
+{
+  "api_name": "영문법령 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=elaw",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : elaw",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령의 법령명(법령명 입력시 해당 법령 링크)"
+    },
+    {
+      "name": "LD",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포일자"
+    },
+    {
+      "name": "LN",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": false,
+      "description": "출력 형태 : HTML/XML/JSON"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=elaw&ID=000744&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=elaw&MST=127280&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=elaw&MST=127280&type=JSON"
+  ]
+}

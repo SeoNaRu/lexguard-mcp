@@ -1,0 +1,109 @@
+{
+  "api_name": "행정심판례 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=decc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : decc",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "행정심판례 일련번호"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "행정심판례명"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "행정심판례일련번호",
+      "type": "int",
+      "description": "행정심판례일련번호"
+    },
+    {
+      "name": "사건명",
+      "type": "string",
+      "description": "사건명"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "처분일자",
+      "type": "int",
+      "description": "처분일자"
+    },
+    {
+      "name": "의결일자",
+      "type": "int",
+      "description": "의결일자"
+    },
+    {
+      "name": "처분청",
+      "type": "string",
+      "description": "처분청"
+    },
+    {
+      "name": "재결청",
+      "type": "string",
+      "description": "재결청"
+    },
+    {
+      "name": "재결례유형명",
+      "type": "string",
+      "description": "재결례유형명"
+    },
+    {
+      "name": "재결례유형코드",
+      "type": "int",
+      "description": "재결례유형코드"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "청구취지",
+      "type": "string",
+      "description": "청구취지"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "재결요지",
+      "type": "string",
+      "description": "재결요지"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=decc&ID=243263&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=decc&ID=245011&LM=과징금 부과처분 취소청구&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=decc&ID=223311&type=JSON"
+  ]
+}
+

@@ -1,0 +1,147 @@
+{
+  "api_name": "법령 변경이력 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsHstInf",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : lsHstInf",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 HTML/XML/JSON"
+    },
+    {
+      "name": "regDt",
+      "type": "int",
+      "required": true,
+      "description": "법령 변경일 검색(20150101)"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": false,
+      "description": "소관부처별 검색(소관부처코드 제공)"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색서비스 대상"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색건수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "현재 페이지번호"
+    },
+    {
+      "name": "law id",
+      "type": "int",
+      "description": "검색 결과 순번"
+    },
+    {
+      "name": "법령일련번호",
+      "type": "int",
+      "description": "법령일련번호"
+    },
+    {
+      "name": "현행연혁코드",
+      "type": "string",
+      "description": "현행연혁코드"
+    },
+    {
+      "name": "법령명한글",
+      "type": "string",
+      "description": "법령명한글"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "string",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "법령구분명",
+      "type": "string",
+      "description": "법령구분명"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "자법타법여부",
+      "type": "string",
+      "description": "자법타법여부"
+    },
+    {
+      "name": "법령상세링크",
+      "type": "string",
+      "description": "법령상세링크"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?target=lsHstInf&OC=test&regDt=20170726&type=HTML",
+    "http://www.law.go.kr/DRF/lawSearch.do?target=lsHstInf&OC=test&regDt=20170726&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?target=lsHstInf&OC=test&regDt=20170726&type=JSON"
+  ]
+}
+

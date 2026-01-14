@@ -1,0 +1,1595 @@
+{
+  "total_count": 159,
+  "apis": [
+    {
+      "id": 1,
+      "api_name": "현행법령(시행일) 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=eflaw",
+      "file": "현행법령시행일_목록_조회.json",
+      "param_count": 20,
+      "response_field_count": 0
+    },
+    {
+      "id": 2,
+      "api_name": "현행법령(공포일) 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=law",
+      "file": "현행법령공포일_목록_조회.json",
+      "param_count": 19,
+      "response_field_count": 0
+    },
+    {
+      "id": 3,
+      "api_name": "현행법령(시행일) 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=eflaw",
+      "file": "현행법령시행일_본문_조회.json",
+      "param_count": 8,
+      "response_field_count": 0
+    },
+    {
+      "id": 4,
+      "api_name": "현행법령(공포일) 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=law",
+      "file": "현행법령공포일_본문_조회.json",
+      "param_count": 10,
+      "response_field_count": 57
+    },
+    {
+      "id": 5,
+      "api_name": "법령 연혁 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsHistory",
+      "file": "법령_연혁_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 0
+    },
+    {
+      "id": 6,
+      "api_name": "법령 연혁 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsHistory",
+      "file": "법령_연혁_본문_조회.json",
+      "param_count": 9,
+      "response_field_count": 0
+    },
+    {
+      "id": 7,
+      "api_name": "현행법령(시행일) 본문 조항호목 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=eflawjosub",
+      "file": "현행법령시행일_본문_조항호목_조회.json",
+      "param_count": 10,
+      "response_field_count": 40
+    },
+    {
+      "id": 8,
+      "api_name": "현행법령(공포일) 본문 조항호목 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lawjosub",
+      "file": "현행법령공포일_본문_조항호목_조회.json",
+      "param_count": 9,
+      "response_field_count": 42
+    },
+    {
+      "id": 9,
+      "api_name": "영문법령 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=elaw",
+      "file": "영문법령_목록_조회.json",
+      "param_count": 18,
+      "response_field_count": 19
+    },
+    {
+      "id": 10,
+      "api_name": "영문법령 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=elaw",
+      "file": "영문법령_본문_조회.json",
+      "param_count": 8,
+      "response_field_count": 0
+    },
+    {
+      "id": 11,
+      "api_name": "법령 변경이력 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsHstInf",
+      "file": "법령_변경이력_목록_조회.json",
+      "param_count": 8,
+      "response_field_count": 17
+    },
+    {
+      "id": 12,
+      "api_name": "일자별 조문 개정 이력 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsJoHstInf",
+      "file": "일자별_조문_개정_이력_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 21
+    },
+    {
+      "id": 13,
+      "api_name": "조문별 변경 이력 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsJoHstInf",
+      "file": "조문별_변경_이력_목록_조회.json",
+      "param_count": 7,
+      "response_field_count": 14
+    },
+    {
+      "id": 14,
+      "api_name": "법령 자치법규 연계 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkLs",
+      "file": "법령_자치법규_연계_목록_조회.json",
+      "param_count": 8,
+      "response_field_count": 14
+    },
+    {
+      "id": 15,
+      "api_name": "연계 법령별 조례 조문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkLsOrdJo",
+      "file": "연계_법령별_조례_조문_목록_조회.json",
+      "param_count": 11,
+      "response_field_count": 18
+    },
+    {
+      "id": 16,
+      "api_name": "연계 법령 소관부처별 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkDep",
+      "file": "연계_법령_소관부처별_목록_조회.json",
+      "param_count": 8,
+      "response_field_count": 15
+    },
+    {
+      "id": 17,
+      "api_name": "법령-자치법규 연계현황 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=drlaw",
+      "file": "법령_자치법규_연계현황_조회.json",
+      "param_count": 3,
+      "response_field_count": 0
+    },
+    {
+      "id": 18,
+      "api_name": "위임 법령 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsDelegated",
+      "file": "위임_법령_조회.json",
+      "param_count": 5,
+      "response_field_count": 29
+    },
+    {
+      "id": 19,
+      "api_name": "행정규칙 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=admrul",
+      "file": "행정규칙_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 19
+    },
+    {
+      "id": 20,
+      "api_name": "행정규칙 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=admrul",
+      "file": "행정규칙_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 33
+    },
+    {
+      "id": 21,
+      "api_name": "행정규칙 신구법비교 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=admrulOldAndNew",
+      "file": "행정규칙_신구법비교_목록_조회.json",
+      "param_count": 14,
+      "response_field_count": 21
+    },
+    {
+      "id": 22,
+      "api_name": "행정규칙 신구법 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=admrulOldAndNew",
+      "file": "행정규칙_신구법_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 16
+    },
+    {
+      "id": 23,
+      "api_name": "법령 체계도 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsStmd",
+      "file": "법령_체계도_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 20
+    },
+    {
+      "id": 24,
+      "api_name": "법령 체계도 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsStmd",
+      "file": "법령_체계도_본문_조회.json",
+      "param_count": 8,
+      "response_field_count": 14
+    },
+    {
+      "id": 25,
+      "api_name": "신구법 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=oldAndNew",
+      "file": "신구법_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 21
+    },
+    {
+      "id": 26,
+      "api_name": "신구법 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=oldAndNew",
+      "file": "신구법_본문_조회.json",
+      "param_count": 8,
+      "response_field_count": 16
+    },
+    {
+      "id": 27,
+      "api_name": "3단 비교 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=thdCmp",
+      "file": "3단_비교_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 21
+    },
+    {
+      "id": 28,
+      "api_name": "3단비교 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=thdCmp",
+      "file": "3단비교_본문_조회.json",
+      "param_count": 9,
+      "response_field_count": 0
+    },
+    {
+      "id": 29,
+      "api_name": "법령명 약칭 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsAbrv",
+      "file": "법령명_약칭_조회.json",
+      "param_count": 5,
+      "response_field_count": 18
+    },
+    {
+      "id": 30,
+      "api_name": "삭제 데이터 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=delHst",
+      "file": "삭제_데이터_목록_조회.json",
+      "param_count": 9,
+      "response_field_count": 7
+    },
+    {
+      "id": 31,
+      "api_name": "한눈보기 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=oneview",
+      "file": "한눈보기_목록_조회.json",
+      "param_count": 6,
+      "response_field_count": 13
+    },
+    {
+      "id": 32,
+      "api_name": "한눈보기 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=oneview",
+      "file": "한눈보기_본문_조회.json",
+      "param_count": 8,
+      "response_field_count": 12
+    },
+    {
+      "id": 33,
+      "api_name": "자치법규 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ordin",
+      "file": "자치법규_목록_조회.json",
+      "param_count": 22,
+      "response_field_count": 12
+    },
+    {
+      "id": 34,
+      "api_name": "자치법규 분야 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ordinfd",
+      "file": "자치법규_분야_조회.json",
+      "param_count": 4,
+      "response_field_count": 5
+    },
+    {
+      "id": 35,
+      "api_name": "자치법규 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=ordin",
+      "file": "자치법규_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 27
+    },
+    {
+      "id": 36,
+      "api_name": "연계 조례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkOrd",
+      "file": "연계_조례_목록_조회.json",
+      "param_count": 8,
+      "response_field_count": 14
+    },
+    {
+      "id": 37,
+      "api_name": "연계 법령별 조례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkLsOrd",
+      "file": "연계_법령별_조례_목록_조회.json",
+      "param_count": 7,
+      "response_field_count": 13
+    },
+    {
+      "id": 38,
+      "api_name": "연계 조례 지자체별 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkOrg",
+      "file": "연계_조례_지자체별_목록_조회.json",
+      "param_count": 8,
+      "response_field_count": 15
+    },
+    {
+      "id": 39,
+      "api_name": "판례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=prec",
+      "file": "판례_목록_조회.json",
+      "param_count": 17,
+      "response_field_count": 19
+    },
+    {
+      "id": 40,
+      "api_name": "판례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=prec",
+      "file": "판례_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 15
+    },
+    {
+      "id": 41,
+      "api_name": "헌재결정례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=detc",
+      "file": "헌재결정례_목록_조회.json",
+      "param_count": 13,
+      "response_field_count": 11
+    },
+    {
+      "id": 42,
+      "api_name": "헌재결정례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=detc",
+      "file": "헌재결정례_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 13
+    },
+    {
+      "id": 43,
+      "api_name": "법령해석례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=expc",
+      "file": "법령해석례_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 15
+    },
+    {
+      "id": 44,
+      "api_name": "법령해석례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=expc",
+      "file": "법령해석례_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 13
+    },
+    {
+      "id": 45,
+      "api_name": "행정심판례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=decc",
+      "file": "행정심판례_목록_조회.json",
+      "param_count": 13,
+      "response_field_count": 16
+    },
+    {
+      "id": 46,
+      "api_name": "행정심판례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=decc",
+      "file": "행정심판례_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 13
+    },
+    {
+      "id": 47,
+      "api_name": "개인정보보호위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=ppc",
+      "file": "개인정보보호위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 14
+    },
+    {
+      "id": 48,
+      "api_name": "금융위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=fsc",
+      "file": "금융위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 11
+    },
+    {
+      "id": 49,
+      "api_name": "개인정보보호위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=ppc",
+      "file": "개인정보보호위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 17
+    },
+    {
+      "id": 50,
+      "api_name": "고용보험심사위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=eiac",
+      "file": "고용보험심사위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 12
+    },
+    {
+      "id": 51,
+      "api_name": "고용보험심사위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=eiac",
+      "file": "고용보험심사위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 19
+    },
+    {
+      "id": 52,
+      "api_name": "국민권익위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=acr",
+      "file": "국민권익위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 15
+    },
+    {
+      "id": 53,
+      "api_name": "국민권익위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=acr",
+      "file": "국민권익위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 19
+    },
+    {
+      "id": 54,
+      "api_name": "금융위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=fsc",
+      "file": "금융위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 10
+    },
+    {
+      "id": 55,
+      "api_name": "노동위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=nlrc",
+      "file": "노동위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 12
+    },
+    {
+      "id": 56,
+      "api_name": "노동위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=nlrc",
+      "file": "노동위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 13
+    },
+    {
+      "id": 57,
+      "api_name": "방송미디어통신위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=kcc",
+      "file": "방송미디어통신위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 12
+    },
+    {
+      "id": 58,
+      "api_name": "방송미디어통신위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=kcc",
+      "file": "방송미디어통신위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 19
+    },
+    {
+      "id": 59,
+      "api_name": "산업재해보상보험재심사위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=iaciac",
+      "file": "산업재해보상보험재심사위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 12
+    },
+    {
+      "id": 60,
+      "api_name": "산업재해보상보험재심사위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=iaciac",
+      "file": "산업재해보상보험재심사위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 22
+    },
+    {
+      "id": 61,
+      "api_name": "중앙토지수용위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=oclt",
+      "file": "중앙토지수용위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 10
+    },
+    {
+      "id": 62,
+      "api_name": "중앙토지수용위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=oclt",
+      "file": "중앙토지수용위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 9
+    },
+    {
+      "id": 63,
+      "api_name": "중앙환경분쟁조정위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=ecc",
+      "file": "중앙환경분쟁조정위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 11
+    },
+    {
+      "id": 64,
+      "api_name": "중앙환경분쟁조정위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=ecc",
+      "file": "중앙환경분쟁조정위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 14
+    },
+    {
+      "id": 65,
+      "api_name": "증권선물위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=sfc",
+      "file": "증권선물위원회_결정문_목록_조회.json",
+      "param_count": 10,
+      "response_field_count": 11
+    },
+    {
+      "id": 66,
+      "api_name": "증권선물위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=sfc",
+      "file": "증권선물위원회_결정문_본문_조회.json",
+      "param_count": 4,
+      "response_field_count": 10
+    },
+    {
+      "id": 67,
+      "api_name": "국가인권위원회 결정문 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawSearch.do?target=nhrck",
+      "file": "국가인권위원회_결정문_목록_조회.json",
+      "param_count": 11,
+      "response_field_count": 13
+    },
+    {
+      "id": 68,
+      "api_name": "국가인권위원회 결정문 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "https://www.law.go.kr/DRF/lawService.do?target=nhrck",
+      "file": "국가인권위원회_결정문_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 23
+    },
+    {
+      "id": 69,
+      "api_name": "조약 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=trty",
+      "file": "조약_목록_조회.json",
+      "param_count": 14,
+      "response_field_count": 16
+    },
+    {
+      "id": 70,
+      "api_name": "조약 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=trty",
+      "file": "조약_본문_조회.json",
+      "param_count": 5,
+      "response_field_count": 31
+    },
+    {
+      "id": 71,
+      "api_name": "별표서식 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=licbyl",
+      "file": "별표서식_목록_조회.json",
+      "param_count": 13,
+      "response_field_count": 21
+    },
+    {
+      "id": 72,
+      "api_name": "행정규칙 별표서식 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=admbyl",
+      "file": "행정규칙_별표서식_목록_조회.json",
+      "param_count": 12,
+      "response_field_count": 18
+    },
+    {
+      "id": 73,
+      "api_name": "자치법규 별표서식 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ordinbyl",
+      "file": "자치법규_별표서식_목록_조회.json",
+      "param_count": 13,
+      "response_field_count": 20
+    },
+    {
+      "id": 74,
+      "api_name": "고용노동부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=moelCgmExpc",
+      "file": "고용노동부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 75,
+      "api_name": "고용노동부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=moelCgmExpc",
+      "file": "고용노동부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 76,
+      "api_name": "국토교통부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=molitCgmExpc",
+      "file": "국토교통부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 77,
+      "api_name": "국토교통부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=molitCgmExpc",
+      "file": "국토교통부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 18
+    },
+    {
+      "id": 78,
+      "api_name": "기획재정부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=moefCgmExpc",
+      "file": "기획재정부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 79,
+      "api_name": "기획재정부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=moefCgmExpc",
+      "file": "기획재정부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 80,
+      "api_name": "해양수산부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mofCgmExpc",
+      "file": "해양수산부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 81,
+      "api_name": "해양수산부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mofCgmExpc",
+      "file": "해양수산부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 82,
+      "api_name": "행정안전부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=moisCgmExpc",
+      "file": "행정안전부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 83,
+      "api_name": "행정안전부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=moisCgmExpc",
+      "file": "행정안전부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 84,
+      "api_name": "기후에너지환경부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=meCgmExpc",
+      "file": "기후에너지환경부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 85,
+      "api_name": "기후에너지환경부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=meCgmExpc",
+      "file": "기후에너지환경부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 86,
+      "api_name": "관세청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kcsCgmExpc",
+      "file": "관세청_법령해석_목록_조회.json",
+      "param_count": 14,
+      "response_field_count": 15
+    },
+    {
+      "id": 87,
+      "api_name": "관세청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kcsCgmExpc",
+      "file": "관세청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 16
+    },
+    {
+      "id": 88,
+      "api_name": "국세청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ntsCgmExpc",
+      "file": "국세청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 89,
+      "api_name": "국세청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=ntsCgmExpc",
+      "file": "국세청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 90,
+      "api_name": "교육부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=moeCgmExpc",
+      "file": "교육부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 91,
+      "api_name": "교육부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=moeCgmExpc",
+      "file": "교육부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 92,
+      "api_name": "과학기술정보통신부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=msitCgmExpc",
+      "file": "과학기술정보통신부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 93,
+      "api_name": "과학기술정보통신부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=msitCgmExpc",
+      "file": "과학기술정보통신부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 94,
+      "api_name": "국가보훈부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mpvaCgmExpc",
+      "file": "국가보훈부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 95,
+      "api_name": "국가보훈부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mpvaCgmExpc",
+      "file": "국가보훈부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 96,
+      "api_name": "국방부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mndCgmExpc",
+      "file": "국방부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 97,
+      "api_name": "국방부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mndCgmExpc",
+      "file": "국방부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 98,
+      "api_name": "농림축산식품부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mafraCgmExpc",
+      "file": "농림축산식품부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 99,
+      "api_name": "농림축산식품부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mafraCgmExpc",
+      "file": "농림축산식품부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 100,
+      "api_name": "문화체육관광부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mcstCgmExpc",
+      "file": "문화체육관광부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 101,
+      "api_name": "문화체육관광부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mcstCgmExpc",
+      "file": "문화체육관광부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 102,
+      "api_name": "법무부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mojCgmExpc",
+      "file": "법무부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 103,
+      "api_name": "법무부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mojCgmExpc",
+      "file": "법무부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 104,
+      "api_name": "보건복지부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mohwCgmExpc",
+      "file": "보건복지부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 105,
+      "api_name": "보건복지부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mohwCgmExpc",
+      "file": "보건복지부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 106,
+      "api_name": "산업통상부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=motieCgmExpc",
+      "file": "산업통상부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 107,
+      "api_name": "산업통상부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=motieCgmExpc",
+      "file": "산업통상부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 108,
+      "api_name": "성평등가족부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mogefCgmExpc",
+      "file": "성평등가족부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 109,
+      "api_name": "성평등가족부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mogefCgmExpc",
+      "file": "성평등가족부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 110,
+      "api_name": "외교부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mofaCgmExpc",
+      "file": "외교부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 111,
+      "api_name": "외교부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mofaCgmExpc",
+      "file": "외교부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 112,
+      "api_name": "중소벤처기업부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mssCgmExpc",
+      "file": "중소벤처기업부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 113,
+      "api_name": "중소벤처기업부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mssCgmExpc",
+      "file": "중소벤처기업부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 114,
+      "api_name": "통일부 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mouCgmExpc",
+      "file": "통일부_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 115,
+      "api_name": "통일부 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mouCgmExpc",
+      "file": "통일부_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 116,
+      "api_name": "법제처 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=molegCgmExpc",
+      "file": "법제처_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 117,
+      "api_name": "법제처 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=molegCgmExpc",
+      "file": "법제처_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 118,
+      "api_name": "식품의약품안전처 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mfdsCgmExpc",
+      "file": "식품의약품안전처_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 119,
+      "api_name": "식품의약품안전처 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mfdsCgmExpc",
+      "file": "식품의약품안전처_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 120,
+      "api_name": "인사혁신처 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mpmCgmExpc",
+      "file": "인사혁신처_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 121,
+      "api_name": "인사혁신처 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mpmCgmExpc",
+      "file": "인사혁신처_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 122,
+      "api_name": "기상청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kmaCgmExpc",
+      "file": "기상청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 123,
+      "api_name": "기상청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kmaCgmExpc",
+      "file": "기상청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 124,
+      "api_name": "국가유산청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=khsCgmExpc",
+      "file": "국가유산청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 125,
+      "api_name": "국가유산청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=khsCgmExpc",
+      "file": "국가유산청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 126,
+      "api_name": "농촌진흥청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=rdaCgmExpc",
+      "file": "농촌진흥청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 127,
+      "api_name": "농촌진흥청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=rdaCgmExpc",
+      "file": "농촌진흥청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 128,
+      "api_name": "경찰청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=npaCgmExpc",
+      "file": "경찰청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 129,
+      "api_name": "경찰청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=npaCgmExpc",
+      "file": "경찰청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 130,
+      "api_name": "방위사업청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=dapaCgmExpc",
+      "file": "방위사업청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 131,
+      "api_name": "방위사업청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=dapaCgmExpc",
+      "file": "방위사업청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 132,
+      "api_name": "병무청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=mmaCgmExpc",
+      "file": "병무청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 133,
+      "api_name": "병무청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mmaCgmExpc",
+      "file": "병무청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 134,
+      "api_name": "산림청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kfsCgmExpc",
+      "file": "산림청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 135,
+      "api_name": "산림청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kfsCgmExpc",
+      "file": "산림청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 136,
+      "api_name": "소방청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=nfaCgmExpc",
+      "file": "소방청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 137,
+      "api_name": "소방청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=nfaCgmExpc",
+      "file": "소방청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 138,
+      "api_name": "재외동포청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=okaCgmExpc",
+      "file": "재외동포청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 139,
+      "api_name": "재외동포청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=okaCgmExpc",
+      "file": "재외동포청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 140,
+      "api_name": "조달청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ppsCgmExpc",
+      "file": "조달청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 141,
+      "api_name": "조달청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=ppsCgmExpc",
+      "file": "조달청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 142,
+      "api_name": "질병관리청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kdcaCgmExpc",
+      "file": "질병관리청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 143,
+      "api_name": "질병관리청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kdcaCgmExpc",
+      "file": "질병관리청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 144,
+      "api_name": "국가데이터처 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kostatCgmExpc",
+      "file": "국가데이터처_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 145,
+      "api_name": "국가데이터처 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kostatCgmExpc",
+      "file": "국가데이터처_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 146,
+      "api_name": "지식재산처 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kipoCgmExpc",
+      "file": "지식재산처_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 147,
+      "api_name": "지식재산처 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kipoCgmExpc",
+      "file": "지식재산처_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 148,
+      "api_name": "해양경찰청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kcgCgmExpc",
+      "file": "해양경찰청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 149,
+      "api_name": "해양경찰청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kcgCgmExpc",
+      "file": "해양경찰청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 150,
+      "api_name": "행정중심복합도시건설청 법령해석 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=naaccCgmExpc",
+      "file": "행정중심복합도시건설청_법령해석_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 16
+    },
+    {
+      "id": 151,
+      "api_name": "행정중심복합도시건설청 법령해석 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=naaccCgmExpc",
+      "file": "행정중심복합도시건설청_법령해석_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 15
+    },
+    {
+      "id": 152,
+      "api_name": "조세심판원 특별행정심판재결례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ttSpecialDecc",
+      "file": "조세심판원_특별행정심판재결례_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 17
+    },
+    {
+      "id": 153,
+      "api_name": "조세심판원 특별행정심판재결례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=ttSpecialDecc",
+      "file": "조세심판원_특별행정심판재결례_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 19
+    },
+    {
+      "id": 154,
+      "api_name": "해양안전심판원 특별행정심판재결례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=kmstSpecialDecc",
+      "file": "해양안전심판원_특별행정심판재결례_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 17
+    },
+    {
+      "id": 155,
+      "api_name": "해양안전심판원 특별행정심판재결례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=kmstSpecialDecc",
+      "file": "해양안전심판원_특별행정심판재결례_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 23
+    },
+    {
+      "id": 156,
+      "api_name": "국민권익위원회 특별행정심판재결례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=acrSpecialDecc",
+      "file": "국민권익위원회_특별행정심판재결례_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 17
+    },
+    {
+      "id": 157,
+      "api_name": "국민권익위원회 특별행정심판재결례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=acrSpecialDecc",
+      "file": "국민권익위원회_특별행정심판재결례_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 18
+    },
+    {
+      "id": 158,
+      "api_name": "인사혁신처 소청심사위원회 특별행정심판재결례 목록 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=adapSpecialDecc",
+      "file": "인사혁신처_소청심사위원회_특별행정심판재결례_목록_조회.json",
+      "param_count": 15,
+      "response_field_count": 17
+    },
+    {
+      "id": 159,
+      "api_name": "인사혁신처 소청심사위원회 특별행정심판재결례 본문 조회",
+      "category": "",
+      "subcategory": "",
+      "request_url": "http://www.law.go.kr/DRF/lawService.do?target=adapSpecialDecc",
+      "file": "인사혁신처_소청심사위원회_특별행정심판재결례_본문_조회.json",
+      "param_count": 6,
+      "response_field_count": 24
+    }
+  ]
+}

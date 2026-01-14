@@ -1,0 +1,131 @@
+{
+  "api_name": "행정규칙 신구법 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=admrulOldAndNew",
+  "note": "부가서비스는 행정규칙 서비스 신청을 하면 추가신청 없이 이용가능합니다.",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : admrulOldAndNew",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "행정규칙 일련번호 (ID 또는 LID 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "LID",
+      "type": "char",
+      "required": false,
+      "description": "행정규칙 ID (ID 또는 LID 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "행정규칙명 (조회하고자 하는 정확한 행정규칙명을 입력)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "구조문_기본정보",
+      "type": "string",
+      "description": "구조문_기본정보"
+    },
+    {
+      "name": "행정규칙일련번호",
+      "type": "int",
+      "description": "행정규칙일련번호"
+    },
+    {
+      "name": "행정규칙ID",
+      "type": "int",
+      "description": "행정규칙ID"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "발령일자",
+      "type": "int",
+      "description": "발령일자"
+    },
+    {
+      "name": "발령번호",
+      "type": "int",
+      "description": "발령번호"
+    },
+    {
+      "name": "현행여부",
+      "type": "string",
+      "description": "현행여부"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "행정규칙명",
+      "type": "string",
+      "description": "행정규칙명"
+    },
+    {
+      "name": "행정규칙종류",
+      "type": "string",
+      "description": "행정규칙종류"
+    },
+    {
+      "name": "신조문_기본정보",
+      "type": "string",
+      "description": "구조문과 동일한 기본 정보 들어가 있음"
+    },
+    {
+      "name": "구조문목록",
+      "type": "string",
+      "description": "구조문목록"
+    },
+    {
+      "name": "구조문_조문",
+      "type": "string",
+      "description": "조문"
+    },
+    {
+      "name": "신조문목록",
+      "type": "string",
+      "description": "신조문목록"
+    },
+    {
+      "name": "신조문_조문",
+      "type": "string",
+      "description": "조문"
+    },
+    {
+      "name": "신구법존재여부",
+      "type": "string",
+      "description": "신구법이 존재하지 않을 경우 N이 조회"
+    }
+  ],
+  "sample_urls": [
+    "http://law.go.kr/DRF/lawService.do?OC=test&target=admrulOldAndNew&ID=2100000248758&type=HTML",
+    "http://law.go.kr/DRF/lawService.do?OC=test&target=admrulOldAndNew&ID=2100000248758&type=XML",
+    "http://law.go.kr/DRF/lawService.do?OC=test&target=admrulOldAndNew&ID=2100000248758&type=JSON"
+  ]
+}
+

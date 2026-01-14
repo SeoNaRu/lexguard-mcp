@@ -1,0 +1,144 @@
+{
+  "api_name": "신구법 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=oldAndNew",
+  "note": "체계도 등 부가서비스는 법령서비스 신청을 하면 추가신청 없이 이용가능합니다.",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : oldAndNew",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령의 법령명(법령명 입력시 해당 법령 링크)"
+    },
+    {
+      "name": "LD",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포일자"
+    },
+    {
+      "name": "LN",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "구조문_기본정보",
+      "type": "string",
+      "description": "구조문_기본정보"
+    },
+    {
+      "name": "법령일련번호",
+      "type": "int",
+      "description": "법령일련번호"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "현행여부",
+      "type": "string",
+      "description": "현행여부"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "법령명",
+      "type": "string",
+      "description": "법령명"
+    },
+    {
+      "name": "법종구분",
+      "type": "string",
+      "description": "법종구분"
+    },
+    {
+      "name": "신조문_기본정보",
+      "type": "string",
+      "description": "구조문과 동일한 기본 정보 들어가 있음"
+    },
+    {
+      "name": "구조문목록",
+      "type": "string",
+      "description": "구조문목록"
+    },
+    {
+      "name": "구조문_조문",
+      "type": "string",
+      "description": "조문"
+    },
+    {
+      "name": "신조문목록",
+      "type": "string",
+      "description": "신조문목록"
+    },
+    {
+      "name": "신조문_조문",
+      "type": "string",
+      "description": "조문"
+    },
+    {
+      "name": "신구법존재여부",
+      "type": "string",
+      "description": "신구법이 존재하지 않을 경우 N이 조회"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oldAndNew&ID=000170&MST=122682&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oldAndNew&MST=136931&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oldAndNew&MST=122682&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oldAndNew&MST=122682&type=JSON"
+  ]
+}
+

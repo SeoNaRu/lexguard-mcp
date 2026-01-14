@@ -1,0 +1,125 @@
+{
+  "api_name": "보건복지부 법령해석 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=mohwCgmExpc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (보건복지부 법령해석 : mohwCgmExpc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "int",
+      "required": true,
+      "description": "법령해석일련번호"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령해석명"
+    },
+    {
+      "name": "fields",
+      "type": "string",
+      "required": false,
+      "description": "응답항목 옵션(안건명, 안건번호, ...) * 빈 값일 경우 전체 항목 표출 * 출력 형태 HTML일 경우 적용 불가능"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "법령해석일련번호",
+      "type": "int",
+      "description": "법령해석일련번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "안건번호",
+      "type": "string",
+      "description": "안건번호"
+    },
+    {
+      "name": "해석일자",
+      "type": "int",
+      "description": "해석일자"
+    },
+    {
+      "name": "해석기관코드",
+      "type": "int",
+      "description": "해석기관코드"
+    },
+    {
+      "name": "해석기관명",
+      "type": "string",
+      "description": "해석기관명"
+    },
+    {
+      "name": "질의기관코드",
+      "type": "int",
+      "description": "질의기관코드"
+    },
+    {
+      "name": "질의기관명",
+      "type": "string",
+      "description": "질의기관명"
+    },
+    {
+      "name": "관리기관코드",
+      "type": "int",
+      "description": "관리기관코드"
+    },
+    {
+      "name": "등록일시",
+      "type": "int",
+      "description": "등록일시"
+    },
+    {
+      "name": "질의요지",
+      "type": "string",
+      "description": "질의요지"
+    },
+    {
+      "name": "회답",
+      "type": "string",
+      "description": "회답"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "관련법령",
+      "type": "string",
+      "description": "관련법령"
+    },
+    {
+      "name": "데이터기준일시",
+      "type": "string",
+      "description": "데이터기준일시"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=mohwCgmExpc&ID=458114&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=mohwCgmExpc&ID=458114&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=mohwCgmExpc&ID=458114&type=JSON"
+  ]
+}
+

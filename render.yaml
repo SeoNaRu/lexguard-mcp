@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: lexguard-mcp
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.main
+    envVars:
+      - key: PORT
+        value: 8099
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RELOAD
+        value: false
+      - key: LAW_API_KEY
+        sync: false  # 환경 변수에서 직접 설정
+

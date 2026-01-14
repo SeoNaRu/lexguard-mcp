@@ -1,0 +1,65 @@
+{
+  "api_name": "법령 연혁 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsHistory",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : lsHistory",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령의 법령명(법령명 입력시 해당 법령 링크)"
+    },
+    {
+      "name": "LD",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포일자"
+    },
+    {
+      "name": "LN",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호"
+    },
+    {
+      "name": "chrClsCd",
+      "type": "char",
+      "required": false,
+      "description": "원문/한글 여부 (생략(기본값) : 한글) / (010202 : 한글, 010201 : 원문)"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=lsHistory&MST=9094&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=lsHistory&MST=166500&type=HTML"
+  ],
+  "note": "체계도 등 부가서비스는 법령서비스 신청을 하면 추가신청 없이 이용가능합니다."
+}

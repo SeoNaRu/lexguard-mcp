@@ -1,0 +1,132 @@
+{
+  "api_name": "고용보험심사위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=eiac",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (고용보험심사위원회 : eiac)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "사건의분류",
+      "type": "string",
+      "description": "사건의 분류"
+    },
+    {
+      "name": "의결서종류",
+      "type": "string",
+      "description": "의결서 종류"
+    },
+    {
+      "name": "개요",
+      "type": "string",
+      "description": "개요"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "사건명",
+      "type": "string",
+      "description": "사건명"
+    },
+    {
+      "name": "청구인",
+      "type": "string",
+      "description": "청구인"
+    },
+    {
+      "name": "대리인",
+      "type": "string",
+      "description": "대리인"
+    },
+    {
+      "name": "피청구인",
+      "type": "string",
+      "description": "피청구인"
+    },
+    {
+      "name": "이해관계인",
+      "type": "string",
+      "description": "이해관계인"
+    },
+    {
+      "name": "심사결정심사관",
+      "type": "string",
+      "description": "심사결정심사관"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "청구취지",
+      "type": "string",
+      "description": "청구취지"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "의결일자",
+      "type": "string",
+      "description": "의결일자"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "별지",
+      "type": "string",
+      "description": "별지"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=eiac&ID=11347&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=eiac&ID=11327&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=eiac&ID=11165&type=JSON"
+  ]
+}

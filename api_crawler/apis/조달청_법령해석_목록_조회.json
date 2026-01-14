@@ -1,0 +1,184 @@
+{
+  "api_name": "조달청 법령해석 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ppsCgmExpc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (조달청 법령해석 : ppsCgmExpc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "search",
+      "type": "int",
+      "required": false,
+      "description": "검색범위 (기본 : 1 법령해석명, 2: 본문검색)"
+    },
+    {
+      "name": "query",
+      "type": "string",
+      "required": false,
+      "description": "검색범위에서 검색을 원하는 질의 (정확한 검색을 위한 문자열 검색 query=\"상금\")"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "inq",
+      "type": "int",
+      "required": false,
+      "description": "질의기관코드"
+    },
+    {
+      "name": "rpl",
+      "type": "int",
+      "required": false,
+      "description": "해석기관코드"
+    },
+    {
+      "name": "gana",
+      "type": "string",
+      "required": false,
+      "description": "사전식 검색(ga,na,da…,etc)"
+    },
+    {
+      "name": "itmno",
+      "type": "int",
+      "required": false,
+      "description": "안건번호 (안건번호 변수 적용 시 query 요청변수는 무시됩니다)"
+    },
+    {
+      "name": "explYd",
+      "type": "string",
+      "required": false,
+      "description": "해석일자 검색(20090101~20090130)"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "정렬옵션 (기본 : lasc 법령해석명 오름차순, ldes: 법령해석명 내림차순, dasc: 해석일자 오름차순, ddes: 해석일자 내림차순, nasc: 안건번호 오름차순, ndes: 안건번호 내림차순)"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    },
+    {
+      "name": "fields",
+      "type": "string",
+      "required": false,
+      "description": "응답항목 옵션(안건명, 안건번호, ...) * 빈 값일 경우 전체 항목 표출 * 출력 형태 HTML일 경우 적용 불가능"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색 대상"
+    },
+    {
+      "name": "키워드",
+      "type": "string",
+      "description": "키워드"
+    },
+    {
+      "name": "section",
+      "type": "string",
+      "description": "검색범위(lawNm:법령해석명/bdyText:본문)"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색결과갯수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "출력페이지"
+    },
+    {
+      "name": "id",
+      "type": "int",
+      "description": "검색결과번호"
+    },
+    {
+      "name": "법령해석일련번호",
+      "type": "int",
+      "description": "법령해석일련번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "안건번호",
+      "type": "string",
+      "description": "안건번호"
+    },
+    {
+      "name": "질의기관코드",
+      "type": "int",
+      "description": "질의기관코드"
+    },
+    {
+      "name": "질의기관명",
+      "type": "string",
+      "description": "질의기관명"
+    },
+    {
+      "name": "해석기관코드",
+      "type": "string",
+      "description": "해석기관코드"
+    },
+    {
+      "name": "해석기관명",
+      "type": "string",
+      "description": "해석기관명"
+    },
+    {
+      "name": "해석일자",
+      "type": "string",
+      "description": "해석일자"
+    },
+    {
+      "name": "데이터기준일시",
+      "type": "string",
+      "description": "데이터기준일시"
+    },
+    {
+      "name": "법령해석 상세링크",
+      "type": "string",
+      "description": "법령해석 상세링크"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ppsCgmExpc&type=XML&query=상금",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ppsCgmExpc&type=HTML&query=급식",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ppsCgmExpc&type=JSON&query=면제"
+  ]
+}
+

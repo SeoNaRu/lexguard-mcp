@@ -1,0 +1,215 @@
+{
+  "api_name": "행정규칙 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=admrul",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : admrul",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "행정규칙 일련번호"
+    },
+    {
+      "name": "LID",
+      "type": "char",
+      "required": false,
+      "description": "행정규칙 ID"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "행정규칙명 (조회하고자 하는 정확한 행정규칙명을 입력)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "행정규칙일련번호",
+      "type": "int",
+      "description": "행정규칙일련번호"
+    },
+    {
+      "name": "행정규칙명",
+      "type": "string",
+      "description": "행정규칙명"
+    },
+    {
+      "name": "행정규칙종류",
+      "type": "string",
+      "description": "행정규칙종류"
+    },
+    {
+      "name": "행정규칙종류코드",
+      "type": "string",
+      "description": "행정규칙종류코드"
+    },
+    {
+      "name": "발령일자",
+      "type": "int",
+      "description": "발령일자"
+    },
+    {
+      "name": "발령번호",
+      "type": "string",
+      "description": "발령번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "제개정구분코드",
+      "type": "string",
+      "description": "제개정구분코드"
+    },
+    {
+      "name": "조문형식여부",
+      "type": "string",
+      "description": "조문형식여부"
+    },
+    {
+      "name": "행정규칙ID",
+      "type": "int",
+      "description": "행정규칙ID"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "string",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "상위부처명",
+      "type": "string",
+      "description": "상위부처명"
+    },
+    {
+      "name": "담당부서기관코드",
+      "type": "string",
+      "description": "담당부서기관코드"
+    },
+    {
+      "name": "담당부서기관명",
+      "type": "string",
+      "description": "담당부서기관명"
+    },
+    {
+      "name": "담당자명",
+      "type": "string",
+      "description": "담당자명"
+    },
+    {
+      "name": "전화번호",
+      "type": "string",
+      "description": "전화번호"
+    },
+    {
+      "name": "현행여부",
+      "type": "string",
+      "description": "현행여부"
+    },
+    {
+      "name": "시행일자",
+      "type": "string",
+      "description": "시행일자"
+    },
+    {
+      "name": "생성일자",
+      "type": "string",
+      "description": "생성일자"
+    },
+    {
+      "name": "조문내용",
+      "type": "string",
+      "description": "조문내용"
+    },
+    {
+      "name": "부칙",
+      "type": "string",
+      "description": "부칙"
+    },
+    {
+      "name": "부칙공포일자",
+      "type": "int",
+      "description": "부칙공포일자"
+    },
+    {
+      "name": "부칙공포번호",
+      "type": "int",
+      "description": "부칙공포번호"
+    },
+    {
+      "name": "부칙내용",
+      "type": "string",
+      "description": "부칙내용"
+    },
+    {
+      "name": "별표",
+      "type": "string",
+      "description": "별표"
+    },
+    {
+      "name": "별표번호",
+      "type": "int",
+      "description": "별표번호"
+    },
+    {
+      "name": "별표가지번호",
+      "type": "int",
+      "description": "별표가지번호"
+    },
+    {
+      "name": "별표구분",
+      "type": "string",
+      "description": "별표구분"
+    },
+    {
+      "name": "별표제목",
+      "type": "string",
+      "description": "별표제목"
+    },
+    {
+      "name": "별표서식파일링크",
+      "type": "string",
+      "description": "별표서식파일링크"
+    },
+    {
+      "name": "별표서식PDF파일링크",
+      "type": "string",
+      "description": "별표서식PDF파일링크"
+    },
+    {
+      "name": "별표내용",
+      "type": "string",
+      "description": "별표내용"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=admrul&ID=62505&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=admrul&ID=10000005747&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=admrul&ID=2000000091702&type=JSON"
+  ]
+}
+

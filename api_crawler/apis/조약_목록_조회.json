@@ -1,0 +1,179 @@
+{
+  "api_name": "조약 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=trty",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (조약 : trty)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "search",
+      "type": "int",
+      "required": false,
+      "description": "검색범위 (기본 : 1 조약명, 2 : 조약본문)"
+    },
+    {
+      "name": "query",
+      "type": "string",
+      "required": false,
+      "description": "검색범위에서 검색을 원하는 질의 (검색 결과 리스트)"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "gana",
+      "type": "string",
+      "required": false,
+      "description": "사전식 검색 (ga,na,da…,etc)"
+    },
+    {
+      "name": "eftYd",
+      "type": "string",
+      "required": false,
+      "description": "발효일자 검색(20090101~20090130)"
+    },
+    {
+      "name": "concYd",
+      "type": "string",
+      "required": false,
+      "description": "체결일자 검색(20090101~20090130)"
+    },
+    {
+      "name": "cls",
+      "type": "int",
+      "required": false,
+      "description": "1 : 양자조약, 2 : 다자조약"
+    },
+    {
+      "name": "natCd",
+      "type": "int",
+      "required": false,
+      "description": "국가코드"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "정렬옵션 (기본 : lasc 조약명오름차순) / ldes : 조약명내림차순 / dasc : 발효일자 오름차순 / ddes : 발효일자 내림차순 / nasc : 조약번호 오름차순 / ndes : 조약번호 내림차순 / rasc : 관보게재일 오름차순 / rdes : 관보게재일 내림차순"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색 대상"
+    },
+    {
+      "name": "키워드",
+      "type": "string",
+      "description": "키워드"
+    },
+    {
+      "name": "section",
+      "type": "string",
+      "description": "검색범위(TrtyNm:조약명/bdyText:본문)"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색결과갯수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "출력페이지"
+    },
+    {
+      "name": "trty id",
+      "type": "int",
+      "description": "검색결과번호"
+    },
+    {
+      "name": "조약일련번호",
+      "type": "int",
+      "description": "조약일련번호"
+    },
+    {
+      "name": "조약명",
+      "type": "string",
+      "description": "조약명"
+    },
+    {
+      "name": "조약구분코드",
+      "type": "string",
+      "description": "조약구분코드"
+    },
+    {
+      "name": "조약구분명",
+      "type": "string",
+      "description": "조약구분명"
+    },
+    {
+      "name": "발효일자",
+      "type": "string",
+      "description": "발효일자"
+    },
+    {
+      "name": "서명일자",
+      "type": "string",
+      "description": "서명일자"
+    },
+    {
+      "name": "관보게제일자",
+      "type": "string",
+      "description": "관보게제일자"
+    },
+    {
+      "name": "조약번호",
+      "type": "int",
+      "description": "조약번호"
+    },
+    {
+      "name": "국가번호",
+      "type": "int",
+      "description": "국가번호"
+    },
+    {
+      "name": "조약상세링크",
+      "type": "string",
+      "description": "조약상세링크"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=trty&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=trty&ID=284&type=HTML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=trty&ID=284&type=JSON",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=trty&type=XML&cls=2"
+  ]
+}
+

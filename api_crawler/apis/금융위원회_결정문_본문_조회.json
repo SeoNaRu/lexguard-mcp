@@ -1,0 +1,88 @@
+{
+  "api_name": "금융위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=fsc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (금융위원회 : fsc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "의결번호",
+      "type": "string",
+      "description": "의결번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "조치대상자의인적사항",
+      "type": "string",
+      "description": "조치대상자의 인적사항"
+    },
+    {
+      "name": "조치대상",
+      "type": "string",
+      "description": "조치대상"
+    },
+    {
+      "name": "조치내용",
+      "type": "string",
+      "description": "조치내용"
+    },
+    {
+      "name": "조치이유",
+      "type": "string",
+      "description": "조치이유"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=fsc&ID=9211&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=fsc&ID=9169&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=fsc&ID=13097&type=JSON"
+  ]
+}
+

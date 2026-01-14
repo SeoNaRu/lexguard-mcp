@@ -1,0 +1,11 @@
+# 크롤링 결과 파일 (임시)
+api_crawl_*.json
+api_params_extracted.json
+api_detail_*.json
+
+# 유지할 파일
+!api_params_structured.json
+!api_list_selenium.json
+!needed_apis.json
+!extraction_summary.json
+

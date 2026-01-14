@@ -1,0 +1,26 @@
+[project]
+name = "lexguard-mcp"
+version = "1.0.0"
+description = "한국 법령 MCP 서버 - 국가법령정보센터 API 연동"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp",
+    "uvicorn",
+    "pydantic",
+    "python-dotenv",
+    "requests",
+    "cachetools",
+    "fastapi",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+

@@ -1,0 +1,133 @@
+{
+  "api_name": "국민권익위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=acr",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (국민권익위원회 : acr)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "회의종류",
+      "type": "string",
+      "description": "회의종류"
+    },
+    {
+      "name": "결정구분",
+      "type": "string",
+      "description": "결정구분"
+    },
+    {
+      "name": "의안번호",
+      "type": "string",
+      "description": "의안번호"
+    },
+    {
+      "name": "민원표시",
+      "type": "string",
+      "description": "민원표시"
+    },
+    {
+      "name": "제목",
+      "type": "string",
+      "description": "제목"
+    },
+    {
+      "name": "신청인",
+      "type": "string",
+      "description": "신청인"
+    },
+    {
+      "name": "대리인",
+      "type": "string",
+      "description": "대리인"
+    },
+    {
+      "name": "피신청인",
+      "type": "string",
+      "description": "피신청인"
+    },
+    {
+      "name": "관계기관",
+      "type": "string",
+      "description": "관계기관"
+    },
+    {
+      "name": "의결일",
+      "type": "string",
+      "description": "의결일"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "별지",
+      "type": "string",
+      "description": "별지"
+    },
+    {
+      "name": "의결문",
+      "type": "string",
+      "description": "의결문"
+    },
+    {
+      "name": "의결일자",
+      "type": "string",
+      "description": "의결일자"
+    },
+    {
+      "name": "위원정보",
+      "type": "string",
+      "description": "위원정보"
+    },
+    {
+      "name": "결정요지",
+      "type": "string",
+      "description": "결정요지"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=acr&ID=53&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=acr&ID=89&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=acr&ID=1281&type=JSON"
+  ]
+}
+

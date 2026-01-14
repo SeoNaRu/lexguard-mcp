@@ -1,0 +1,211 @@
+{
+  "api_name": "행정규칙 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=admrul",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : admrul",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "nw",
+      "type": "int",
+      "required": false,
+      "description": "1: 현행, 2: 연혁 (기본값: 현행)"
+    },
+    {
+      "name": "search",
+      "type": "int",
+      "required": false,
+      "description": "검색범위 (기본 : 1 행정규칙명) 2 : 본문검색"
+    },
+    {
+      "name": "query",
+      "type": "string",
+      "required": false,
+      "description": "검색범위에서 검색을 원하는 질의 (정확한 검색을 위한 문자열 검색 query=\"자동차\")"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": false,
+      "description": "소관부처별 검색(코드별도제공)"
+    },
+    {
+      "name": "knd",
+      "type": "string",
+      "required": false,
+      "description": "행정규칙 종류별 검색 (1=훈령/2=예규/3=고시/4=공고/5=지침/6=기타)"
+    },
+    {
+      "name": "gana",
+      "type": "string",
+      "required": false,
+      "description": "사전식 검색 (ga,na,da…,etc)"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "정렬옵션 (기본 : lasc 행정규칙명 오름차순) / ldes : 행정규칙명 내림차순 / dasc : 발령일자 오름차순 / ddes : 발령일자 내림차순 / nasc : 발령번호 오름차순 / ndes : 발령번호 내림차순 / efasc : 시행일자 오름차순 / efdes : 시행일자 내림차순"
+    },
+    {
+      "name": "date",
+      "type": "int",
+      "required": false,
+      "description": "행정규칙 발령일자"
+    },
+    {
+      "name": "prmlYd",
+      "type": "string",
+      "required": false,
+      "description": "발령일자 기간검색(20090101~20090130)"
+    },
+    {
+      "name": "modYd",
+      "type": "string",
+      "required": false,
+      "description": "수정일자 기간검색(20090101~20090130)"
+    },
+    {
+      "name": "nb",
+      "type": "int",
+      "required": false,
+      "description": "행정규칙 발령번호 (예: 제2023-8호 검색을 원할시 nb=20238)"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색서비스 대상"
+    },
+    {
+      "name": "키워드",
+      "type": "string",
+      "description": "검색어"
+    },
+    {
+      "name": "section",
+      "type": "string",
+      "description": "검색범위"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색건수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "결과페이지번호"
+    },
+    {
+      "name": "admrul id",
+      "type": "int",
+      "description": "결과 번호"
+    },
+    {
+      "name": "행정규칙일련번호",
+      "type": "int",
+      "description": "행정규칙일련번호"
+    },
+    {
+      "name": "행정규칙명",
+      "type": "string",
+      "description": "행정규칙명"
+    },
+    {
+      "name": "행정규칙종류",
+      "type": "string",
+      "description": "행정규칙종류"
+    },
+    {
+      "name": "발령일자",
+      "type": "int",
+      "description": "발령일자"
+    },
+    {
+      "name": "발령번호",
+      "type": "int",
+      "description": "발령번호"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "현행연혁구분",
+      "type": "string",
+      "description": "현행연혁구분"
+    },
+    {
+      "name": "제개정구분코드",
+      "type": "string",
+      "description": "제개정구분코드"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "행정규칙ID",
+      "type": "int",
+      "description": "행정규칙ID"
+    },
+    {
+      "name": "행정규칙상세링크",
+      "type": "string",
+      "description": "행정규칙상세링크"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "생성일자",
+      "type": "int",
+      "description": "생성일자"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=admrul&query=학교&type=HTML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=admrul&date=20250501&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=admrul&date=20250501&type=JSON"
+  ]
+}
+

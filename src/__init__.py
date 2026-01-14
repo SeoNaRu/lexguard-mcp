@@ -1,0 +1,2 @@
+# LexGuard MCP Server
+

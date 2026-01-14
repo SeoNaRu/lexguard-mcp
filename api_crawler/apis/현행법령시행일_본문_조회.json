@@ -1,0 +1,54 @@
+{
+  "api_name": "현행법령(시행일) 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=eflaw",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : eflaw",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON (생략시 기본값 : XML)"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력, ID로 검색하면 그 법령의 현행 법령 본문 조회)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "efYd",
+      "type": "int",
+      "required": false,
+      "description": "법령의 시행일자 (ID 입력시에는 무시하는 값으로 입력하지 않음)"
+    },
+    {
+      "name": "JO",
+      "type": "int",
+      "required": false,
+      "description": "조번호 (생략(기본값) : 모든 조를 표시함) / 6자리숫자 : 조번호(4자리)+조가지번호(2자리) (000200 : 2조, 001002 : 10조의 2)"
+    },
+    {
+      "name": "chrClsCd",
+      "type": "char",
+      "required": false,
+      "description": "원문/한글 여부 (생략(기본값) : 한글) / (010202 : 한글, 010201 : 원문)"
+    }
+  ]
+}

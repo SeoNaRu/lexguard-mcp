@@ -1,0 +1,108 @@
+{
+  "api_name": "중앙환경분쟁조정위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=ecc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (중앙환경분쟁조정위원회 : ecc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "의결번호",
+      "type": "string",
+      "description": "의결번호"
+    },
+    {
+      "name": "사건명",
+      "type": "string",
+      "description": "사건명"
+    },
+    {
+      "name": "사건의개요",
+      "type": "string",
+      "description": "사건의 개요"
+    },
+    {
+      "name": "신청인",
+      "type": "string",
+      "description": "신청인"
+    },
+    {
+      "name": "피신청인",
+      "type": "string",
+      "description": "피신청인"
+    },
+    {
+      "name": "분쟁의경과",
+      "type": "string",
+      "description": "분쟁의 경과"
+    },
+    {
+      "name": "당사자주장",
+      "type": "string",
+      "description": "당사자 주장"
+    },
+    {
+      "name": "사실조사결과",
+      "type": "string",
+      "description": "사실조사 결과"
+    },
+    {
+      "name": "평가의견",
+      "type": "string",
+      "description": "평가의견"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ecc&ID=5883&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ecc&ID=5877&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ecc&ID=5729&type=JSON"
+  ]
+}
+

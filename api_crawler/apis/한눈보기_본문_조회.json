@@ -1,0 +1,122 @@
+{
+  "api_name": "한눈보기 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=oneview",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : oneview",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령의 법령명"
+    },
+    {
+      "name": "LD",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포일자"
+    },
+    {
+      "name": "LN",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호"
+    },
+    {
+      "name": "JO",
+      "type": "int",
+      "required": false,
+      "description": "조번호 (생략시 기본값: 모든 조를 표시함, 6자리숫자: 조번호(4자리)+조가지번호(2자리), 예: 000200=2조, 001002=10조의2)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "패턴일련번호",
+      "type": "int",
+      "description": "패턴일련번호"
+    },
+    {
+      "name": "법령일련번호",
+      "type": "int",
+      "description": "법령일련번호"
+    },
+    {
+      "name": "법령명",
+      "type": "string",
+      "description": "법령명"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "조문시행일자",
+      "type": "int",
+      "description": "조문시행일자"
+    },
+    {
+      "name": "최초제공일자",
+      "type": "int",
+      "description": "최초제공일자"
+    },
+    {
+      "name": "조번호",
+      "type": "int",
+      "description": "조번호"
+    },
+    {
+      "name": "조제목",
+      "type": "string",
+      "description": "조제목"
+    },
+    {
+      "name": "콘텐츠제목",
+      "type": "string",
+      "description": "콘텐츠제목"
+    },
+    {
+      "name": "링크텍스트",
+      "type": "string",
+      "description": "링크텍스트"
+    },
+    {
+      "name": "링크URL",
+      "type": "string",
+      "description": "링크URL"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oneview&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oneview&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=oneview&type=JSON"
+  ]
+}
+

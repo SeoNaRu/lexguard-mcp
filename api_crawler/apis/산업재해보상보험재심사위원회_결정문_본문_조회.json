@@ -1,0 +1,148 @@
+{
+  "api_name": "산업재해보상보험재심사위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=iaciac",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (산업재해보상보험재심사위원회 : iaciac)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "사건대분류",
+      "type": "string",
+      "description": "사건 대분류"
+    },
+    {
+      "name": "사건중분류",
+      "type": "string",
+      "description": "사건 중분류"
+    },
+    {
+      "name": "사건소분류",
+      "type": "string",
+      "description": "사건 소분류"
+    },
+    {
+      "name": "쟁점",
+      "type": "string",
+      "description": "쟁점"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "의결일자",
+      "type": "string",
+      "description": "의결일자"
+    },
+    {
+      "name": "사건",
+      "type": "string",
+      "description": "사건"
+    },
+    {
+      "name": "청구인",
+      "type": "string",
+      "description": "청구인"
+    },
+    {
+      "name": "재해근로자",
+      "type": "string",
+      "description": "재해근로자"
+    },
+    {
+      "name": "재해자",
+      "type": "string",
+      "description": "재해자"
+    },
+    {
+      "name": "피재근로자",
+      "type": "string",
+      "description": "피재근로자/피재자성명/피재자/피재자(망인)"
+    },
+    {
+      "name": "진폐근로자",
+      "type": "string",
+      "description": "진폐근로자"
+    },
+    {
+      "name": "수진자",
+      "type": "string",
+      "description": "수진자"
+    },
+    {
+      "name": "원처분기관",
+      "type": "string",
+      "description": "원처분기관"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "청구취지",
+      "type": "string",
+      "description": "청구취지"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "별지",
+      "type": "string",
+      "description": "별지"
+    },
+    {
+      "name": "문서제공구분",
+      "type": "string",
+      "description": "문서제공구분(데이터 개방|이유하단 이미지개방)"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=iaciac&ID=7515&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=iaciac&ID=7513&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=iaciac&ID=12713&type=JSON"
+  ]
+}
+

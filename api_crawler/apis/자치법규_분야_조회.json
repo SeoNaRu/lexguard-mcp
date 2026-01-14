@@ -1,0 +1,62 @@
+{
+  "api_name": "자치법규 분야 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ordinfd",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : ordinfd",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": true,
+      "description": "기관코드값(예:서울시-6110000)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": false,
+      "description": "출력 형태 XML/JSON"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "기관코드",
+      "type": "string",
+      "description": "기관코드"
+    },
+    {
+      "name": "기관별분류유형CNT",
+      "type": "string",
+      "description": "기관별 분류유형 갯수"
+    },
+    {
+      "name": "분류seq",
+      "type": "int",
+      "description": "분류일련번호"
+    },
+    {
+      "name": "분류명",
+      "type": "string",
+      "description": "분류명"
+    },
+    {
+      "name": "해당자치법규갯수",
+      "type": "int",
+      "description": "해당자치법규갯수"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ordinfd&org=6110000&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ordinfd&org=6110000&type=JSON"
+  ]
+}
+

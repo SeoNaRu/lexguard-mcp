@@ -1,0 +1,223 @@
+{
+  "api_name": "3단 비교 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=thdCmp",
+  "note": "체계도 등 부가서비스는 법령서비스 신청을 하면 추가신청 없이 이용가능합니다.",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : thdCmp",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 HTML/XML/JSON"
+    },
+    {
+      "name": "query",
+      "type": "string",
+      "required": false,
+      "description": "법령명에서 검색을 원하는 질의"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "정렬옵션(기본 : lasc 법령오름차순) / ldes : 법령내림차순 / dasc : 공포일자 오름차순 / ddes : 공포일자 내림차순 / nasc : 공포번호 오름차순 / ndes : 공포번호 내림차순 / efasc : 시행일자 오름차순 / efdes : 시행일자 내림차순"
+    },
+    {
+      "name": "efYd",
+      "type": "string",
+      "required": false,
+      "description": "시행일자 범위 검색(20090101~20090130)"
+    },
+    {
+      "name": "ancYd",
+      "type": "string",
+      "required": false,
+      "description": "공포일자 범위 검색(20090101~20090130)"
+    },
+    {
+      "name": "date",
+      "type": "int",
+      "required": false,
+      "description": "공포일자 검색"
+    },
+    {
+      "name": "nb",
+      "type": "int",
+      "required": false,
+      "description": "공포번호 검색"
+    },
+    {
+      "name": "ancNo",
+      "type": "string",
+      "required": false,
+      "description": "공포번호 범위 검색 (10000~20000)"
+    },
+    {
+      "name": "rrClsCd",
+      "type": "string",
+      "required": false,
+      "description": "법령 제개정 종류 (300201-제정 / 300202-일부개정 / 300203-전부개정 / 300204-폐지 / 300205-폐지제정 / 300206-일괄개정 / 300207-일괄폐지 / 300209-타법개정 / 300210-타법폐지 / 300208-기타)"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": false,
+      "description": "소관부처별 검색(소관부처코드 제공)"
+    },
+    {
+      "name": "knd",
+      "type": "string",
+      "required": false,
+      "description": "법령종류(코드제공)"
+    },
+    {
+      "name": "gana",
+      "type": "string",
+      "required": false,
+      "description": "사전식 검색 (ga,na,da…,etc)"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색서비스 대상"
+    },
+    {
+      "name": "키워드",
+      "type": "string",
+      "description": "검색 단어"
+    },
+    {
+      "name": "section",
+      "type": "string",
+      "description": "검색범위"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색 건수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "현재 페이지번호"
+    },
+    {
+      "name": "numOfRows",
+      "type": "int",
+      "description": "페이지 당 출력 결과 수"
+    },
+    {
+      "name": "resultCode",
+      "type": "int",
+      "description": "조회 여부(성공 : 00 / 실패 : 01)"
+    },
+    {
+      "name": "resultMsg",
+      "type": "int",
+      "description": "조회 여부(성공 : success / 실패 : fail)"
+    },
+    {
+      "name": "thdCmp id",
+      "type": "int",
+      "description": "검색결과 순번"
+    },
+    {
+      "name": "삼단비교일련번호",
+      "type": "int",
+      "description": "삼단비교 일련번호"
+    },
+    {
+      "name": "법령명한글",
+      "type": "string",
+      "description": "법령명 한글"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "int",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "법령구분명",
+      "type": "string",
+      "description": "법령구분명"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "인용조문_삼단비교상세링크",
+      "type": "string",
+      "description": "인용조문_삼단비교 상세링크"
+    },
+    {
+      "name": "위임조문_삼단비교상세링크",
+      "type": "string",
+      "description": "위임조문_삼단비교 상세링크"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=thdCmp&type=HTML&query=자동차관리법",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=thdCmp&type=HTML&rrClsCd=300201",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=thdCmp&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=thdCmp&type=JSON"
+  ]
+}
+

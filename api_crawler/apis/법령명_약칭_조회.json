@@ -1,0 +1,133 @@
+{
+  "api_name": "법령명 약칭 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lsAbrv",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : lsAbrv",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": false,
+      "description": "출력 형태 : XML/JSON"
+    },
+    {
+      "name": "stdDt",
+      "type": "int",
+      "required": false,
+      "description": "등록일(검색시작날짜)"
+    },
+    {
+      "name": "endDt",
+      "type": "int",
+      "required": false,
+      "description": "등록일(검색종료날짜)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색서비스 대상"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색건수"
+    },
+    {
+      "name": "law id",
+      "type": "int",
+      "description": "결과 번호"
+    },
+    {
+      "name": "법령일련번호",
+      "type": "int",
+      "description": "법령일련번호"
+    },
+    {
+      "name": "현행연혁코드",
+      "type": "string",
+      "description": "현행연혁코드"
+    },
+    {
+      "name": "법령명한글",
+      "type": "string",
+      "description": "법령명한글"
+    },
+    {
+      "name": "법령약칭명",
+      "type": "string",
+      "description": "법령약칭명"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "string",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "법령구분명",
+      "type": "string",
+      "description": "법령구분명"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "등록일",
+      "type": "int",
+      "description": "등록일"
+    },
+    {
+      "name": "자법타법여부",
+      "type": "string",
+      "description": "자법타법여부"
+    },
+    {
+      "name": "법령상세링크",
+      "type": "string",
+      "description": "법령상세링크"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=lsAbrv&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=lsAbrv&type=JSON"
+  ]
+}
+

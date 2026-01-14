@@ -1,0 +1,353 @@
+{
+  "api_name": "현행법령(공포일) 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=law",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : law",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령의 법령명(법령명 입력시 해당 법령 링크)"
+    },
+    {
+      "name": "LD",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포일자"
+    },
+    {
+      "name": "LN",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호"
+    },
+    {
+      "name": "JO",
+      "type": "int",
+      "required": false,
+      "description": "조번호 (생략(기본값) : 모든 조를 표시함) / 6자리숫자 : 조번호(4자리)+조가지번호(2자리) (000200 : 2조, 001002 : 10조의 2)"
+    },
+    {
+      "name": "LANG",
+      "type": "char",
+      "required": false,
+      "description": "원문/한글 여부 (생략(기본값) : 한글) / (KO : 한글, ORI : 원문)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "언어",
+      "type": "string",
+      "description": "언어종류"
+    },
+    {
+      "name": "법종구분",
+      "type": "string",
+      "description": "법종류의 구분"
+    },
+    {
+      "name": "법종구분코드",
+      "type": "string",
+      "description": "법종구분코드"
+    },
+    {
+      "name": "법령명_한글",
+      "type": "string",
+      "description": "한글법령명"
+    },
+    {
+      "name": "법령명_한자",
+      "type": "string",
+      "description": "법령명_한자"
+    },
+    {
+      "name": "법령명약칭",
+      "type": "string",
+      "description": "법령명약칭"
+    },
+    {
+      "name": "제명변경여부",
+      "type": "string",
+      "description": "제명변경여부"
+    },
+    {
+      "name": "한글법령여부",
+      "type": "string",
+      "description": "한글법령여부"
+    },
+    {
+      "name": "편장절관",
+      "type": "int",
+      "description": "편장절관 일련번호"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "int",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "소관부처",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "전화번호",
+      "type": "string",
+      "description": "전화번호"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "제개정구분",
+      "type": "string",
+      "description": "제개정구분"
+    },
+    {
+      "name": "별표편집여부",
+      "type": "string",
+      "description": "별표편집여부"
+    },
+    {
+      "name": "공포법령여부",
+      "type": "string",
+      "description": "공포법령여부"
+    },
+    {
+      "name": "소관부처명",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "부서명",
+      "type": "string",
+      "description": "연락부서명"
+    },
+    {
+      "name": "부서연락처",
+      "type": "string",
+      "description": "연락부서 전화번호"
+    },
+    {
+      "name": "공동부령구분",
+      "type": "string",
+      "description": "공동부령의 구분"
+    },
+    {
+      "name": "구분코드",
+      "type": "string",
+      "description": "구분코드(공동부령구분 구분코드)"
+    },
+    {
+      "name": "공포번호",
+      "type": "string",
+      "description": "공포번호(공동부령의 공포번호)"
+    },
+    {
+      "name": "조문번호",
+      "type": "int",
+      "description": "조문번호"
+    },
+    {
+      "name": "조문가지번호",
+      "type": "int",
+      "description": "조문가지번호"
+    },
+    {
+      "name": "조문여부",
+      "type": "string",
+      "description": "조문여부"
+    },
+    {
+      "name": "조문제목",
+      "type": "string",
+      "description": "조문제목"
+    },
+    {
+      "name": "조문시행일자",
+      "type": "int",
+      "description": "조문시행일자"
+    },
+    {
+      "name": "조문제개정유형",
+      "type": "string",
+      "description": "조문제개정유형"
+    },
+    {
+      "name": "조문이동이전",
+      "type": "int",
+      "description": "조문이동이전"
+    },
+    {
+      "name": "조문이동이후",
+      "type": "int",
+      "description": "조문이동이후"
+    },
+    {
+      "name": "조문변경여부",
+      "type": "string",
+      "description": "조문변경여부 (Y값이 있으면 해당 조문내에 변경 내용 있음)"
+    },
+    {
+      "name": "조문내용",
+      "type": "string",
+      "description": "조문내용"
+    },
+    {
+      "name": "항번호",
+      "type": "int",
+      "description": "항번호"
+    },
+    {
+      "name": "항제개정유형",
+      "type": "string",
+      "description": "항제개정유형"
+    },
+    {
+      "name": "항제개정일자문자열",
+      "type": "string",
+      "description": "항제개정일자문자열"
+    },
+    {
+      "name": "항내용",
+      "type": "string",
+      "description": "항내용"
+    },
+    {
+      "name": "호번호",
+      "type": "int",
+      "description": "호번호"
+    },
+    {
+      "name": "호내용",
+      "type": "string",
+      "description": "호내용"
+    },
+    {
+      "name": "조문참고자료",
+      "type": "string",
+      "description": "조문참고자료"
+    },
+    {
+      "name": "부칙공포일자",
+      "type": "int",
+      "description": "부칙공포일자"
+    },
+    {
+      "name": "부칙공포번호",
+      "type": "int",
+      "description": "부칙공포번호"
+    },
+    {
+      "name": "부칙내용",
+      "type": "string",
+      "description": "부칙내용"
+    },
+    {
+      "name": "별표번호",
+      "type": "int",
+      "description": "별표번호"
+    },
+    {
+      "name": "별표가지번호",
+      "type": "int",
+      "description": "별표가지번호"
+    },
+    {
+      "name": "별표구분",
+      "type": "string",
+      "description": "별표구분"
+    },
+    {
+      "name": "별표제목",
+      "type": "string",
+      "description": "별표제목"
+    },
+    {
+      "name": "별표서식파일링크",
+      "type": "string",
+      "description": "별표서식파일링크"
+    },
+    {
+      "name": "별표HWP파일명",
+      "type": "string",
+      "description": "별표 HWP 파일명"
+    },
+    {
+      "name": "별표서식PDF파일링크",
+      "type": "string",
+      "description": "별표서식PDF파일링크"
+    },
+    {
+      "name": "별표PDF파일명",
+      "type": "string",
+      "description": "별표 PDF 파일명"
+    },
+    {
+      "name": "별표이미지파일명",
+      "type": "string",
+      "description": "별표 이미지 파일명"
+    },
+    {
+      "name": "별표내용",
+      "type": "string",
+      "description": "별표내용"
+    },
+    {
+      "name": "개정문내용",
+      "type": "string",
+      "description": "개정문내용"
+    },
+    {
+      "name": "제개정이유내용",
+      "type": "string",
+      "description": "제개정이유내용"
+    }
+  ]
+}

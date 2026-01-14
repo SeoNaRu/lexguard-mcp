@@ -1,0 +1,109 @@
+{
+  "api_name": "헌재결정례 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=detc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : detc",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "헌재결정례 일련번호"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "헌재결정례명"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "헌재결정례일련번호",
+      "type": "int",
+      "description": "헌재결정례일련번호"
+    },
+    {
+      "name": "종국일자",
+      "type": "int",
+      "description": "종국일자"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "사건명",
+      "type": "string",
+      "description": "사건명"
+    },
+    {
+      "name": "사건종류명",
+      "type": "string",
+      "description": "사건종류명"
+    },
+    {
+      "name": "사건종류코드",
+      "type": "int",
+      "description": "사건종류코드"
+    },
+    {
+      "name": "재판부구분코드",
+      "type": "int",
+      "description": "재판부구분코드(전원재판부:430201, 지정재판부:430202)"
+    },
+    {
+      "name": "판시사항",
+      "type": "string",
+      "description": "판시사항"
+    },
+    {
+      "name": "결정요지",
+      "type": "string",
+      "description": "결정요지"
+    },
+    {
+      "name": "전문",
+      "type": "string",
+      "description": "전문"
+    },
+    {
+      "name": "참조조문",
+      "type": "string",
+      "description": "참조조문"
+    },
+    {
+      "name": "참조판례",
+      "type": "string",
+      "description": "참조판례"
+    },
+    {
+      "name": "심판대상조문",
+      "type": "string",
+      "description": "심판대상조문"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=detc&ID=58386&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=detc&ID=127830&LM=자동차관리법제26조등위헌확인등&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=detc&ID=58400&type=JSON"
+  ]
+}
+

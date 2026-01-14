@@ -1,0 +1,188 @@
+{
+  "api_name": "위임 법령 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=lsDelegated",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : lsDelegated",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력, ID로 검색하면 그 법령의 현행 법령 본문 조회)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "법령일련번호",
+      "type": "int",
+      "description": "법령일련번호"
+    },
+    {
+      "name": "법령명",
+      "type": "string",
+      "description": "법령명"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "int",
+      "description": "소관부처코드"
+    },
+    {
+      "name": "전화번호",
+      "type": "string",
+      "description": "전화번호"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "조문번호",
+      "type": "string",
+      "description": "조문번호"
+    },
+    {
+      "name": "조문제목",
+      "type": "string",
+      "description": "조문제목"
+    },
+    {
+      "name": "위임구분",
+      "type": "string",
+      "description": "위임된 법령의 종류"
+    },
+    {
+      "name": "위임법령일련번호",
+      "type": "string",
+      "description": "위임된 법령의 일련번호"
+    },
+    {
+      "name": "위임법령제목",
+      "type": "string",
+      "description": "위임된 법령의 제목"
+    },
+    {
+      "name": "위임법령조문번호",
+      "type": "string",
+      "description": "위임된 법령의 조문번호"
+    },
+    {
+      "name": "위임법령조문가지번호",
+      "type": "string",
+      "description": "위임된 법령의 조문 가지번호"
+    },
+    {
+      "name": "위임법령조문제목",
+      "type": "string",
+      "description": "위임된 법령의 조문 제목"
+    },
+    {
+      "name": "위임법령_링크텍스트",
+      "type": "string",
+      "description": "위임된 법령에 대한 링크를 걸어줘야 하는 텍스트"
+    },
+    {
+      "name": "위임법령_라인텍스트",
+      "type": "string",
+      "description": "링크텍스트가 포함된 텍스트(조문내용)"
+    },
+    {
+      "name": "위임법령_조항호목",
+      "type": "string",
+      "description": "링크텍스트와 라인텍스트가 포함된 조항호목"
+    },
+    {
+      "name": "위임행정규칙일련번호",
+      "type": "string",
+      "description": "위임된 행정규칙의 일련번호"
+    },
+    {
+      "name": "위임행정규칙제목",
+      "type": "string",
+      "description": "위임된 행정규칙의 제목"
+    },
+    {
+      "name": "위임행정규칙_링크텍스트",
+      "type": "string",
+      "description": "위임된 행정규칙에 대한 링크를 걸어줘야 하는 텍스트"
+    },
+    {
+      "name": "위임행정규칙_라인텍스트",
+      "type": "string",
+      "description": "링크텍스트가 포함된 텍스트(조문내용)"
+    },
+    {
+      "name": "위임행정규칙_조항호목",
+      "type": "string",
+      "description": "링크텍스트와 라인텍스트가 포함된 조항호목"
+    },
+    {
+      "name": "위임자치법규일련번호",
+      "type": "string",
+      "description": "위임된 자치법규의 일련번호"
+    },
+    {
+      "name": "위임자치법규제목",
+      "type": "string",
+      "description": "위임된 자치법규의 제목"
+    },
+    {
+      "name": "위임자치법규_링크텍스트",
+      "type": "string",
+      "description": "위임된 자치법규에 대한 링크를 걸어줘야 하는 텍스트"
+    },
+    {
+      "name": "위임자치법규_라인텍스트",
+      "type": "string",
+      "description": "링크텍스트가 포함된 텍스트(조문내용)"
+    },
+    {
+      "name": "위임자치법규_조항호목",
+      "type": "string",
+      "description": "링크텍스트와 라인텍스트가 포함된 조항호목"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=lsDelegated&type=XML&ID=000900",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=lsDelegated&type=JSON&ID=000900"
+  ]
+}
+

@@ -1,0 +1,269 @@
+{
+  "api_name": "현행법령(시행일) 본문 조항호목 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=eflawjosub",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : eflawjosub",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "법령 ID (ID 또는 MST 중 하나는 반드시 입력)"
+    },
+    {
+      "name": "MST",
+      "type": "char",
+      "required": false,
+      "description": "법령 마스터 번호 - 법령테이블의 lsi_seq 값을 의미함"
+    },
+    {
+      "name": "efYd",
+      "type": "int",
+      "required": true,
+      "description": "법령의 시행일자 (ID 입력시에는 무시하는 값으로 입력하지 않음)"
+    },
+    {
+      "name": "JO",
+      "type": "char",
+      "required": true,
+      "description": "조 번호 6자리숫자 (예) 제2조 : 000200, 제10조의2 : 001002)"
+    },
+    {
+      "name": "HANG",
+      "type": "char",
+      "required": false,
+      "description": "항 번호 6자리숫자 (예) 제2항 : 000200)"
+    },
+    {
+      "name": "HO",
+      "type": "char",
+      "required": false,
+      "description": "호 번호 6자리숫자 (예) 제2호 : 000200, 제10호의2 : 001002)"
+    },
+    {
+      "name": "MOK",
+      "type": "char",
+      "required": false,
+      "description": "목 한자리 문자 (예) 가,나,다,라, … 카,타,파,하) / 한글은 인코딩 하여 사용하여야 정상적으로 사용이 가능 (URLDecoder.decode(\"다\", \"UTF-8\"))"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "법령키",
+      "type": "int",
+      "description": "법령키"
+    },
+    {
+      "name": "법령ID",
+      "type": "int",
+      "description": "법령ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "언어",
+      "type": "string",
+      "description": "언어"
+    },
+    {
+      "name": "법종구분",
+      "type": "string",
+      "description": "법종구분"
+    },
+    {
+      "name": "법종구분 코드",
+      "type": "string",
+      "description": "법종구분 코드"
+    },
+    {
+      "name": "법령명_한글",
+      "type": "string",
+      "description": "법령명을 한글로 제공"
+    },
+    {
+      "name": "법령명_한자",
+      "type": "string",
+      "description": "법령명을 한자로 제공"
+    },
+    {
+      "name": "법령명_영어",
+      "type": "string",
+      "description": "법령명을 영어로 제공"
+    },
+    {
+      "name": "편장절관",
+      "type": "int",
+      "description": "편장절관"
+    },
+    {
+      "name": "소관부처코드",
+      "type": "int",
+      "description": "소관부처 코드"
+    },
+    {
+      "name": "소관부처",
+      "type": "string",
+      "description": "소관부처명"
+    },
+    {
+      "name": "전화번호",
+      "type": "string",
+      "description": "전화번호"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    },
+    {
+      "name": "제개정구분",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "제안구분",
+      "type": "string",
+      "description": "제안구분"
+    },
+    {
+      "name": "의결구분",
+      "type": "string",
+      "description": "의결구분"
+    },
+    {
+      "name": "적용시작일자",
+      "type": "string",
+      "description": "적용시작일자"
+    },
+    {
+      "name": "적용종료일자",
+      "type": "string",
+      "description": "적용종료일자"
+    },
+    {
+      "name": "이전법령명",
+      "type": "string",
+      "description": "이전법령명"
+    },
+    {
+      "name": "조문시행일자문자열",
+      "type": "string",
+      "description": "조문시행일자문자열"
+    },
+    {
+      "name": "별표시행일자문자열",
+      "type": "string",
+      "description": "별표시행일자문자열"
+    },
+    {
+      "name": "별표편집여부",
+      "type": "string",
+      "description": "별표편집여부"
+    },
+    {
+      "name": "공포법령여부",
+      "type": "string",
+      "description": "공포법령여부 (Y값이 있으면 해당 법령은 공포법령임)"
+    },
+    {
+      "name": "조문번호",
+      "type": "int",
+      "description": "조문번호"
+    },
+    {
+      "name": "조문여부",
+      "type": "string",
+      "description": "조문여부"
+    },
+    {
+      "name": "조문제목",
+      "type": "string",
+      "description": "조문제목"
+    },
+    {
+      "name": "조문시행일자",
+      "type": "string",
+      "description": "조문시행일자"
+    },
+    {
+      "name": "조문이동이전",
+      "type": "int",
+      "description": "조문이동이전번호"
+    },
+    {
+      "name": "조문이동이후",
+      "type": "int",
+      "description": "조문이동이후번호"
+    },
+    {
+      "name": "조문변경여부",
+      "type": "string",
+      "description": "조문변경여부 (Y값이 있으면 해당 조문내에 변경 내용 있음)"
+    },
+    {
+      "name": "조문내용",
+      "type": "string",
+      "description": "조문내용"
+    },
+    {
+      "name": "항번호",
+      "type": "int",
+      "description": "항번호"
+    },
+    {
+      "name": "항내용",
+      "type": "string",
+      "description": "항내용"
+    },
+    {
+      "name": "호번호",
+      "type": "int",
+      "description": "호번호"
+    },
+    {
+      "name": "호내용",
+      "type": "string",
+      "description": "호내용"
+    },
+    {
+      "name": "목번호",
+      "type": "string",
+      "description": "목번호"
+    },
+    {
+      "name": "목내용",
+      "type": "string",
+      "description": "목내용"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=eflawjosub&type=XML&MST=193412&efYd=20171019&JO=000300&HANG=000100&HO=000200&MOK=다",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=eflawjosub&type=HTML&MST=193412&efYd=20171019&JO=000300&HANG=000100&HO=000200&MOK=다",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=eflawjosub&type=JSON&MST=193412&efYd=20171019&JO=000300&HANG=000100&HO=000200&MOK=다"
+  ]
+}
+

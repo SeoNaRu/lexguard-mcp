@@ -1,0 +1,122 @@
+{
+  "api_name": "개인정보보호위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=ppc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (개인정보보호위원회 : ppc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "결정",
+      "type": "string",
+      "description": "결정"
+    },
+    {
+      "name": "회의종류",
+      "type": "string",
+      "description": "회의종류"
+    },
+    {
+      "name": "안건번호",
+      "type": "string",
+      "description": "안건번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "신청인",
+      "type": "string",
+      "description": "신청인"
+    },
+    {
+      "name": "의결연월일",
+      "type": "string",
+      "description": "의결연월일"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "배경",
+      "type": "string",
+      "description": "배경"
+    },
+    {
+      "name": "이의제기방법및기간",
+      "type": "string",
+      "description": "이의제기방법및기간"
+    },
+    {
+      "name": "주요내용",
+      "type": "string",
+      "description": "주요내용"
+    },
+    {
+      "name": "의결일자",
+      "type": "string",
+      "description": "의결일자"
+    },
+    {
+      "name": "위원서명",
+      "type": "string",
+      "description": "위원서명"
+    },
+    {
+      "name": "별지",
+      "type": "string",
+      "description": "별지"
+    },
+    {
+      "name": "결정요지",
+      "type": "string",
+      "description": "결정요지"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ppc&ID=5&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ppc&ID=3&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=ppc&ID=9907&type=JSON"
+  ]
+}

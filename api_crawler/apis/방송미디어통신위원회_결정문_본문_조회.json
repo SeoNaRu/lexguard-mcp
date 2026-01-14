@@ -1,0 +1,133 @@
+{
+  "api_name": "방송미디어통신위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=kcc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (방송미디어통신위원회 : kcc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "의결서유형",
+      "type": "string",
+      "description": "의결서 유형"
+    },
+    {
+      "name": "안건번호",
+      "type": "string",
+      "description": "안건번호"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "사건명",
+      "type": "string",
+      "description": "사건명"
+    },
+    {
+      "name": "피심인",
+      "type": "string",
+      "description": "피심인"
+    },
+    {
+      "name": "피심의인",
+      "type": "string",
+      "description": "피심의인"
+    },
+    {
+      "name": "청구인",
+      "type": "string",
+      "description": "청구인"
+    },
+    {
+      "name": "참고인",
+      "type": "string",
+      "description": "참고인"
+    },
+    {
+      "name": "원심결정",
+      "type": "string",
+      "description": "원심결정"
+    },
+    {
+      "name": "의결일자",
+      "type": "string",
+      "description": "의결일자"
+    },
+    {
+      "name": "주문",
+      "type": "string",
+      "description": "주문"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    },
+    {
+      "name": "별지",
+      "type": "string",
+      "description": "별지"
+    },
+    {
+      "name": "문서제공구분",
+      "type": "string",
+      "description": "문서제공구분(데이터 개방|이유하단 이미지개방)"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=kcc&ID=12549&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=kcc&ID=12547&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=kcc&ID=11737&type=JSON"
+  ]
+}
+

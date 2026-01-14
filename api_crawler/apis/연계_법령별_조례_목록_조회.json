@@ -1,0 +1,121 @@
+{
+  "api_name": "연계 법령별 조례 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=lnkLsOrd",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : lnkLsOrd",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "(기본 : lasc 자치법규오름차순) ldes 자치법규 내림차순 / dasc : 공포일자 오름차순 / ddes : 공포일자 내림차순 / nasc : 공포번호 오름차순 / ndes : 공포번호 내림차순"
+    },
+    {
+      "name": "knd",
+      "type": "string",
+      "required": false,
+      "description": "법령종류(코드제공) - 법령ID 사용함"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "target",
+      "type": "string",
+      "description": "검색서비스 대상"
+    },
+    {
+      "name": "section",
+      "type": "string",
+      "description": "검색범위"
+    },
+    {
+      "name": "totalCnt",
+      "type": "int",
+      "description": "검색건수"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "description": "결과페이지번호"
+    },
+    {
+      "name": "law id",
+      "type": "int",
+      "description": "결과 번호"
+    },
+    {
+      "name": "자치법규일련번호",
+      "type": "int",
+      "description": "자치법규 일련번호"
+    },
+    {
+      "name": "자치법규명",
+      "type": "string",
+      "description": "자치법규명"
+    },
+    {
+      "name": "자치법규ID",
+      "type": "int",
+      "description": "자치법규ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "int",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "int",
+      "description": "공포번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "자치법규종류",
+      "type": "string",
+      "description": "자치법규종류"
+    },
+    {
+      "name": "시행일자",
+      "type": "int",
+      "description": "시행일자"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=lnkLsOrd&knd=002118&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=lnkLsOrd&knd=002118&type=HTML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=lnkLsOrd&knd=002118&type=JSON"
+  ]
+}
+

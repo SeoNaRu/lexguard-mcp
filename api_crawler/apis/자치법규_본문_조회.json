@@ -1,0 +1,184 @@
+{
+  "api_name": "자치법규 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=ordin",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 HTML/XML/JSON"
+    },
+    {
+      "name": "target",
+      "type": "string : ordin",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "자치법규ID"
+    },
+    {
+      "name": "MST",
+      "type": "string",
+      "required": false,
+      "description": "자치법규 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "자치법규ID",
+      "type": "int",
+      "description": "자치법규ID"
+    },
+    {
+      "name": "자치법규일련번호",
+      "type": "string",
+      "description": "자치법규일련번호"
+    },
+    {
+      "name": "공포일자",
+      "type": "string",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "string",
+      "description": "공포번호"
+    },
+    {
+      "name": "자치법규명",
+      "type": "string",
+      "description": "자치법규명"
+    },
+    {
+      "name": "시행일자",
+      "type": "string",
+      "description": "시행일자"
+    },
+    {
+      "name": "자치법규종류",
+      "type": "string",
+      "description": "자치법규종류 (C0001-조례 /C0002-규칙 /C0003-훈령 /C0004-예규/C0006-기타/C0010-고시 /C0011-의회규칙)"
+    },
+    {
+      "name": "지자체기관명",
+      "type": "string",
+      "description": "지자체기관명"
+    },
+    {
+      "name": "자치법규발의종류",
+      "type": "string",
+      "description": "자치법규발의종류"
+    },
+    {
+      "name": "담당부서명",
+      "type": "string",
+      "description": "담당부서명"
+    },
+    {
+      "name": "전화번호",
+      "type": "string",
+      "description": "전화번호"
+    },
+    {
+      "name": "제개정정보",
+      "type": "string",
+      "description": "제개정정보"
+    },
+    {
+      "name": "조문번호",
+      "type": "string",
+      "description": "조문번호"
+    },
+    {
+      "name": "조문여부",
+      "type": "string",
+      "description": "해당 조문이 조일때 Y, 그 외 편,장,절,관 일때는 N"
+    },
+    {
+      "name": "조제목",
+      "type": "string",
+      "description": "조제목"
+    },
+    {
+      "name": "조내용",
+      "type": "string",
+      "description": "조내용"
+    },
+    {
+      "name": "부칙공포일자",
+      "type": "int",
+      "description": "부칙공포일자"
+    },
+    {
+      "name": "부칙공포번호",
+      "type": "int",
+      "description": "부칙공포번호"
+    },
+    {
+      "name": "부칙내용",
+      "type": "string",
+      "description": "부칙내용"
+    },
+    {
+      "name": "별표",
+      "type": "string",
+      "description": "별표 (자치법규 별표는 서울시교육청과 본청만 제공합니다.)"
+    },
+    {
+      "name": "별표번호",
+      "type": "int",
+      "description": "별표번호"
+    },
+    {
+      "name": "별표가지번호",
+      "type": "int",
+      "description": "별표가지번호"
+    },
+    {
+      "name": "별표구분",
+      "type": "string",
+      "description": "별표구분"
+    },
+    {
+      "name": "별표제목",
+      "type": "string",
+      "description": "별표제목"
+    },
+    {
+      "name": "별표첨부파일명",
+      "type": "string",
+      "description": "별표첨부파일명"
+    },
+    {
+      "name": "별표내용",
+      "type": "string",
+      "description": "별표내용"
+    },
+    {
+      "name": "개정문내용",
+      "type": "string",
+      "description": "개정문내용"
+    },
+    {
+      "name": "제개정이유내용",
+      "type": "string",
+      "description": "제개정이유내용"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=ordin&MST=1316146&type=HTML&mobileYn=",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=ordin&ID=2026666&type=XML&mobileYn=",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=ordin&ID=2251458&type=JSON&mobileYn="
+  ]
+}
+

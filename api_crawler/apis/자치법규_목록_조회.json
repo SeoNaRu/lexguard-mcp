@@ -1,0 +1,206 @@
+{
+  "api_name": "자치법규 목록 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawSearch.do?target=ordin",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : ordin",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 HTML/XML/JSON"
+    },
+    {
+      "name": "nw",
+      "type": "int",
+      "required": false,
+      "description": "(1: 현행, 2: 연혁, 기본값: 현행)"
+    },
+    {
+      "name": "search",
+      "type": "int",
+      "required": false,
+      "description": "검색범위 (기본 : 1 자치법규명) 2 : 본문검색"
+    },
+    {
+      "name": "query",
+      "type": "string",
+      "required": false,
+      "description": "검색범위에서 검색을 원하는 질의(default=*) (정확한 검색을 위한 문자열 검색 query=\"자동차\")"
+    },
+    {
+      "name": "display",
+      "type": "int",
+      "required": false,
+      "description": "검색된 결과 개수 (default=20 max=100)"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "description": "검색 결과 페이지 (default=1)"
+    },
+    {
+      "name": "sort",
+      "type": "string",
+      "required": false,
+      "description": "정렬옵션 (기본 : lasc 자치법규오름차순) ldes 자치법규 내림차순 / dasc : 공포일자 오름차순 / ddes : 공포일자 내림차순 / nasc : 공포번호 오름차순 / ndes : 공포번호 내림차순 / efasc : 시행일자 오름차순 / efdes : 시행일자 내림차순"
+    },
+    {
+      "name": "date",
+      "type": "int",
+      "required": false,
+      "description": "자치법규 공포일자 검색"
+    },
+    {
+      "name": "efYd",
+      "type": "string",
+      "required": false,
+      "description": "시행일자 범위 검색(20090101~20090130)"
+    },
+    {
+      "name": "ancYd",
+      "type": "string",
+      "required": false,
+      "description": "공포일자 범위 검색(20090101~20090130)"
+    },
+    {
+      "name": "ancNo",
+      "type": "string",
+      "required": false,
+      "description": "공포번호 범위 검색(306~400)"
+    },
+    {
+      "name": "nb",
+      "type": "int",
+      "required": false,
+      "description": "법령의 공포번호 검색"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": false,
+      "description": "지자체별 도·특별시·광역시 검색(지자체코드 제공) (ex. 서울특별시에 대한 검색-> org=6110000)"
+    },
+    {
+      "name": "sborg",
+      "type": "string",
+      "required": false,
+      "description": "지자체별 시·군·구 검색(지자체코드 제공) (필수값 : org, ex.서울특별시 구로구에 대한 검색-> org=6110000&sborg=3160000)"
+    },
+    {
+      "name": "knd",
+      "type": "string",
+      "required": false,
+      "description": "법령종류 (30001-조례 /30002-규칙 /30003-훈령 /30004-예규/30006-기타/30010-고시 /30011-의회규칙)"
+    },
+    {
+      "name": "rrClsCd",
+      "type": "string",
+      "required": false,
+      "description": "법령 제개정 종류 (300201-제정 / 300202-일부개정 / 300203-전부개정 / 300204-폐지 / 300205-폐지제정 / 300206-일괄개정 / 300207-일괄폐지 / 300208-타법개정 / 300209-타법폐지 / 300214-기타)"
+    },
+    {
+      "name": "ordinFd",
+      "type": "int",
+      "required": false,
+      "description": "분류코드별 검색. 분류코드는 지자체 분야코드 openAPI 참조"
+    },
+    {
+      "name": "lsChapNo",
+      "type": "string",
+      "required": false,
+      "description": "법령분야별 검색(법령분야코드제공) (ex. 제1편 검색 lsChapNo=01000000 / 제1편2장,제1편2장1절 lsChapNo=01020000,01020100)"
+    },
+    {
+      "name": "gana",
+      "type": "string",
+      "required": false,
+      "description": "사전식 검색 (ga,na,da…,etc)"
+    },
+    {
+      "name": "popYn",
+      "type": "string",
+      "required": false,
+      "description": "상세화면 팝업창 여부(팝업창으로 띄우고 싶을 때만 'popYn=Y')"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "자치법규일련번호",
+      "type": "int",
+      "description": "자치법규 일련번호"
+    },
+    {
+      "name": "자치법규명",
+      "type": "string",
+      "description": "자치법규명"
+    },
+    {
+      "name": "자치법규ID",
+      "type": "int",
+      "description": "자치법규ID"
+    },
+    {
+      "name": "공포일자",
+      "type": "string",
+      "description": "공포일자"
+    },
+    {
+      "name": "공포번호",
+      "type": "string",
+      "description": "공포번호"
+    },
+    {
+      "name": "제개정구분명",
+      "type": "string",
+      "description": "제개정구분명"
+    },
+    {
+      "name": "지자체기관명",
+      "type": "string",
+      "description": "지자체기관명"
+    },
+    {
+      "name": "자치법규종류",
+      "type": "string",
+      "description": "자치법규종류"
+    },
+    {
+      "name": "시행일자",
+      "type": "string",
+      "description": "시행일자"
+    },
+    {
+      "name": "자치법규상세링크",
+      "type": "string",
+      "description": "자치법규상세링크"
+    },
+    {
+      "name": "자치법규분야명",
+      "type": "string",
+      "description": "자치법규분야명"
+    },
+    {
+      "name": "참조데이터구분",
+      "type": "string",
+      "description": "참조데이터구분"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ordin&type=XML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ordin&type=HTML",
+    "http://www.law.go.kr/DRF/lawSearch.do?OC=test&target=ordin&query=청소년&type=JSON"
+  ]
+}
+

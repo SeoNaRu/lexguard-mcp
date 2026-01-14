@@ -1,0 +1,207 @@
+{
+  "api_name": "조약 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=trty",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (조약 : trty)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": false,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": false,
+      "description": "조약 ID"
+    },
+    {
+      "name": "chrClsCd",
+      "type": "char",
+      "required": false,
+      "description": "한글/영문 : 010202(한글)/ 010203(영문) (default = 010202)"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "조약일련번호",
+      "type": "int",
+      "description": "조약일련번호"
+    },
+    {
+      "name": "조약명_한글",
+      "type": "string",
+      "description": "조약명한글"
+    },
+    {
+      "name": "조약명_영문",
+      "type": "string",
+      "description": "조약명영문"
+    },
+    {
+      "name": "조약구분코드",
+      "type": "int",
+      "description": "조약구분코드(양자조약:440101, 다자조약:440102)"
+    },
+    {
+      "name": "대통령재가일자",
+      "type": "int",
+      "description": "대통령재가일자"
+    },
+    {
+      "name": "발효일자",
+      "type": "int",
+      "description": "발효일자"
+    },
+    {
+      "name": "조약번호",
+      "type": "int",
+      "description": "조약번호"
+    },
+    {
+      "name": "관보게재일자",
+      "type": "int",
+      "description": "관보게재일자"
+    },
+    {
+      "name": "국무회의심의일자",
+      "type": "int",
+      "description": "국무회의심의일자"
+    },
+    {
+      "name": "국무회의심의회차",
+      "type": "int",
+      "description": "국무회의심의회차"
+    },
+    {
+      "name": "국회비준동의여부",
+      "type": "string",
+      "description": "국회비준동의여부"
+    },
+    {
+      "name": "국회비준동의일자",
+      "type": "string",
+      "description": "국회비준동의일자"
+    },
+    {
+      "name": "서명일자",
+      "type": "int",
+      "description": "서명일자"
+    },
+    {
+      "name": "서명장소",
+      "type": "string",
+      "description": "서명장소"
+    },
+    {
+      "name": "비고",
+      "type": "string",
+      "description": "비고"
+    },
+    {
+      "name": "추가정보",
+      "type": "string",
+      "description": "추가정보"
+    },
+    {
+      "name": "체결대상국가",
+      "type": "string",
+      "description": "체결대상국가"
+    },
+    {
+      "name": "체결대상국가한글",
+      "type": "string",
+      "description": "체결대상국가한글"
+    },
+    {
+      "name": "우리측국내절차완료통보",
+      "type": "int",
+      "description": "우리측국내절차완료통보일"
+    },
+    {
+      "name": "상대국측국내절차완료통보",
+      "type": "int",
+      "description": "상대국측국내절차완료통보일"
+    },
+    {
+      "name": "양자조약분야코드",
+      "type": "int",
+      "description": "양자조약분야코드"
+    },
+    {
+      "name": "양자조약분야명",
+      "type": "string",
+      "description": "양자조약분야명"
+    },
+    {
+      "name": "제2외국어종류",
+      "type": "string",
+      "description": "제2외국어종류"
+    },
+    {
+      "name": "국가코드",
+      "type": "string",
+      "description": "국가코드"
+    },
+    {
+      "name": "조약내용",
+      "type": "string",
+      "description": "조약내용"
+    },
+    {
+      "name": "체결일자",
+      "type": "string",
+      "description": "체결일자"
+    },
+    {
+      "name": "체결장소",
+      "type": "string",
+      "description": "체결장소"
+    },
+    {
+      "name": "기탁처",
+      "type": "string",
+      "description": "기탁처"
+    },
+    {
+      "name": "다자조약분야코드",
+      "type": "string",
+      "description": "다자조약분야코드"
+    },
+    {
+      "name": "다자조약분야명",
+      "type": "string",
+      "description": "다자조약분야명"
+    },
+    {
+      "name": "수락서기탁일자",
+      "type": "string",
+      "description": "수락서기탁일자"
+    },
+    {
+      "name": "국내발효일자",
+      "type": "string",
+      "description": "국내발효일자"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=983&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=2120&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=983&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=2120&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=983&type=JSON",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=trty&ID=2120&type=JSON"
+  ]
+}
+

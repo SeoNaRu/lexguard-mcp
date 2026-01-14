@@ -1,0 +1,109 @@
+{
+  "api_name": "법령해석례 본문 조회",
+  "request_url": "http://www.law.go.kr/DRF/lawService.do?target=expc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string : expc",
+      "required": true,
+      "description": "서비스 대상"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "int",
+      "required": true,
+      "description": "법령해석례 일련번호"
+    },
+    {
+      "name": "LM",
+      "type": "string",
+      "required": false,
+      "description": "법령해석례명"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "법령해석례일련번호",
+      "type": "int",
+      "description": "법령해석례일련번호"
+    },
+    {
+      "name": "안건명",
+      "type": "string",
+      "description": "안건명"
+    },
+    {
+      "name": "안건번호",
+      "type": "string",
+      "description": "안건번호"
+    },
+    {
+      "name": "해석일자",
+      "type": "int",
+      "description": "해석일자"
+    },
+    {
+      "name": "해석기관코드",
+      "type": "int",
+      "description": "해석기관코드"
+    },
+    {
+      "name": "해석기관명",
+      "type": "string",
+      "description": "해석기관명"
+    },
+    {
+      "name": "질의기관코드",
+      "type": "int",
+      "description": "질의기관코드"
+    },
+    {
+      "name": "질의기관명",
+      "type": "string",
+      "description": "질의기관명"
+    },
+    {
+      "name": "관리기관코드",
+      "type": "int",
+      "description": "관리기관코드"
+    },
+    {
+      "name": "등록일시",
+      "type": "int",
+      "description": "등록일시"
+    },
+    {
+      "name": "질의요지",
+      "type": "string",
+      "description": "질의요지"
+    },
+    {
+      "name": "회답",
+      "type": "string",
+      "description": "회답"
+    },
+    {
+      "name": "이유",
+      "type": "string",
+      "description": "이유"
+    }
+  ],
+  "sample_urls": [
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=expc&ID=334617&type=HTML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=expc&ID=315191&LM=여성가족부 - 건강가정기본법 제35조 제2항 관련&type=XML",
+    "http://www.law.go.kr/DRF/lawService.do?OC=test&target=expc&ID=330471&type=JSON"
+  ]
+}
+

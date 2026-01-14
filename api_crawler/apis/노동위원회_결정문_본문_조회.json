@@ -1,0 +1,103 @@
+{
+  "api_name": "노동위원회 결정문 본문 조회",
+  "request_url": "https://www.law.go.kr/DRF/lawService.do?target=nlrc",
+  "request_parameters": [
+    {
+      "name": "OC",
+      "type": "string",
+      "required": true,
+      "description": "사용자 이메일의 ID(g4c@korea.kr일경우 OC값=g4c)"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "description": "서비스 대상 (노동위원회 : nlrc)"
+    },
+    {
+      "name": "type",
+      "type": "char",
+      "required": true,
+      "description": "출력 형태 : HTML/XML/JSON"
+    },
+    {
+      "name": "ID",
+      "type": "char",
+      "required": true,
+      "description": "결정문 일련번호"
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "결정문일련번호",
+      "type": "int",
+      "description": "결정문 일련번호"
+    },
+    {
+      "name": "기관명",
+      "type": "string",
+      "description": "기관명"
+    },
+    {
+      "name": "사건번호",
+      "type": "string",
+      "description": "사건번호"
+    },
+    {
+      "name": "자료구분",
+      "type": "string",
+      "description": "자료구분"
+    },
+    {
+      "name": "담당부서",
+      "type": "string",
+      "description": "담당부서"
+    },
+    {
+      "name": "등록일",
+      "type": "string",
+      "description": "등록일"
+    },
+    {
+      "name": "제목",
+      "type": "string",
+      "description": "제목"
+    },
+    {
+      "name": "내용",
+      "type": "string",
+      "description": "내용"
+    },
+    {
+      "name": "판정사항",
+      "type": "string",
+      "description": "판정사항"
+    },
+    {
+      "name": "판정요지",
+      "type": "string",
+      "description": "판정요지"
+    },
+    {
+      "name": "판정결과",
+      "type": "string",
+      "description": "판정결과"
+    },
+    {
+      "name": "각주번호",
+      "type": "int",
+      "description": "각주번호"
+    },
+    {
+      "name": "각주내용",
+      "type": "string",
+      "description": "각주내용"
+    }
+  ],
+  "sample_urls": [
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=nlrc&ID=55&type=HTML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=nlrc&ID=71&type=XML",
+    "https://www.law.go.kr/DRF/lawService.do?OC=test&target=nlrc&ID=129&type=JSON"
+  ]
+}
+
