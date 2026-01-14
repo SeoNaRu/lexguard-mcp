@@ -59,6 +59,9 @@ class SearchPrecedentRequest(BaseModel):
     court: Optional[str] = Field(None, description="법원 종류 (대법원:400201, 하위법원:400202)")
     date_from: Optional[str] = Field(None, description="시작일자 (YYYYMMDD)")
     date_to: Optional[str] = Field(None, description="종료일자 (YYYYMMDD)")
+    use_fallback: bool = Field(False, description="다단계 fallback 전략 사용 여부")
+    issue_type: Optional[str] = Field(None, description="쟁점 유형 (예: '근로자성', '재산분할', '부당해고')")
+    must_include: Optional[List[str]] = Field(None, description="반드시 포함할 키워드 리스트")
 
 
 class GetPrecedentRequest(BaseModel):

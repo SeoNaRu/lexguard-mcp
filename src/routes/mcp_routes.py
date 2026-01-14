@@ -374,7 +374,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "name": "search_precedent_tool",
                                 "priority": 2,
                                 "category": "precedent",
-                                "description": "판례를 검색합니다. 유사한 사건의 판례를 찾을 때 사용합니다. 예: '손해배상 판례 검색', '계약해지 관련 판례 찾기', '대법원 2020년 판례'.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"query\": \"손해배상\",\n  \"page\": 1,\n  \"per_page\": 20,\n  \"total\": 150,\n  \"precedents\": [\n    {\n      \"precedent_id\": \"123456\",\n      \"case_name\": \"...\",\n      \"case_number\": \"...\"\n    }\n  ]\n}\n```",
+                                "description": "판례를 검색합니다. 유사한 사건의 판례를 찾을 때 사용합니다. 예: '손해배상 판례 검색', '계약해지 관련 판례 찾기', '대법원 2020년 판례'.\n\n**다단계 검색 전략 (use_fallback=true)**: 검색 결과가 0일 때 자동으로 동의어 확장, 날짜 범위 확장, 키워드 추출 등을 시도합니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"query\": \"손해배상\",\n  \"page\": 1,\n  \"per_page\": 20,\n  \"total\": 150,\n  \"precedents\": [...],\n  \"query_plan\": [...],\n  \"attempts\": [...],\n  \"fallback_used\": false\n}\n```",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -407,6 +407,22 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         "date_to": {
                                             "type": "string",
                                             "description": "종료일자 (YYYYMMDD, 예: '20201231')"
+                                        },
+                                        "use_fallback": {
+                                            "type": "boolean",
+                                            "description": "다단계 fallback 전략 사용 여부 (검색 결과가 0일 때 자동으로 동의어 확장, 날짜 범위 확장 등을 시도)",
+                                            "default": false
+                                        },
+                                        "issue_type": {
+                                            "type": "string",
+                                            "description": "쟁점 유형 (예: '근로자성', '재산분할', '부당해고', '손해배상'). 검색 쿼리 최적화에 사용됩니다."
+                                        },
+                                        "must_include": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "반드시 포함할 키워드 리스트 (예: ['근로기준법', '근로자']). 검색 정확도를 높이기 위해 사용됩니다."
                                         }
                                     },
                                     "required": []
@@ -928,15 +944,22 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 court = arguments.get("court")
                                 date_from = arguments.get("date_from")
                                 date_to = arguments.get("date_to")
+                                use_fallback = arguments.get("use_fallback", False)
+                                issue_type = arguments.get("issue_type")
+                                must_include = arguments.get("must_include")
                                 req = SearchPrecedentRequest(
                                     query=query,
                                     page=page,
                                     per_page=per_page,
                                     court=court,
                                     date_from=date_from,
-                                    date_to=date_to
+                                    date_to=date_to,
+                                    use_fallback=use_fallback,
+                                    issue_type=issue_type,
+                                    must_include=must_include
                                 )
-                                logger.debug("Calling search_precedent | query=%s page=%d per_page=%d", query, page, per_page)
+                                logger.debug("Calling search_precedent | query=%s page=%d per_page=%d use_fallback=%s", 
+                                           query, page, per_page, use_fallback)
                                 result = await precedent_service.search_precedent(req, None)
                             elif tool_name == "get_precedent_tool":
                                 precedent_id = arguments.get("precedent_id")
