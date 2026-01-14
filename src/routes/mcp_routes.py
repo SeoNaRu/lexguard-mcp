@@ -57,23 +57,35 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
     smart_search_service = SmartSearchService()
     situation_guidance_service = SituationGuidanceService()
     
-    # 모든 요청 로깅 미들웨어 (디버깅용) - 모든 경로 로깅
+    # 모든 요청 로깅 미들웨어 (디버깅용) - Health Check 요청 제외
     @api.middleware("http")
     async def log_all_requests(request: Request, call_next):
-        # 모든 요청 로깅 (Cursor가 다른 경로로 요청하는지 확인)
-        logger.info("=" * 80)
-        logger.info(f"ALL REQUEST: {request.method} {request.url}")
-        logger.info(f"Client: {request.client}")
-        logger.info(f"Path: {request.url.path}")
-        logger.info(f"Headers: {dict(request.headers)}")
+        # Render Health Check 요청은 로깅하지 않음
+        is_health_check = (
+            request.url.path == "/health" or 
+            request.headers.get("render-health-check") == "1"
+        )
+        
+        if not is_health_check:
+            # 모든 요청 로깅 (Cursor가 다른 경로로 요청하는지 확인)
+            logger.info("=" * 80)
+            logger.info(f"ALL REQUEST: {request.method} {request.url}")
+            logger.info(f"Client: {request.client}")
+            logger.info(f"Path: {request.url.path}")
+            logger.info(f"Headers: {dict(request.headers)}")
+        
         try:
             response = await call_next(request)
-            logger.info(f"Response Status: {response.status_code}")
-            logger.info("=" * 80)
+            
+            if not is_health_check:
+                logger.info(f"Response Status: {response.status_code}")
+                logger.info("=" * 80)
+            
             return response
         except Exception as e:
             logger.exception(f"Request error: {e}")
-            logger.info("=" * 80)
+            if not is_health_check:
+                logger.info("=" * 80)
             raise
     
     @api.options("/mcp")

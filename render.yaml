@@ -4,6 +4,8 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python -m src.main
+    healthCheckPath: /health
+    healthCheckIntervalSeconds: 120
     envVars:
       - key: PORT
         value: 8099
@@ -12,5 +14,5 @@ services:
       - key: RELOAD
         value: false
       - key: LAW_API_KEY
-        sync: false  # 환경 변수에서 직접 설정
+        sync: false # 환경 변수에서 직접 설정
 
