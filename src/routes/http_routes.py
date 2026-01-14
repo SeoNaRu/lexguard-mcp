@@ -34,6 +34,21 @@ def temporary_env(overrides: dict):
 def register_http_routes(api: FastAPI, law_service: LawService, health_service: HealthService):
     """HTTP 엔드포인트 등록"""
     
+    @api.get("/")
+    @api.head("/")
+    async def root():
+        """루트 경로 - Render 포트 감지 및 서버 정보"""
+        return {
+            "service": "LexGuard MCP",
+            "status": "running",
+            "endpoints": {
+                "health": "/health",
+                "mcp": "/mcp",
+                "tools": "/tools"
+            },
+            "message": "한국 법령 MCP 서버가 정상적으로 실행 중입니다."
+        }
+    
     @api.get("/health")
     async def health_check_get():
         """HTTP GET endpoint: Health check"""

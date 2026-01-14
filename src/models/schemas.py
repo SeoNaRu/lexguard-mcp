@@ -3,7 +3,7 @@ Pydantic 모델 정의
 모든 요청/응답 스키마를 여기에 정의
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
 
 
 class SearchLawRequest(BaseModel):
@@ -145,7 +145,10 @@ class GetSpecialAdministrativeAppealRequest(BaseModel):
 class CompareLawsRequest(BaseModel):
     """법령 비교 요청 모델"""
     law_name: str = Field(..., description="법령명 (예: '형법', '민법')")
-    compare_type: str = Field("신구법", description="비교 유형: '신구법'(신구법 비교), '연혁'(법령 연혁), '3단비교'(3단 비교)", enum=["신구법", "연혁", "3단비교"])
+    compare_type: Literal["신구법", "연혁", "3단비교"] = Field(
+        "신구법", 
+        description="비교 유형: '신구법'(신구법 비교), '연혁'(법령 연혁), '3단비교'(3단 비교)"
+    )
 
 
 # 자치법규 관련 모델
