@@ -25,6 +25,10 @@ class QueryTelemetry:
             "avg_results_per_query": [],
             "query_patterns": defaultdict(int)
         }
+        
+        # 리플레이 가능한 요청 로그 (최근 N개만 유지)
+        self.request_logs = []  # 최근 100개만 유지
+        self.max_logs = 100
     
     def log_query(
         self,
@@ -76,11 +80,66 @@ class QueryTelemetry:
         elif "손해배상" in query_lower:
             self.stats["query_patterns"]["damages"] += 1
         
+        # 리플레이 가능한 로그 저장
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "query": query,
+            "total": total,
+            "attempts": attempts,
+            "fallback_used": fallback_used,
+            "issue_type": issue_type,
+            "classified_domains": classified_domains or []
+        }
+        self.request_logs.append(log_entry)
+        
+        # 최대 로그 수 제한
+        if len(self.request_logs) > self.max_logs:
+            self.request_logs = self.request_logs[-self.max_logs:]
+        
         # 로그 출력 (DEBUG 레벨)
         logger.debug(
             "Query telemetry | query=%r total=%d attempts=%d fallback=%s issue_type=%s",
             query[:50], total, attempts, fallback_used, issue_type
         )
+    
+    def get_replay_data(self, query: Optional[str] = None, limit: int = 10) -> List[Dict]:
+        """
+        리플레이 가능한 요청 데이터 반환
+        
+        Args:
+            query: 특정 쿼리로 필터링 (선택사항)
+            limit: 반환할 최대 개수
+            
+        Returns:
+            요청 로그 리스트
+        """
+        logs = self.request_logs
+        
+        if query:
+            logs = [log for log in logs if query.lower() in log.get("query", "").lower()]
+        
+        return logs[-limit:]
+    
+    def replay_request(self, log_entry: Dict) -> Dict:
+        """
+        저장된 요청을 재실행하기 위한 정보 반환
+        
+        Args:
+            log_entry: 저장된 로그 엔트리
+            
+        Returns:
+            재실행 가능한 요청 정보
+        """
+        return {
+            "query": log_entry.get("query"),
+            "issue_type": log_entry.get("issue_type"),
+            "timestamp": log_entry.get("timestamp"),
+            "original_result": {
+                "total": log_entry.get("total"),
+                "attempts": log_entry.get("attempts"),
+                "fallback_used": log_entry.get("fallback_used")
+            }
+        }
     
     def log_synonym_expansion(
         self,

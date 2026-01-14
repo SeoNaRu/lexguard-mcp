@@ -15,7 +15,8 @@ class Evidence:
         source_id: str,
         source_url: Optional[str] = None,
         issue_tags: Optional[List[str]] = None,
-        relevance_score: float = 0.0
+        relevance_score: float = 0.0,
+        auto_tags: Optional[List[str]] = None
     ):
         self.text = text
         self.source = source  # "precedent", "law", "interpretation" 등
@@ -23,6 +24,7 @@ class Evidence:
         self.source_url = source_url
         self.issue_tags = issue_tags or []
         self.relevance_score = relevance_score
+        self.auto_tags = auto_tags or []  # 자동 생성된 태그
     
     def to_dict(self) -> Dict:
         """딕셔너리로 변환"""
@@ -32,7 +34,8 @@ class Evidence:
             "source_id": self.source_id,
             "source_url": self.source_url,
             "issue_tags": self.issue_tags,
-            "relevance_score": self.relevance_score
+            "relevance_score": self.relevance_score,
+            "auto_tags": self.auto_tags
         }
 
 
@@ -42,6 +45,18 @@ class EvidenceBuilder:
     def __init__(self):
         # 최대 근거 길이 (문자)
         self.max_evidence_length = 300
+        
+        # 자동 태그 패턴
+        self.tag_patterns = {
+            "지휘감독": ["지휘", "감독", "지시", "명령", "통제"],
+            "전속성": ["전속", "배타적", "독점", "겸직 금지"],
+            "보수 성격": ["임금", "급여", "보수", "수수료", "성과급", "고정급"],
+            "근로자성 판단": ["근로자성", "사용종속관계", "종속", "근로관계"],
+            "해고": ["해고", "부당해고", "정당한 사유", "권리남용"],
+            "임금": ["임금", "체불", "미지급", "지급"],
+            "계약": ["계약", "위약", "계약위반", "계약해지"],
+            "손해배상": ["손해배상", "불법행위", "과실", "배상"]
+        }
     
     def extract_evidence(
         self,
@@ -90,13 +105,15 @@ class EvidenceBuilder:
         if 판시사항:
             evidence_text = self._truncate_text(판시사항)
             if evidence_text:
+                auto_tags = self._generate_auto_tags(evidence_text, issue_type)
                 evidences.append(Evidence(
                     text=evidence_text,
                     source="precedent",
                     source_id=str(result.get("판례정보일련번호") or result.get("id") or ""),
                     source_url=result.get("url"),
                     issue_tags=[issue_type] if issue_type else [],
-                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type)
+                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type),
+                    auto_tags=auto_tags
                 ))
         
         # 판결요지
@@ -104,25 +121,29 @@ class EvidenceBuilder:
         if 판결요지:
             evidence_text = self._truncate_text(판결요지)
             if evidence_text:
+                auto_tags = self._generate_auto_tags(evidence_text, issue_type)
                 evidences.append(Evidence(
                     text=evidence_text,
                     source="precedent",
                     source_id=str(result.get("판례정보일련번호") or result.get("id") or ""),
                     source_url=result.get("url"),
                     issue_tags=[issue_type] if issue_type else [],
-                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type)
+                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type),
+                    auto_tags=auto_tags
                 ))
         
         # 사건명 (간단한 근거)
         사건명 = result.get("사건명") or result.get("case_name") or result.get("title")
         if 사건명 and len(사건명) < 100:
+            auto_tags = self._generate_auto_tags(사건명, issue_type)
             evidences.append(Evidence(
                 text=사건명,
                 source="precedent",
                 source_id=str(result.get("판례정보일련번호") or result.get("id") or ""),
                 source_url=result.get("url"),
                 issue_tags=[issue_type] if issue_type else [],
-                relevance_score=0.5  # 사건명은 낮은 점수
+                relevance_score=0.5,  # 사건명은 낮은 점수
+                auto_tags=auto_tags
             ))
         
         return evidences
@@ -139,13 +160,15 @@ class EvidenceBuilder:
         # 법령명
         법령명 = result.get("법령명한글") or result.get("법령명") or result.get("title")
         if 법령명:
+            auto_tags = self._generate_auto_tags(법령명, issue_type)
             evidences.append(Evidence(
                 text=법령명,
                 source="law",
                 source_id=str(result.get("법령ID") or result.get("id") or ""),
                 source_url=result.get("url"),
                 issue_tags=[issue_type] if issue_type else [],
-                relevance_score=0.6
+                relevance_score=0.6,
+                auto_tags=auto_tags
             ))
         
         # 조문 내용 (있는 경우)
@@ -153,13 +176,15 @@ class EvidenceBuilder:
         if 조문:
             evidence_text = self._truncate_text(조문)
             if evidence_text:
+                auto_tags = self._generate_auto_tags(evidence_text, issue_type)
                 evidences.append(Evidence(
                     text=evidence_text,
                     source="law",
                     source_id=str(result.get("법령ID") or result.get("id") or ""),
                     source_url=result.get("url"),
                     issue_tags=[issue_type] if issue_type else [],
-                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type)
+                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type),
+                    auto_tags=auto_tags
                 ))
         
         return evidences
@@ -178,25 +203,29 @@ class EvidenceBuilder:
         if summary:
             evidence_text = self._truncate_text(summary)
             if evidence_text:
+                auto_tags = self._generate_auto_tags(evidence_text, issue_type)
                 evidences.append(Evidence(
                     text=evidence_text,
                     source=result.get("source", "unknown"),
                     source_id=str(result.get("id") or ""),
                     source_url=result.get("url"),
                     issue_tags=[issue_type] if issue_type else [],
-                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type)
+                    relevance_score=self._calculate_relevance(evidence_text, query, issue_type),
+                    auto_tags=auto_tags
                 ))
         
         # 제목
         title = result.get("title") or result.get("제목")
         if title and len(title) < 100:
+            auto_tags = self._generate_auto_tags(title, issue_type)
             evidences.append(Evidence(
                 text=title,
                 source=result.get("source", "unknown"),
                 source_id=str(result.get("id") or ""),
                 source_url=result.get("url"),
                 issue_tags=[issue_type] if issue_type else [],
-                relevance_score=0.5
+                relevance_score=0.5,
+                auto_tags=auto_tags
             ))
         
         return evidences
@@ -254,6 +283,33 @@ class EvidenceBuilder:
             score = min(score + 0.2, 1.0)
         
         return score
+    
+    def _generate_auto_tags(self, text: str, issue_type: Optional[str]) -> List[str]:
+        """
+        텍스트에서 자동으로 태그 생성
+        
+        Args:
+            text: 근거 텍스트
+            issue_type: 쟁점 유형
+            
+        Returns:
+            자동 생성된 태그 리스트
+        """
+        tags = []
+        text_lower = text.lower()
+        
+        # 태그 패턴 매칭
+        for tag_name, patterns in self.tag_patterns.items():
+            for pattern in patterns:
+                if pattern in text_lower:
+                    tags.append(tag_name)
+                    break  # 한 태그당 한 번만 추가
+        
+        # issue_type 기반 태그 추가
+        if issue_type:
+            tags.append(issue_type)
+        
+        return list(dict.fromkeys(tags))  # 중복 제거
     
     def build_evidence_summary(
         self,

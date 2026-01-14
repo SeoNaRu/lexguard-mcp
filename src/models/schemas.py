@@ -3,7 +3,7 @@ Pydantic 모델 정의
 모든 요청/응답 스키마를 여기에 정의
 """
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 
 class SearchLawRequest(BaseModel):

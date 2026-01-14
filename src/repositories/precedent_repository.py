@@ -12,6 +12,8 @@ from ..utils.domain_classifier import get_domain_classifier
 from ..utils.reranker import get_reranker
 from ..utils.evidence_builder import get_evidence_builder
 from ..utils.query_telemetry import get_telemetry
+from ..utils.query_judge import get_query_judge
+from ..utils.axis_query_builder import get_axis_query_builder
 
 
 class PrecedentRepository(BaseLawRepository):
@@ -520,16 +522,53 @@ class PrecedentRepository(BaseLawRepository):
                     if domain_must_include:
                         must_include = (must_include or []) + domain_must_include
         
-        # Reranker로 재랭킹
-        reranker = get_reranker()
+        # 법리축/사실축 키워드 추출 (Query Judge와 최종 결과에 사용)
+        axis_builder = get_axis_query_builder()
+        axis_queries = None
+        legal_axis = []
+        fact_axis = []
+        if original_query:
+            axis_queries = axis_builder.build_axis_queries(original_query, issue_type)
+            legal_axis = axis_queries.get("legal_axis", [])
+            fact_axis = axis_queries.get("fact_axis", [])
+        
+        # Query Judge로 결과 적합도 평가
+        query_judge = get_query_judge()
         precedents = best_result.get("precedents", [])
+        judge_result = None
+        if precedents and original_query:
+            
+            judge_result = query_judge.evaluate_results(
+                original_query,
+                issue_type,
+                precedents[:10],  # 상위 10개만 평가
+                legal_axis_keywords=legal_axis,
+                fact_axis_keywords=fact_axis
+            )
+            
+            # 적합도가 낮으면 재검색 제안
+            if judge_result.get("relevance_score", 0) < 0.4:
+                next_plan = judge_result.get("next_plan", {})
+                if next_plan.get("action") == "strengthen_query" or next_plan.get("action") == "adjust_query":
+                    # 쿼리 정제 시도
+                    refined = axis_builder.refine_query_by_axis(
+                        legal_axis,
+                        fact_axis,
+                        judge_result.get("missing_aspects", [])
+                    )
+                    if refined:
+                        # 정제된 쿼리로 재검색 (간단한 버전)
+                        logger.debug("Query Judge suggests refinement | refined_queries=%r", refined)
+        
+        # Reranker로 재랭킹 (BM25 사용)
+        reranker = get_reranker()
         if precedents:
             reranked = reranker.rerank(
                 precedents,
                 original_query or "",
                 issue_type=issue_type,
                 must_include=must_include,
-                method="keyword_matching"
+                method="bm25"  # BM25 사용
             )
             best_result["precedents"] = reranked
         
@@ -556,6 +595,15 @@ class PrecedentRepository(BaseLawRepository):
             classified_domains=[d[0] for d in classified_domains]
         )
         
+        # Query Judge 결과 포함
+        judge_info = None
+        if judge_result:
+            judge_info = {
+                "relevance_score": judge_result.get("relevance_score"),
+                "missing_aspects": judge_result.get("missing_aspects"),
+                "next_plan": judge_result.get("next_plan")
+            }
+        
         return {
             **normalized_response,
             "query_plan": query_plan,
@@ -564,7 +612,9 @@ class PrecedentRepository(BaseLawRepository):
             "fallback_used": fallback_used,
             "issue_type": issue_type,
             "classified_domains": [d[0] for d in classified_domains],
-            "evidence_summary": evidence_summary
+            "evidence_summary": evidence_summary,
+            "query_judge": judge_info,
+            "axis_queries": axis_queries if axis_queries else None
         }
     
     def get_precedent(
