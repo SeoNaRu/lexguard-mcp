@@ -400,11 +400,13 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "missing_reason": result.get("missing_reason"),
             "document_text": result.get("document_text"),
             "document_analysis": result.get("document_analysis"),
+            "answer": result.get("answer"),
             "evidence_results": result.get("evidence_results", []),
             "evidence_summary": result.get("evidence_summary"),
             "legal_basis_summary": result.get("legal_basis_summary"),
             "legal_basis_block": result.get("legal_basis_block"),
             "legal_basis_block_text": result.get("legal_basis_block_text"),
+            "retry_plan": result.get("retry_plan"),
             "response_policy": result.get("response_policy")
         }
     
@@ -431,24 +433,24 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     
     # JSON 문자열로 변환 (LLM이 파싱하기 쉽도록)
     formatted_json = json.dumps(formatted, ensure_ascii=False, indent=2)
-    
-    # legal_basis_block_text가 있으면 최상단에 노출
+    # legal_basis_block_text는 별도 content로 분리
     legal_basis_block_text = formatted.get("legal_basis_block_text")
+    contents = []
     if legal_basis_block_text:
-        formatted_text = f"{legal_basis_block_text}\n\n{formatted_json}"
-    else:
-        formatted_text = formatted_json
+        contents.append({
+            "type": "text",
+            "text": legal_basis_block_text
+        })
+    contents.append({
+        "type": "text",
+        "text": formatted_json
+    })
     
     # 에러 여부 확인
     is_error = not formatted.get("success", True) or "error" in formatted
     
     return {
-        "content": [
-            {
-                "type": "text",
-                "text": formatted_text
-            }
-        ],
+        "content": contents,
         "isError": is_error
     }
 

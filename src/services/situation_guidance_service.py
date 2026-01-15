@@ -56,7 +56,10 @@ class SituationGuidanceService:
         "소비자": {
             "laws": ["소비자기본법", "약관법", "전자상거래법"],
             "agencies": ["공정거래위원회", "국가인권위원회"],
-            "keywords": ["소비자", "약관", "계약", "환불", "하자"]
+            "keywords": [
+                "소비자", "약관", "계약", "환불", "하자",
+                "면책", "책임", "손해", "변경", "관할", "준거법", "청약철회"
+            ]
         },
         "환경": {
             "laws": ["환경보전법", "대기환경보전법", "수질환경보전법"],
@@ -234,7 +237,8 @@ class SituationGuidanceService:
         """
         문서 입력 감지 및 조항별 이슈/근거 힌트 분석
         """
-        if not any(keyword in situation for keyword in ["계약서", "약관", "제", "임대인", "임차인"]):
+        has_clause_pattern = bool(re.search(r"제\s*\d+\s*조", situation))
+        if not any(keyword in situation for keyword in ["계약서", "약관", "임대인", "임차인"]) and not has_clause_pattern:
             return None
 
         issues = []
@@ -276,6 +280,34 @@ class SituationGuidanceService:
                 "needs_review": True,
                 "related_clause": "계약 기간"
             })
+        if "환불" in situation and ("불가" in situation or "없다" in situation):
+            issues.append({
+                "issue": "환불 제한 조항",
+                "risk": "환불/청약철회 제한이 과도할 수 있음",
+                "needs_review": True,
+                "related_clause": "환불"
+            })
+        if "책임" in situation and ("지지 않는다" in situation or "면책" in situation):
+            issues.append({
+                "issue": "책임 제한/면책 조항",
+                "risk": "손해배상 책임 제한이 과도할 수 있음",
+                "needs_review": True,
+                "related_clause": "책임 제한"
+            })
+        if "약관" in situation and "변경" in situation and ("사전 고지 없이" in situation or "사전고지 없이" in situation):
+            issues.append({
+                "issue": "약관 일방 변경",
+                "risk": "사전 고지 없는 변경은 불공정 약관 소지가 있음",
+                "needs_review": True,
+                "related_clause": "약관 변경"
+            })
+        if "관할" in situation and ("본점" in situation or "회사" in situation):
+            issues.append({
+                "issue": "관할 법원 조항",
+                "risk": "소비자에게 불리한 전속관할일 수 있음",
+                "needs_review": True,
+                "related_clause": "관할"
+            })
 
         # 조항별 키워드 매핑
         clause_issues = []
@@ -289,6 +321,14 @@ class SituationGuidanceService:
                 issue_tags.append("특약 효력")
             if "계약 기간" in clause or "기간" in clause:
                 issue_tags.append("계약 기간/갱신")
+            if "환불" in clause or "청약철회" in clause:
+                issue_tags.append("환불 제한")
+            if "책임" in clause or "손해" in clause or "면책" in clause:
+                issue_tags.append("책임 제한")
+            if "약관" in clause and "변경" in clause:
+                issue_tags.append("약관 변경")
+            if "관할" in clause or "준거법" in clause:
+                issue_tags.append("관할 불리")
 
             if issue_tags:
                 clause_issues.append({
@@ -309,6 +349,14 @@ class SituationGuidanceService:
                     hints.extend(["임대차 계약서 특약 효력", "약관법 불공정약관"])
                 elif tag == "계약 기간/갱신":
                     hints.extend(["임대차 계약 갱신 요건", "주택임대차보호법 갱신요구권"])
+                elif tag == "환불 제한":
+                    hints.extend(["약관법 환불 제한", "전자상거래 청약철회 제한", "소비자기본법 환불"])
+                elif tag == "책임 제한":
+                    hints.extend(["약관법 손해배상 책임 제한", "면책조항 약관법", "고의과실 면책 무효"])
+                elif tag == "약관 변경":
+                    hints.extend(["약관 변경 사전고지", "사업자 일방 변경 약관법"])
+                elif tag == "관할 불리":
+                    hints.extend(["전속관할 약관 무효", "소비자 관할 약관 불리"])
             if hints:
                 clause_basis_hints.append({
                     "clause": item.get("clause"),
@@ -319,7 +367,11 @@ class SituationGuidanceService:
             "주택임대차보호법 보증금 반환",
             "민법 임대차 계약 해지 요건",
             "임대차 계약서 특약 효력",
-            "임대차 계약 갱신 요건"
+            "임대차 계약 갱신 요건",
+            "약관법 환불 제한",
+            "약관법 손해배상 책임 제한",
+            "약관 변경 사전고지",
+            "전속관할 약관 무효"
         ]
 
         return {
@@ -563,7 +615,7 @@ class SituationGuidanceService:
         return {
             "success_transport": success_transport,
             "success_search": success_search,
-            "success": True,
+            "success": success_transport,
             "has_legal_basis": has_legal_basis,
             "situation": situation,
             "detected_domains": detected_domains,
@@ -613,6 +665,49 @@ class SituationGuidanceService:
             "has_legal_basis": False,
             "missing_reason": "NO_SEARCH"
         }
+        risk_findings = []
+        
+        def count_sources(payload: Optional[dict]) -> int:
+            if not isinstance(payload, dict):
+                return 0
+            sources_count = payload.get("sources_count")
+            if isinstance(sources_count, dict):
+                return sum(int(v or 0) for v in sources_count.values())
+            results = payload.get("results", {}) if isinstance(payload.get("results"), dict) else {}
+            law_count = 0
+            precedent_count = 0
+            interpretation_count = 0
+            if isinstance(results.get("law"), dict):
+                law_count = len(results.get("law", {}).get("laws", []))
+            if isinstance(results.get("precedent"), dict):
+                precedent_count = len(results.get("precedent", {}).get("precedents", []))
+            if isinstance(results.get("interpretation"), dict):
+                interpretation_count = len(results.get("interpretation", {}).get("interpretations", []))
+            # fallback: citations가 있으면 근거로 간주
+            if not (law_count or precedent_count or interpretation_count):
+                citations = payload.get("citations")
+                if isinstance(citations, list) and citations:
+                    return len(citations)
+            return law_count + precedent_count + interpretation_count
+        
+        def collect_precedents(payload: Optional[dict]) -> List[str]:
+            if not isinstance(payload, dict):
+                return []
+            results = payload.get("results", {}) if isinstance(payload.get("results"), dict) else {}
+            precedents = results.get("precedent", {}).get("precedents", []) if isinstance(results.get("precedent", {}), dict) else []
+            names = []
+            for item in precedents:
+                if isinstance(item, dict):
+                    name = item.get("case_name") or item.get("caseNumber") or item.get("case_number")
+                    if name:
+                        names.append(name)
+            return names[:5]
+        
+        def collect_citations(payload: Optional[dict]) -> List[dict]:
+            if not isinstance(payload, dict):
+                return []
+            citations = payload.get("citations", [])
+            return citations[:5] if isinstance(citations, list) else []
         
         # 조항별 자동 검색 (옵션)
         if auto_search and analysis and analysis.get("clause_basis_hints"):
@@ -621,26 +716,59 @@ class SituationGuidanceService:
             
             for item in analysis.get("clause_basis_hints", [])[:max_clauses]:
                 clause = item.get("clause")
-                queries = item.get("suggested_queries", [])
+                queries = item.get("suggested_queries", [])[:]
+                # 최소 2개 이상의 쿼리 보장 (fallback 포함)
+                if len(queries) < 2 and analysis.get("suggested_queries"):
+                    for q in analysis.get("suggested_queries", []):
+                        if q not in queries:
+                            queries.append(q)
+                queries = queries[:2]
                 if not queries:
                     continue
-                query = queries[0]
-                result = await smart_search_service.smart_search(
-                    query,
-                    None,
-                    max_results_per_type,
-                    arguments
-                )
-                evidence_results.append({
+                
+                clause_citations = []
+                clause_precedents = []
+                clause_sources = 0
+                
+                for query in queries:
+                    result = await smart_search_service.smart_search(
+                        query,
+                        ["law", "precedent", "interpretation"],
+                        max_results_per_type,
+                        arguments
+                    )
+                    evidence_results.append({
+                        "clause": clause,
+                        "query": query,
+                        "result": result
+                    })
+                    clause_sources += count_sources(result)
+                    clause_citations.extend(collect_citations(result))
+                    clause_precedents.extend(collect_precedents(result))
+                
+                clause_has_legal_basis = clause_sources > 0 or len(clause_citations) > 0
+                risk_level = "high" if clause_has_legal_basis else "medium"
+                why = None
+                if clause_citations:
+                    first = clause_citations[0]
+                    if isinstance(first, dict):
+                        why = first.get("article") or first.get("article_number") or first.get("name")
+                if not why:
+                    why = queries[0] if queries else None
+                
+                risk_findings.append({
                     "clause": clause,
-                    "query": query,
-                    "result": result
+                    "risk_level": risk_level,
+                    "why": why,
+                    "precedents": list(dict.fromkeys(clause_precedents))[:5],
+                    "citations": clause_citations[:5]
                 })
             
             # 요약 집계
-            evidence_summary["searched_clauses"] = len(evidence_results)
+            evidence_summary["searched_clauses"] = len({r.get("clause") for r in evidence_results})
             evidence_summary["has_legal_basis"] = any(
-                r.get("result", {}).get("has_legal_basis") for r in evidence_results
+                count_sources(r.get("result")) > 0 or len(collect_citations(r.get("result"))) > 0
+                for r in evidence_results
             )
             # missing_reason 집계
             if evidence_summary["has_legal_basis"]:
@@ -653,24 +781,60 @@ class SituationGuidanceService:
                     evidence_summary["missing_reason"] = "API_NOT_READY"
                 else:
                     evidence_summary["missing_reason"] = "NO_MATCH"
+        elif auto_search and analysis and not analysis.get("clause_basis_hints"):
+            evidence_summary["missing_reason"] = "NO_HINTS"
+        elif not analysis:
+            evidence_summary["missing_reason"] = "NO_DOCUMENT"
+        
+        total_citations = []
+        for item in evidence_results:
+            total_citations.extend(collect_citations(item.get("result")))
+        total_citations = total_citations[:10]
         
         legal_basis_summary = {
             "has_legal_basis": evidence_summary["has_legal_basis"],
-            "types": [],
-            "counts": {},
+            "types": ["law", "precedent", "interpretation"] if evidence_summary["has_legal_basis"] else [],
+            "counts": {
+                "citations": len(total_citations),
+                "clauses": evidence_summary["searched_clauses"]
+            },
             "missing_reason": evidence_summary["missing_reason"]
         }
+        risk_summary = []
+        for item in risk_findings[:5]:
+            if isinstance(item, dict):
+                risk_summary.append({
+                    "clause": item.get("clause"),
+                    "risk_level": item.get("risk_level"),
+                    "why": item.get("why"),
+                    "precedents": (item.get("precedents") or [])[:2],
+                    "citations": (item.get("citations") or [])[:2]
+                })
         legal_basis_block = {
             "summary": legal_basis_summary,
-            "citations": [],
+            "citations": total_citations,
+            "risk_summary": risk_summary,
             "fallback": None,
             "missing_reason": evidence_summary["missing_reason"]
         }
-        legal_basis_block_text = (
-            "법적 근거 요약: "
-            f"근거를 찾지 못했습니다({evidence_summary['missing_reason']}). "
-            "문서 분석 결과를 기반으로 조항별 검색을 진행하세요."
-        )
+        if evidence_summary["has_legal_basis"]:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"유형={','.join(legal_basis_summary.get('types', [])) or '없음'}, "
+                f"근거 수={legal_basis_summary['counts'].get('citations', 0)}."
+            )
+        else:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"근거를 찾지 못했습니다({evidence_summary['missing_reason']}). "
+                "문서 분석 결과를 기반으로 조항별 검색을 진행하세요."
+            )
+        retry_plan = None
+        if analysis and analysis.get("suggested_queries"):
+            retry_plan = {
+                "suggested_queries": analysis.get("suggested_queries", [])[:6],
+                "note": "추천 검색어로 법령/판례 검색을 재시도하세요."
+            }
         
         return {
             "success_transport": True,
@@ -680,13 +844,17 @@ class SituationGuidanceService:
             "missing_reason": evidence_summary["missing_reason"],
             "document_text": document_text,
             "document_analysis": analysis,
+            "answer": {
+                "risk_findings": risk_findings
+            },
             "evidence_results": evidence_results,
             "evidence_summary": evidence_summary,
             "legal_basis_summary": legal_basis_summary,
             "legal_basis_block": legal_basis_block,
             "legal_basis_block_text": legal_basis_block_text,
+            "retry_plan": retry_plan,
             "response_policy": {
-                "must_include": ["document_analysis", "legal_basis_block_text", "legal_basis_block"],
+                "must_include": ["document_analysis", "legal_basis_block_text", "legal_basis_block", "retry_plan"],
                 "preferred_order": ["legal_basis_block_text", "document_analysis"],
                 "if_has_legal_basis_false": "no_conclusions",
                 "when_api_error": "explain_api_error_and_request_retry"
