@@ -203,22 +203,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
             async def process_mcp_message():
                 try:
                     if method == "initialize":
-                        # 표준 권장: 무파라미터 툴 스키마 보강 + outputSchema 기본 제공
-                        for tool in tools_list:
-                            input_schema = tool.get("inputSchema")
-                            if isinstance(input_schema, dict):
-                                props = input_schema.get("properties")
-                                required = input_schema.get("required")
-                                if (not props) and (not required) and "additionalProperties" not in input_schema:
-                                    tool["inputSchema"] = {
-                                        "type": "object",
-                                        "additionalProperties": False
-                                    }
-                            if "outputSchema" not in tool:
-                                tool["outputSchema"] = {
-                                    "type": "object"
-                                }
-                        
                         response = {
                             "jsonrpc": "2.0",
                             "id": request_id,
@@ -757,9 +741,48 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             }
                         ]
                         
-                        paged_tools = tools_list[start_index:start_index + page_size]
+                        # 표준 권장: 무파라미터 툴 스키마 보강 + outputSchema 기본 제공
+                        for tool in tools_list:
+                            input_schema = tool.get("inputSchema")
+                            if isinstance(input_schema, dict):
+                                props = input_schema.get("properties")
+                                required = input_schema.get("required")
+                                if (not props) and (not required) and "additionalProperties" not in input_schema:
+                                    tool["inputSchema"] = {
+                                        "type": "object",
+                                        "additionalProperties": False
+                                    }
+                            if "outputSchema" not in tool:
+                                tool["outputSchema"] = {
+                                    "type": "object"
+                                }
+                        
+                        # MCP 표준 필드만 노출 (추가 필드는 annotations로 이동)
+                        mcp_tools = []
+                        for tool in tools_list:
+                            annotations = {}
+                            if "priority" in tool:
+                                annotations["priority"] = tool.get("priority")
+                            if "category" in tool:
+                                annotations["category"] = tool.get("category")
+                            filtered = {
+                                "name": tool.get("name"),
+                                "title": tool.get("title"),
+                                "description": tool.get("description"),
+                                "inputSchema": tool.get("inputSchema"),
+                                "outputSchema": tool.get("outputSchema")
+                            }
+                            # None 값 제거 (PlayMCP 엄격 파서 대응)
+                            filtered = {k: v for k, v in filtered.items() if v is not None}
+                            if annotations:
+                                filtered["annotations"] = annotations
+                            if tool.get("icons"):
+                                filtered["icons"] = tool.get("icons")
+                            mcp_tools.append(filtered)
+                        
+                        paged_tools = mcp_tools[start_index:start_index + page_size]
                         next_cursor = None
-                        if start_index + page_size < len(tools_list):
+                        if start_index + page_size < len(mcp_tools):
                             next_cursor = str(start_index + page_size)
                         
                         response = {
@@ -773,7 +796,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         response_json = json.dumps(response, ensure_ascii=False)
                         logger.info("MCP: tools/list response | length=%d tools_count=%d", 
                                    len(response_json), 
-                                   len(tools_list))
+                                   len(mcp_tools))
                         yield f"data: {response_json}\n\n"
                         
                     elif method == "tools/call":
