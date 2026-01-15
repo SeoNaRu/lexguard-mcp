@@ -477,6 +477,31 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     formatted_json = json.dumps(formatted, ensure_ascii=False)
 
     contents = []
+    
+    # A 타입 형식 리마인더 추가 (legal_qa_tool, document_issue_tool에만)
+    if tool_name in ["legal_qa_tool", "document_issue_tool"]:
+        if tool_name == "legal_qa_tool":
+            template_reminder = """답변 형식 (A 타입, 반드시 준수):
+1) 한 줄 방향 제시 (예: 문제가 될 가능성이 있는 사안입니다)
+2) 체크리스트 3개 이하
+3) 관련 법령/판례 방향만 언급
+4) 판단 유보 문장
+5) 추가 정보 요청
+금지: 이모지, 타이틀, 조문 전체 인용, 단정적 결론"""
+        else:  # document_issue_tool
+            template_reminder = """답변 형식 (A 타입, 반드시 준수):
+1) 한 줄 평가
+2) 주요 쟁점 조항 나열 (제○조: 문제점 2-3개)
+3) 관련 법령/판례 방향만 언급
+4) 판단 유보 문장
+5) 추가 정보 요청
+금지: 이모지, 타이틀, 심각도 표시, 조문 전체 인용, 단정적 조언"""
+        
+        contents.append({
+            "type": "text",
+            "text": template_reminder
+        })
+    
     if tool_name == "document_issue_tool":
         auto_search = formatted.get("auto_search")
         success_search = formatted.get("success_search")
