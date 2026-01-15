@@ -451,6 +451,7 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     
     return {
         "content": contents,
+        "structuredContent": formatted,
         "isError": is_error
     }
 

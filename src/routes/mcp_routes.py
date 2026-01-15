@@ -203,13 +203,31 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
             async def process_mcp_message():
                 try:
                     if method == "initialize":
+                        # 표준 권장: 무파라미터 툴 스키마 보강 + outputSchema 기본 제공
+                        for tool in tools_list:
+                            input_schema = tool.get("inputSchema")
+                            if isinstance(input_schema, dict):
+                                props = input_schema.get("properties")
+                                required = input_schema.get("required")
+                                if (not props) and (not required) and "additionalProperties" not in input_schema:
+                                    tool["inputSchema"] = {
+                                        "type": "object",
+                                        "additionalProperties": False
+                                    }
+                            if "outputSchema" not in tool:
+                                tool["outputSchema"] = {
+                                    "type": "object"
+                                }
+                        
                         response = {
                             "jsonrpc": "2.0",
                             "id": request_id,
                             "result": {
                                 "protocolVersion": "2025-03-26",
                                 "capabilities": {
-                                    "tools": {}
+                                    "tools": {
+                                        "listChanged": False
+                                    }
                                 },
                                 "serverInfo": {
                                     "name": "lexguard-mcp",
@@ -233,6 +251,11 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         
                     elif method == "tools/list":
                         # 핵심 툴 목록 (10개로 축소 - 18개 제한 대응)
+                        cursor_value = params.get("cursor")
+                        page_size = 20
+                        start_index = 0
+                        if isinstance(cursor_value, str) and cursor_value.isdigit():
+                            start_index = int(cursor_value)
                         tools_list = [
                             {
                                 "name": "health",
@@ -241,8 +264,19 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "description": "서비스 상태를 확인합니다. API 키 설정 상태, 환경 변수, 서버 상태 등을 확인할 때 사용합니다. 예: '서버 상태 확인', 'API 키 설정 확인'.",
                                 "inputSchema": {
                                     "type": "object",
-                                    "properties": {},
-                                    "required": []
+                                    "additionalProperties": False
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "status": {"type": "string"},
+                                        "environment": {"type": "object"},
+                                        "message": {"type": "string"},
+                                        "server": {"type": "string"},
+                                        "api_ready": {"type": "boolean"},
+                                        "api_status": {"type": "string"}
+                                    }
                                 }
                             },
                             {
@@ -274,6 +308,26 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": ["query"]
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "success_transport": {"type": "boolean"},
+                                        "success_search": {"type": "boolean"},
+                                        "has_legal_basis": {"type": "boolean"},
+                                        "query": {"type": "string"},
+                                        "detected_intents": {"type": "array"},
+                                        "results": {"type": "object"},
+                                        "sources_count": {"type": "object"},
+                                        "missing_reason": {"type": ["string", "null"]},
+                                        "citations": {"type": "array"},
+                                        "one_line_answer": {"type": ["string", "null"]},
+                                        "next_questions": {"type": "array"},
+                                        "legal_basis_block_text": {"type": ["string", "null"]},
+                                        "legal_basis_block": {"type": "object"},
+                                        "response_policy": {"type": "object"}
+                                    }
                                 }
                             },
                             {
@@ -297,6 +351,27 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": ["situation"]
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "success_transport": {"type": "boolean"},
+                                        "success_search": {"type": "boolean"},
+                                        "has_legal_basis": {"type": "boolean"},
+                                        "situation": {"type": "string"},
+                                        "detected_domains": {"type": "array"},
+                                        "laws": {"type": "object"},
+                                        "precedents": {"type": "object"},
+                                        "interpretations": {"type": "object"},
+                                        "sources_count": {"type": "object"},
+                                        "missing_reason": {"type": ["string", "null"]},
+                                        "legal_basis_block_text": {"type": ["string", "null"]},
+                                        "legal_basis_block": {"type": "object"},
+                                        "guidance": {"type": ["object", "array"]},
+                                        "document_analysis": {"type": ["object", "null"]},
+                                        "answer": {"type": ["object", "null"]}
+                                    }
                                 }
                             },
                             {
@@ -332,6 +407,22 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": ["document_text"]
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "success_transport": {"type": "boolean"},
+                                        "success_search": {"type": "boolean"},
+                                        "has_legal_basis": {"type": "boolean"},
+                                        "missing_reason": {"type": ["string", "null"]},
+                                        "document_analysis": {"type": ["object", "null"]},
+                                        "answer": {"type": ["object", "null"]},
+                                        "evidence_results": {"type": "array"},
+                                        "legal_basis_block_text": {"type": ["string", "null"]},
+                                        "legal_basis_block": {"type": "object"},
+                                        "retry_plan": {"type": ["object", "null"]}
+                                    }
                                 }
                             },
                             {
@@ -361,6 +452,17 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "query": {"type": ["string", "null"]},
+                                        "page": {"type": "integer"},
+                                        "per_page": {"type": "integer"},
+                                        "total": {"type": "integer"},
+                                        "laws": {"type": "array"}
+                                    }
                                 }
                             },
                             {
@@ -403,6 +505,18 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "law_name": {"type": ["string", "null"]},
+                                        "law_id": {"type": ["string", "null"]},
+                                        "mode": {"type": "string"},
+                                        "article": {"type": ["object", "null"]},
+                                        "articles": {"type": ["array", "null"]},
+                                        "detail": {"type": ["object", "null"]}
+                                    }
                                 }
                             },
                             {
@@ -461,6 +575,20 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "query": {"type": ["string", "null"]},
+                                        "page": {"type": "integer"},
+                                        "per_page": {"type": "integer"},
+                                        "total": {"type": "integer"},
+                                        "precedents": {"type": "array"},
+                                        "query_plan": {"type": ["array", "null"]},
+                                        "attempts": {"type": ["array", "null"]},
+                                        "fallback_used": {"type": ["boolean", "null"]}
+                                    }
                                 }
                             },
                             {
@@ -481,6 +609,15 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "precedent_id": {"type": ["string", "null"]},
+                                        "case_number": {"type": ["string", "null"]},
+                                        "precedent": {"type": ["object", "null"]}
+                                    }
                                 }
                             },
                             {
@@ -526,6 +663,17 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "query": {"type": ["string", "null"]},
+                                        "page": {"type": "integer"},
+                                        "per_page": {"type": "integer"},
+                                        "total": {"type": "integer"},
+                                        "interpretations": {"type": "array"}
+                                    }
                                 }
                             },
                             {
@@ -563,6 +711,17 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": []
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "query": {"type": ["string", "null"]},
+                                        "page": {"type": "integer"},
+                                        "per_page": {"type": "integer"},
+                                        "total": {"type": "integer"},
+                                        "appeals": {"type": "array"}
+                                    }
                                 }
                             },
                             {
@@ -585,15 +744,30 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         }
                                     },
                                     "required": ["law_name"]
+                                },
+                                "outputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "law_name": {"type": ["string", "null"]},
+                                        "compare_type": {"type": ["string", "null"]},
+                                        "results": {"type": ["object", "array", "null"]}
+                                    }
                                 }
                             }
                         ]
+                        
+                        paged_tools = tools_list[start_index:start_index + page_size]
+                        next_cursor = None
+                        if start_index + page_size < len(tools_list):
+                            next_cursor = str(start_index + page_size)
                         
                         response = {
                             "jsonrpc": "2.0",
                             "id": request_id,
                             "result": {
-                                "tools": tools_list
+                                "tools": paged_tools,
+                                "nextCursor": next_cursor
                             }
                         }
                         response_json = json.dumps(response, ensure_ascii=False)
