@@ -15,11 +15,11 @@
 
 ## ✨ 주요 기능
 
-- **법령 검색** - 법령명이나 키워드로 법령 검색 🔍
-- **법령 상세 조회** - 특정 법령의 상세 정보 조회 📋
-- **조문 조회** - 법령의 조문 전체 또는 단일 조문 조회 📖
-- **법령명 목록** - 전체 법령명 목록 조회 및 필터링 📝
-- **159개 API 지원** - 국가법령정보센터의 모든 API 활용 가능 🚀
+- **통합 법률 QA** - 법령, 판례, 해석, 위원회 결정 등을 자동으로 검색하여 종합 답변 제공 🔍
+- **문서 분석** - 계약서/약관 분석 후 조항별 법적 이슈 자동 검출 📋
+- **172개 DRF API 활용** - 국가법령정보센터의 모든 API를 완전 통합 🚀
+- **도메인 자동 감지** - 10개 법률 도메인 자동 분류 (노동/개인정보/세금/금융 등) 🎯
+- **시간 조건 파싱** - "최근 5년", "2023년 이후" 등 자연어 시간 표현 자동 처리 ⏰
 
 ## 🛠️ 기술 스택
 
@@ -147,7 +147,33 @@ python -m src.main
 
 ### Cursor 설정
 
-Cursor에서 MCP 서버를 사용하려면 Settings → MCP Servers에서 위 설정을 추가하세요.
+**파일 위치**: `%USERPROFILE%\.cursor\mcp.json` (Windows)
+
+**로컬 서버 사용**:
+
+```json
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "url": "http://127.0.0.1:8099/mcp"
+    }
+  }
+}
+```
+
+**원격 서버 사용**:
+
+```json
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "url": "https://lexguard-mcp.onrender.com/mcp"
+    }
+  }
+}
+```
+
+> ⚠️ **주의**: Cursor에서 MCP 설정 변경 후에는 Cursor를 완전히 재시작해야 합니다.
 
 ### ChatGPT / Gemini 설정
 
@@ -155,78 +181,147 @@ ChatGPT나 Gemini에서 MCP 서버를 사용하려면 각 플랫폼의 MCP 설�
 
 ## 🧰 제공 툴
 
-현재 **20개의 툴**을 제공합니다:
+현재 **3개의 핵심 툴**을 제공합니다:
 
-### 통합 검색 툴 (우선 사용 권장)
+### 1. 🎯 legal_qa_tool (범용 법률 QA 툴)
 
-1. **`smart_search_tool`** - 통합 검색 (법령, 판례, 해석 등 자동 검색)
-2. **`situation_guidance_tool`** - 상황별 가이드 (법적 상황 종합 분석)
+**메인 진입점 - 모든 법률 질문에 사용**
 
-### 법령 관련 툴
+- 172개 DRF API 완전 활용
+- 10개 도메인 자동 감지 (노동/개인정보/세금/금융/부동산/소비자/환경/보건/교육/교통)
+- Intent 세분화 (근로자성/해고/임금 등)
+- 시간 조건 자동 파싱 ("최근 5년", "2023년 이후")
+- 다단계 검색 (법령→판례→해석→위원회→특별심판)
+- 도메인별 최적 검색 순서
 
-3. **`search_law_tool`** - 법령 검색
-4. **`get_law_tool`** - 법령 조회 (상세/전체 조문/단일 조문)
+**사용 예시**:
 
-### 판례 관련 툴
+```
+"프리랜서인데 근로자성 인정된 판례 있나요?"
+→ 노동 도메인, 근로기준법+판례+노동위원회
 
-5. **`search_precedent_tool`** - 판례 검색
-6. **`get_precedent_tool`** - 판례 상세 조회
+"개인정보 유출됐는데 어떻게 해야 하나요?"
+→ 개인정보 도메인, 개인정보보호법+위원회 결정
 
-### 법령해석 관련 툴
+"최근 3년 부당해고 판례"
+→ 노동+시간조건, 2022년 이후 판례만
+```
 
-7. **`search_law_interpretation_tool`** - 법령해석 검색
-8. **`get_law_interpretation_tool`** - 법령해석 상세 조회
+### 2. 📄 document_issue_tool (문서/계약서 분석 툴)
 
-### 행정심판 관련 툴
+**계약서·약관 조항별 이슈 자동 분석**
 
-9. **`search_administrative_appeal_tool`** - 행정심판 검색
-10. **`get_administrative_appeal_tool`** - 행정심판 상세 조회
+- 문서 타입 자동 추론 (labor/lease/terms/other)
+- 조항별 이슈 태그 자동 생성
+- 문서 타입별 맞춤 검색어 추천
+- 금지 키워드 필터링 (용역→임대차 제외)
+- 조항별 자동 검색 옵션
 
-### 위원회 결정 관련 툴
+**사용 예시**:
 
-11. **`search_committee_decision_tool`** - 위원회 결정문 검색
-12. **`get_committee_decision_tool`** - 위원회 결정문 상세 조회
+```
+프리랜서 용역 계약서 → 근로기준법, 근로자성 판례
+임대차 계약서 → 주택임대차보호법, 보증금 반환 판례
+서비스 이용약관 → 약관법, 불공정약관 판례
+```
 
-### 헌법재판소 관련 툴
+### 3. 🏥 health (서비스 상태 확인)
 
-13. **`search_constitutional_decision_tool`** - 헌재결정 검색
-14. **`get_constitutional_decision_tool`** - 헌재결정 상세 조회
+**API 키 설정 상태 및 서버 상태 확인**
 
-### 특별행정심판 관련 툴
-
-15. **`search_special_administrative_appeal_tool`** - 특별행정심판 검색
-16. **`get_special_administrative_appeal_tool`** - 특별행정심판 상세 조회
-
-### 기타 툴
-
-17. **`compare_laws_tool`** - 법령 비교 (신구법, 연혁)
-18. **`search_local_ordinance_tool`** - 지방자치단체 조례/규칙 검색
-19. **`search_administrative_rule_tool`** - 행정규칙 검색
-20. **`health`** - 서비스 상태 확인
+- API 키 설정 여부 확인
+- 환경 변수 상태 점검
+- 서버 실행 상태 확인
 
 **상세 정보**: MCP 서버의 `tools/list` 엔드포인트를 통해 확인할 수 있습니다.
+
+> 💡 **참고**: 이전 버전의 20개 개별 툴은 통합되어 `legal_qa_tool`과 `document_issue_tool`에서 자동으로 호출됩니다.
+
+## 🧪 테스트
+
+### Python 테스트 스크립트
+
+서버가 정상적으로 동작하는지 확인:
+
+```bash
+python test_mcp.py
+```
+
+**테스트 항목**:
+
+- Initialize 요청
+- Tools/List 조회
+- Health Check 도구 호출
+
+**예상 출력**:
+
+```
+MCP Server Test Started
+Server URL: http://127.0.0.1:8099/mcp
+
+Found 3 tools:
+  - legal_qa_tool
+  - document_issue_tool
+  - health
+
+Status: ok
+API Key: configured
+All tests completed!
+```
+
+### 수동 테스트
+
+**Health Check (HTTP GET)**:
+
+```bash
+curl http://127.0.0.1:8099/health
+```
+
+**MCP Initialize**:
+
+```bash
+curl -X POST http://127.0.0.1:8099/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}'
+```
 
 ## 🏗️ 프로젝트 구조
 
 ```
 LexGuardMcp/
 ├── src/
-│   ├── main.py              # FastAPI 서버 + MCP 엔드포인트
+│   ├── main.py                              # FastAPI 서버 + MCP 엔드포인트
+│   ├── config/
+│   │   └── settings.py                      # 설정 및 로깅
 │   ├── routes/
-│   │   └── mcp_routes.py    # MCP 라우트 (툴 등록)
+│   │   ├── mcp_routes.py                    # MCP Streamable HTTP 라우트
+│   │   └── http_routes.py                   # 일반 HTTP 라우트
 │   ├── services/
-│   │   └── law_service.py   # 비즈니스 로직
+│   │   ├── smart_search_service.py          # 통합 검색 (legal_qa_tool)
+│   │   ├── situation_guidance_service.py    # 문서 분석 (document_issue_tool)
+│   │   ├── health_service.py                # Health Check
+│   │   ├── law_service.py                   # 법령 서비스
+│   │   ├── precedent_service.py             # 판례 서비스
+│   │   ├── law_interpretation_service.py    # 법령해석 서비스
+│   │   └── ...                              # 기타 서비스들
 │   ├── repositories/
-│   │   ├── law_search.py    # 법령 검색
-│   │   └── law_detail.py    # 법령 조회
+│   │   ├── base.py                          # 공통 유틸리티
+│   │   ├── law_search.py                    # 법령 검색
+│   │   ├── precedent_repository.py          # 판례 검색
+│   │   └── ...                              # 172개 DRF API 연동
+│   ├── utils/
+│   │   ├── domain_classifier.py             # 도메인 자동 감지
+│   │   ├── query_planner.py                 # 검색 계획 수립
+│   │   ├── evidence_builder.py              # 법적 근거 구성
+│   │   └── response_truncator.py            # 응답 크기 최적화
 │   └── models/
-│       └── schemas.py       # 요청/응답 스키마
+│       └── schemas.py                       # 요청/응답 스키마
 ├── api_crawler/
-│   ├── api_index.json       # API 인덱스 (159개)
-│   └── apis/                # 개별 API 메타데이터
-├── TOOLS_LIST.md            # 툴 목록
-├── TOOL_ADDITION_GUIDE.md   # 툴 추가 가이드
-└── README.md                # 이 파일
+│   ├── api_index.json                       # API 인덱스 (172개)
+│   └── apis/                                # 개별 API 메타데이터
+├── test_mcp.py                              # MCP 서버 테스트 스크립트
+└── README.md                                # 이 파일
 ```
 
 ## 🔑 API 키 우선순위
@@ -240,113 +335,131 @@ LexGuardMcp/
 
 - 국가법령정보센터 API는 사용량 제한이 있을 수 있습니다. 이 서버는 캐싱을 통해 불필요한 요청을 줄입니다.
 - **절대 `.env` 파일을 커밋하지 마세요!** 이미 `.gitignore`에 포함되어 있습니다.
-- MCP 스펙에 따라 응답 크기는 24k를 초과하면 안 됩니다.
+- MCP 스펙에 따라 응답 크기는 제한될 수 있습니다. `response_truncator.py`가 자동으로 최적화합니다.
+
+## 🔧 최근 개선 사항 (v2.0)
+
+### 안정성 개선
+
+- ✅ Graceful shutdown 개선으로 서버 종료 시 에러 제거
+- ✅ ClientDisconnect 예외 처리로 클라이언트 연결 끊김 에러 방지
+- ✅ MCP 요청 본문 사전 읽기 및 캐싱으로 디버깅 향상
+- ✅ 모든 예외 처리에 명시적 로깅 추가
+
+### 통합 및 최적화
+
+- ✅ 20개 개별 툴 → 3개 핵심 툴로 통합 (legal_qa_tool, document_issue_tool, health)
+- ✅ 172개 DRF API 완전 통합 (이전 159개에서 확장)
+- ✅ 도메인 자동 감지 시스템 (10개 법률 도메인)
+- ✅ Intent 세분화 (근로자성/해고/임금 등)
+- ✅ 시간 조건 자동 파싱 ("최근 5년", "2023년 이후")
+- ✅ 도메인별 최적 검색 순서 적용
 
 ## 🎯 사용 사례
 
 ### 🧑‍💼 일반인 사용 예시
 
-#### 🔍 통합 검색 툴 (가장 많이 사용)
+#### 🔍 legal_qa_tool - 범용 법률 QA (가장 많이 사용)
 
-**smart_search_tool** - 법적으로 문제가 있는지 확인하고 싶을 때
+**모든 법률 질문에 사용 가능**
 
-- "이 계약서 괜찮은 거야?"
-- "회사에서 갑자기 계약 끝낸다는데 이거 문제 없어?"
-- "프리랜서인데 출근 시간 정해놓고 일 시키면 괜찮은 거야?"
-- "이거 불공정 계약 같은데 관련 법 있어?"
+- "프리랜서인데 근로자성 인정된 판례 있나요?"
+  → 노동 도메인 자동 감지, 근로기준법 + 판례 + 노동위원회 통합 검색
 
-**situation_guidance_tool** - 내 상황에 맞는 법적 정보가 필요할 때
+- "개인정보 유출됐는데 어떻게 해야 하나요?"
+  → 개인정보 도메인, 개인정보보호법 + 위원회 결정 자동 조회
 
-- "회사에서 해고 통보 받았는데 이유를 안 알려줘"
-- "집주인이 보증금 못 준다는데 이게 가능한 거야?"
-- "일은 직원처럼 하는데 계약은 용역이래"
+- "최근 3년 부당해고 판례 보여줘"
+  → 시간 조건 파싱, 2022년 이후 판례만 자동 필터링
 
-#### 📖 법령 검색 및 조회
+- "전세 보증금 반환 관련 법 있어?"
+  → 부동산 도메인, 주택임대차보호법 + 판례 통합
 
-**search_law_tool** - 법 이름을 몰라도 키워드로 검색
+- "환불 거부하는데 소비자보호법 위반 아닌가요?"
+  → 소비자 도메인, 소비자기본법 + 약관법 + 관련 판례
 
-- "해고 관련된 법 뭐 있어?"
-- "전세 보증금 보호하는 법 찾아줘"
-- "프리랜서 보호해주는 법 있어?"
+#### 📄 document_issue_tool - 문서/계약서 분석
 
-**get_law_tool** - 특정 법령의 조문 확인
+**계약서나 약관을 붙여넣으면 자동 분석**
 
-- "근로기준법에서 해고 관련 조항 보여줘"
-- "계약 일방 해지에 관한 법 조항 알려줘"
-- "손해배상 관련 민법 조문 뭐야?"
+- **프리랜서 용역 계약서**:
 
-#### ⚖️ 판례 검색
+  ```
+  "이 계약서 문제 없는지 확인해줘"
+  → 문서 타입: labor(노동)
+  → 이슈: 근로자성 판단, 일방적 해지권, 손해배상 과다
+  → 관련 법령: 근로기준법 + 판례 자동 검색
+  ```
 
-**search_precedent_tool** - 유사한 사건의 판례 찾기
+- **임대차 계약서**:
 
-- "회사 마음대로 계약 끊은 판례 있어?"
-- "프리랜서인데 근로자로 인정된 사례"
-- "불공정 계약 무효된 사례"
+  ```
+  "전세 계약서인데 이상한 조항 있나요?"
+  → 문서 타입: lease(임대차)
+  → 이슈: 보증금 반환 조건, 계약 갱신권
+  → 관련 법령: 주택임대차보호법 + 판례
+  ```
 
-**get_precedent_tool** - 판례 상세 내용 확인
+- **서비스 이용약관**:
+  ```
+  "이 약관 불공정한 거 아닌가요?"
+  → 문서 타입: terms(약관)
+  → 이슈: 일방적 변경권, 과도한 면책 조항
+  → 관련 법령: 약관법 + 소비자보호법 + 판례
+  ```
 
-- "아까 말한 판례 내용 좀 더 알려줘"
-- "법원이 어떤 점을 중요하게 봤어?"
+#### 🏥 health - 서버 상태 확인
 
-#### 🧾 법령해석 및 행정심판
+**API 키 설정 및 서버 상태 점검**
 
-**search_law_interpretation_tool** - 정부의 공식 해석 확인
-
-- "이 법을 정부에서는 어떻게 보고 있어?"
-- "근로자 기준에 대한 공식 해석 있어?"
-
-**search_administrative_appeal_tool** - 행정기관 처분 관련 사례
-
-- "구청 결정에 이의 제기한 사례 있어?"
-- "과태료 부과 취소된 경우 있어?"
-
-**search_committee_decision_tool** - 위원회 결정문 검색
-
-- "위원회에서 판단한 사례 있어?"
-- "분쟁 조정 같은 거에서 나온 결정문"
-
-#### ⚖️ 헌법재판소 결정
-
-**search_constitutional_decision_tool** - 위헌 여부 확인
-
-- "이 법이 헌법에 어긋난다고 나온 적 있어?"
-- "재산권 침해라고 인정된 사례"
-
-#### 🔄 기타 기능
-
-**compare_laws_tool** - 법령 변경사항 확인
-
-- "이 법 예전이랑 지금 뭐가 달라?"
-- "최근에 바뀐 해고 관련 법 내용"
-
-**search_local_ordinance_tool** - 지방자치단체 조례/규칙
-
-- "서울시 전세 관련 조례 있어?"
-- "우리 구청에서 따로 정한 규칙 있어?"
-
-**search_administrative_rule_tool** - 행정규칙 검색
-
-- "부처 내부 규정 같은 것도 있어?"
-- "행정기관이 실제로 따르는 기준 뭐야?"
+- "서버 상태 확인해줘"
+  → API 키 설정 여부, 환경 변수 상태, 서버 실행 상태 확인
 
 ### 🔑 핵심 사용 패턴
 
-일반인은 **툴을 직접 고르지 않고**, 자연스러운 질문을 합니다:
-
 ```
-일반인 질문 (애매하고, 상황 중심, 감정 포함)
+일반인 질문 (자연스러운 한국어)
   ↓
-smart_search_tool / situation_guidance_tool (자동 선택)
+AI가 자동으로 적절한 툴 선택
   ↓
-필요 시 개별 검색 툴로 상세 조회
+legal_qa_tool: 질문 형태 → 자동 도메인 감지 → 통합 검색
+document_issue_tool: 문서 제공 → 타입 추론 → 조항별 분석
+  ↓
+법령 + 판례 + 해석 + 위원회 결정 등 종합 답변
 ```
 
-이 구조로 **"법을 아는 사람"도, "아예 모르는 사람"도 모두 사용 가능**합니다.
+**특징**:
 
-### 개발자
+- 사용자는 툴을 직접 선택하지 않음
+- AI가 질문 의도를 파악하여 자동 처리
+- 법률 용어를 몰라도 자연스러운 질문 가능
+- 관련된 모든 법적 근거를 한 번에 제공
 
-- 새로운 툴 추가: [TOOL_ADDITION_GUIDE.md](./TOOL_ADDITION_GUIDE.md) 참고
-- API 메타데이터 활용: `api_crawler/` 폴더 참고
+### 👨‍💻 개발자
+
+**아키텍처**:
+
+- **레이어드 아키텍처**: Routes → Services → Repositories
+- **MCP Streamable HTTP**: SSE(Server-Sent Events) 기반 실시간 스트리밍
+- **TTL 캐싱**: 검색 결과 30분, 실패 요청 5분 캐시
+- **자동 재시도**: 네트워크 오류 시 exponential backoff
+
+**새 기능 추가**:
+
+- Service Layer에 비즈니스 로직 구현
+- Repository Layer에서 DRF API 호출
+- `api_crawler/apis/` 폴더에 API 메타데이터 추가
+- `smart_search_service.py`에서 도메인별 검색 전략 정의
+
+**테스트**:
+
+```bash
+# MCP 서버 테스트
+python test_mcp.py
+
+# 개별 서비스 테스트
+python -c "from src.services.smart_search_service import SmartSearchService; ..."
+```
 
 ## 📤 프로젝트 공유
 
@@ -375,6 +488,18 @@ smart_search_tool / situation_guidance_tool (자동 선택)
 
 MIT License
 
+## 🤝 기여
+
+이슈 및 풀 리퀘스트는 언제나 환영합니다!
+
+## 📞 문의
+
+- 버그 리포트: GitHub Issues
+- 기능 요청: GitHub Issues
+
 ---
 
-**이 프로젝트는 일반인들이 AI를 통해 법률 정보를 쉽게 조회할 수 있도록 돕는 변호사 MCP 서버입니다.**
+**법실마리(LexGuard MCP) - 법률 정보의 실마리를 찾아드립니다.**
+
+법은 어렵지만, 첫 실마리를 잡는 것은 쉬워질 수 있습니다.  
+이 프로젝트는 AI를 통해 누구나 법률 정보에 쉽게 접근할 수 있도록 돕는 것을 목표로 합니다.
