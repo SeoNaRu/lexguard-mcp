@@ -789,10 +789,11 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             "jsonrpc": "2.0",
                             "id": request_id,
                             "result": {
-                                "tools": paged_tools,
-                                "nextCursor": next_cursor
+                                "tools": paged_tools
                             }
                         }
+                        if next_cursor is not None:
+                            response["result"]["nextCursor"] = next_cursor
                         response_json = json.dumps(response, ensure_ascii=False)
                         logger.info("MCP: tools/list response | length=%d tools_count=%d", 
                                    len(response_json), 
