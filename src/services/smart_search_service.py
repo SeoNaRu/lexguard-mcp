@@ -786,23 +786,40 @@ class SmartSearchService:
             # API 에러 여부 확인 (api_error / error+api_url / text/html)
             api_error_found = False
             html_error_found = False
+            auth_error_found = False
+            timeout_error_found = False
+            other_error_found = False
             for _, result in results.items():
                 if isinstance(result, dict):
                     content_type = result.get("content_type") or result.get("api_error", {}).get("content_type")
-                    if result.get("error_code") == "API_ERROR_HTML":
+                    error_code = result.get("error_code") or result.get("api_error", {}).get("error_code")
+                    if error_code == "API_ERROR_HTML":
                         html_error_found = True
-                    if (result.get("error_code") == "API_ERROR_HTML" or "api_error" in result or
+                    if error_code == "API_ERROR_AUTH":
+                        auth_error_found = True
+                    if error_code == "API_ERROR_TIMEOUT":
+                        timeout_error_found = True
+                    if error_code == "API_ERROR_OTHER":
+                        other_error_found = True
+                    if (error_code in {"API_ERROR_HTML", "API_ERROR_AUTH", "API_ERROR_TIMEOUT", "API_ERROR_OTHER"} or "api_error" in result or
                         ("error" in result and "api_url" in result) or
                         (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
                         api_error_found = True
                         break
             if api_error_found:
-                missing_reason = "API_ERROR_HTML" if html_error_found else "API_ERROR"
+                if html_error_found:
+                    missing_reason = "API_ERROR_HTML"
+                elif auth_error_found:
+                    missing_reason = "API_ERROR_AUTH"
+                elif timeout_error_found:
+                    missing_reason = "API_ERROR_TIMEOUT"
+                else:
+                    missing_reason = "API_ERROR_OTHER" if other_error_found else "API_ERROR_OTHER"
             else:
                 from ..repositories.base import BaseLawRepository
                 api_key = BaseLawRepository.get_api_key(None)
                 if BaseLawRepository.is_placeholder_key(api_key):
-                    missing_reason = "API_NOT_READY"
+                    missing_reason = "API_ERROR_AUTH"
                 else:
                     missing_reason = "NO_MATCH"
         

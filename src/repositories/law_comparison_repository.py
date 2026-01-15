@@ -41,11 +41,11 @@ class LawComparisonRepository(BaseLawRepository):
                 return api_key_error
             
             search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
-            search_response.raise_for_status()
             
             invalid_search = self.validate_drf_response(search_response)
             if invalid_search:
                 return invalid_search
+            search_response.raise_for_status()
             
             law_id = None
             normalized_query = self.normalize_search_query(law_name)
@@ -111,11 +111,11 @@ class LawComparisonRepository(BaseLawRepository):
                 return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            response.raise_for_status()
             
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             try:
                 data = response.json()

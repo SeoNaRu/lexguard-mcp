@@ -96,10 +96,10 @@ class GenericAPIRepository(BaseLawRepository):
         try:
             # API 호출
             response = requests.get(request_url, params=params, timeout=30)
-            response.raise_for_status()
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             # 응답 파싱
             content_type = response.headers.get("Content-Type", "").lower()

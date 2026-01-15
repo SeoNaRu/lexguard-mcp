@@ -572,24 +572,41 @@ class SituationGuidanceService:
             # API 에러 여부 확인
             api_error_found = False
             html_error_found = False
+            auth_error_found = False
+            timeout_error_found = False
+            other_error_found = False
             for payload in [law_results, precedent_results, interpretation_results, appeal_results]:
                 if isinstance(payload, dict):
                     content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type")
-                    if payload.get("error_code") == "API_ERROR_HTML":
+                    error_code = payload.get("error_code") or payload.get("api_error", {}).get("error_code")
+                    if error_code == "API_ERROR_HTML":
                         html_error_found = True
-                    if (payload.get("error_code") == "API_ERROR_HTML" or "api_error" in payload or
+                    if error_code == "API_ERROR_AUTH":
+                        auth_error_found = True
+                    if error_code == "API_ERROR_TIMEOUT":
+                        timeout_error_found = True
+                    if error_code == "API_ERROR_OTHER":
+                        other_error_found = True
+                    if (error_code in {"API_ERROR_HTML", "API_ERROR_AUTH", "API_ERROR_TIMEOUT", "API_ERROR_OTHER"} or "api_error" in payload or
                         ("error" in payload and "api_url" in payload) or
                         (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
                         api_error_found = True
                         break
             if api_error_found:
-                missing_reason = "API_ERROR_HTML" if html_error_found else "API_ERROR"
+                if html_error_found:
+                    missing_reason = "API_ERROR_HTML"
+                elif auth_error_found:
+                    missing_reason = "API_ERROR_AUTH"
+                elif timeout_error_found:
+                    missing_reason = "API_ERROR_TIMEOUT"
+                else:
+                    missing_reason = "API_ERROR_OTHER" if other_error_found else "API_ERROR_OTHER"
             else:
                 # API 준비 상태 확인
                 from ..repositories.base import BaseLawRepository
                 api_key = BaseLawRepository.get_api_key(None)
                 if BaseLawRepository.is_placeholder_key(api_key):
-                    missing_reason = "API_NOT_READY"
+                    missing_reason = "API_ERROR_AUTH"
                 else:
                     missing_reason = "NO_MATCH"
         
@@ -745,7 +762,9 @@ class SituationGuidanceService:
             return citations[:5] if isinstance(citations, list) else []
         
         # 조항별 자동 검색 (옵션)
-        if auto_search and analysis and analysis.get("clause_basis_hints"):
+        if not auto_search:
+            evidence_summary["missing_reason"] = "NO_SEARCH"
+        elif auto_search and analysis and analysis.get("clause_basis_hints"):
             from ..services.smart_search_service import SmartSearchService
             smart_search_service = SmartSearchService()
             
@@ -812,10 +831,12 @@ class SituationGuidanceService:
                 reasons = [r.get("result", {}).get("missing_reason") for r in evidence_results]
                 if "API_ERROR_HTML" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR_HTML"
-                elif "API_ERROR" in reasons:
-                    evidence_summary["missing_reason"] = "API_ERROR"
-                elif "API_NOT_READY" in reasons:
-                    evidence_summary["missing_reason"] = "API_NOT_READY"
+                elif "API_ERROR_AUTH" in reasons:
+                    evidence_summary["missing_reason"] = "API_ERROR_AUTH"
+                elif "API_ERROR_TIMEOUT" in reasons:
+                    evidence_summary["missing_reason"] = "API_ERROR_TIMEOUT"
+                elif "API_ERROR_OTHER" in reasons:
+                    evidence_summary["missing_reason"] = "API_ERROR_OTHER"
                 else:
                     evidence_summary["missing_reason"] = "NO_MATCH"
         elif auto_search and analysis and not analysis.get("clause_basis_hints"):
@@ -861,7 +882,9 @@ class SituationGuidanceService:
                 f"근거 수={legal_basis_summary['counts'].get('citations', 0)}."
             )
         else:
-            if evidence_summary["missing_reason"] == "API_ERROR_HTML":
+            if evidence_summary["missing_reason"] == "NO_SEARCH":
+                legal_basis_block_text = "법적 근거 요약: 검색 미수행(NO_SEARCH)."
+            elif evidence_summary["missing_reason"] == "API_ERROR_HTML":
                 legal_basis_block_text = (
                     "법적 근거 요약: API가 HTML 안내 페이지를 반환하여 근거를 가져오지 못했습니다."
                 )
@@ -878,10 +901,15 @@ class SituationGuidanceService:
                 "note": "추천 검색어로 법령/판례 검색을 재시도하세요."
             }
         
+        success_transport = True
+        success_search = evidence_summary["has_legal_basis"] if auto_search else False
+        success = success_transport if not auto_search else (success_transport and success_search)
         return {
-            "success_transport": True,
-            "success_search": evidence_summary["has_legal_basis"],
-            "success": True,
+            "success_transport": success_transport,
+            "success_search": success_search,
+            "success": success,
+            "auto_search": auto_search,
+            "analysis_success": bool(analysis),
             "has_legal_basis": evidence_summary["has_legal_basis"],
             "missing_reason": evidence_summary["missing_reason"],
             "document_text": document_text,

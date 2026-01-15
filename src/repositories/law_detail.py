@@ -49,11 +49,11 @@ class LawDetailRepository(BaseLawRepository):
             
             # 법령명 검색은 lawSearch.do 사용
             search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
-            search_response.raise_for_status()
             
             invalid_response = self.validate_drf_response(search_response)
             if invalid_response:
                 return invalid_response
+            search_response.raise_for_status()
             
             # JSON에서 법령일련번호 추출
             law_id = None
@@ -142,11 +142,11 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
-            detail_response.raise_for_status()
 
             invalid_response = self.validate_drf_response(detail_response)
             if invalid_response:
                 return invalid_response
+            detail_response.raise_for_status()
             
             # detail_response JSON에서 법령일련번호 재확인 (더 정확한 ID)
             detail_data = None
@@ -238,11 +238,11 @@ class LawDetailRepository(BaseLawRepository):
                 
                 # 법령명 검색은 lawSearch.do 사용
                 search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
-                search_response.raise_for_status()
                 
                 invalid_response = self.validate_drf_response(search_response)
                 if invalid_response:
                     return invalid_response
+                search_response.raise_for_status()
                 
                 try:
                     search_data = search_response.json()
@@ -341,11 +341,11 @@ class LawDetailRepository(BaseLawRepository):
             
             # API 호출
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            response.raise_for_status()
             
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             # JSON 파싱 시작
             try:
@@ -509,11 +509,11 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
             
             detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
-            detail_response.raise_for_status()
 
             invalid_detail = self.validate_drf_response(detail_response)
             if invalid_detail:
                 return invalid_detail
+            detail_response.raise_for_status()
 
             detail_data = detail_response.json()
             
@@ -577,11 +577,11 @@ class LawDetailRepository(BaseLawRepository):
             
             # 3단계: 단일 조문 조회
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            response.raise_for_status()
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             # JSON 파싱
             try:

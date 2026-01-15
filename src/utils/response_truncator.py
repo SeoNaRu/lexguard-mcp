@@ -8,8 +8,8 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger("lexguard-mcp")
 
-# MCP 규격: 최대 응답 크기 24KB (하드 제한)
-MAX_RESPONSE_SIZE = 24000  # bytes
+# MCP 규격: 최대 응답 크기 24KB (JSONRPC wrapper 포함)
+MAX_RESPONSE_SIZE = 24076  # bytes
 RESERVE_SIZE = 500  # JSON 구조용 여유 공간 (메타데이터, 필드명 등)
 TARGET_SIZE = MAX_RESPONSE_SIZE - RESERVE_SIZE  # 실제 콘텐츠용 크기
 
@@ -81,7 +81,7 @@ def truncate_response(result: Dict[str, Any], max_size: int = TARGET_SIZE) -> Di
         final_size = len(final_json_str.encode('utf-8'))
         logger.info(f"Final response size: {final_size} bytes (max: {max_size} bytes)")
         
-        return truncated_result
+        return _sync_content_json(truncated_result)
         
     except Exception as e:
         logger.exception(f"Error truncating response: {e}")
@@ -214,6 +214,46 @@ def get_response_size(result: Dict[str, Any]) -> int:
         return 0
 
 
+def _sync_content_json(result: Dict[str, Any]) -> Dict[str, Any]:
+    """structuredContent가 있으면 content의 JSON 텍스트를 동기화합니다."""
+    if not isinstance(result, dict):
+        return result
+    structured = result.get("structuredContent")
+    contents = result.get("content")
+    if not isinstance(structured, dict) or not isinstance(contents, list) or not contents:
+        return result
+    try:
+        json_text = json.dumps(structured, ensure_ascii=False)
+        # 마지막 content를 JSON으로 간주하고 갱신
+        contents[-1]["text"] = json_text
+    except Exception:
+        return result
+    return result
+
+
+def _reduce_structured_content(structured: Dict[str, Any]) -> Dict[str, Any]:
+    """구조화된 응답에서 큰 필드를 우선 축소합니다."""
+    if not isinstance(structured, dict):
+        return structured
+    reduced = structured.copy()
+    drop_keys = [
+        "document_text",
+        "document_analysis",
+        "retry_plan",
+        "response_policy",
+        "errors",
+        "summary",
+        "laws",
+        "precedents",
+        "interpretations",
+        "administrative_appeals"
+    ]
+    for key in drop_keys:
+        if key in reduced:
+            reduced.pop(key, None)
+    return reduced
+
+
 def shrink_response_bytes(result: Dict[str, Any], max_bytes: int = MAX_RESPONSE_SIZE) -> Dict[str, Any]:
     """
     최종 JSON 직렬화 기준으로 바이트 크기를 하드 제한합니다.
@@ -227,25 +267,22 @@ def shrink_response_bytes(result: Dict[str, Any], max_bytes: int = MAX_RESPONSE_
 
     truncated = result.copy() if isinstance(result, dict) else result
 
-    # 1) content 텍스트 우선 축소
-    if isinstance(truncated, dict) and isinstance(truncated.get("content"), list):
-        for item in truncated["content"]:
-            if isinstance(item, dict) and isinstance(item.get("text"), str):
-                item["text"] = summarize_text(item["text"], max(300, max_bytes // 4))
-                item["truncated"] = True
+    for _ in range(4):
+        if isinstance(truncated, dict) and isinstance(truncated.get("structuredContent"), dict):
+            truncated["structuredContent"] = aggressive_truncate(truncated["structuredContent"], max_bytes)
+            truncated = _sync_content_json(truncated)
 
-    # 2) structuredContent 축소
-    if isinstance(truncated, dict) and isinstance(truncated.get("structuredContent"), dict):
-        truncated["structuredContent"] = aggressive_truncate(truncated["structuredContent"], max_bytes)
-
-    try:
-        json_str = json.dumps(truncated, ensure_ascii=False)
-        if len(json_str.encode("utf-8")) <= max_bytes:
+        try:
+            if len(json.dumps(truncated, ensure_ascii=False).encode("utf-8")) <= max_bytes:
+                return truncated
+        except Exception:
             return truncated
-    except Exception:
-        return truncated
 
-    # 3) structuredContent 제거 후 재시도
+        if isinstance(truncated, dict) and isinstance(truncated.get("structuredContent"), dict):
+            truncated["structuredContent"] = _reduce_structured_content(truncated["structuredContent"])
+            truncated = _sync_content_json(truncated)
+
+    # 마지막 수단: structuredContent 제거 후 재시도
     if isinstance(truncated, dict) and "structuredContent" in truncated:
         trimmed = truncated.copy()
         trimmed.pop("structuredContent", None)

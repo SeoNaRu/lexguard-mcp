@@ -53,7 +53,6 @@ class LocalOrdinanceRepository(BaseLawRepository):
                 return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            response.raise_for_status()
             
             if not response.text or not response.text.strip():
                 return {
@@ -67,6 +66,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             try:
                 data = response.json()

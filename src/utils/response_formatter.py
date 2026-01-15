@@ -440,6 +440,8 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "success": result.get("success", True),
             "success_transport": result.get("success_transport", True),
             "success_search": result.get("success_search", result.get("success", True)),
+            "auto_search": result.get("auto_search"),
+            "analysis_success": result.get("analysis_success"),
             "has_legal_basis": result.get("has_legal_basis"),
             "missing_reason": result.get("missing_reason"),
             "document_analysis": result.get("document_analysis"),
@@ -471,16 +473,27 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     # 메타데이터 추가 (Phase 3 개선)
     formatted = add_metadata(formatted, tool_name)
     
-    # JSON 문자열로 변환 (LLM이 파싱하기 쉽도록)
-    formatted_json = json.dumps(formatted, ensure_ascii=False, indent=2)
-    # legal_basis_block_text는 별도 content로 분리
-    legal_basis_block_text = formatted.get("legal_basis_block_text")
+    # JSON 문자열로 변환
+    formatted_json = json.dumps(formatted, ensure_ascii=False)
+
     contents = []
-    if legal_basis_block_text:
-        contents.append({
-            "type": "text",
-            "text": legal_basis_block_text
-        })
+    if tool_name == "document_issue_tool":
+        auto_search = formatted.get("auto_search")
+        success_search = formatted.get("success_search")
+        missing_reason = formatted.get("missing_reason")
+        if auto_search and not success_search:
+            if missing_reason == "API_ERROR_HTML":
+                notice = "⚠️ 법령/판례 API가 HTML 안내 페이지를 반환하여 근거를 불러오지 못했습니다."
+            elif missing_reason == "API_ERROR_AUTH":
+                notice = "⚠️ 법령/판례 API 키 설정이 필요합니다. LAW_API_KEY 또는 LAWGOKR_OC를 확인하세요."
+            elif missing_reason == "API_ERROR_TIMEOUT":
+                notice = "⚠️ 법령/판례 API 호출이 타임아웃되었습니다. 잠시 후 재시도하세요."
+            else:
+                notice = "⚠️ 법적 근거 검색에 실패했습니다. 잠시 후 다시 시도하세요."
+            contents.append({
+                "type": "text",
+                "text": notice
+            })
     contents.append({
         "type": "text",
         "text": formatted_json

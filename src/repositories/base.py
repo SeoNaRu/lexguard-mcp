@@ -6,6 +6,7 @@ import logging
 from cachetools import TTLCache
 from typing import Optional
 import re
+import urllib.parse
 
 # Logger
 logger = logging.getLogger("lexguard-mcp")
@@ -45,8 +46,10 @@ class BaseLawRepository:
                 logger.debug("API key from arguments.env")
                 return api_key.strip() if isinstance(api_key, str) else api_key
         
-        # Priority 2: Get from .env file
+        # Priority 2: Get from .env file / runtime env
         api_key = os.environ.get("LAW_API_KEY", "")
+        if not api_key:
+            api_key = os.environ.get("LAWGOKR_OC", "")
         if api_key:
             logger.debug("API key from .env file")
 
@@ -88,14 +91,31 @@ class BaseLawRepository:
         api_key = cls.get_api_key(arguments)
         if cls.is_placeholder_key(api_key):
             return None, {
-                "error_code": "API_NOT_READY",
+                "error_code": "API_ERROR_AUTH",
+                "missing_reason": "API_ERROR_AUTH",
                 "error": "LAW_API_KEY가 설정되지 않았습니다.",
-                "recovery_guide": "환경변수 LAW_API_KEY에 발급키를 설정하세요.",
+                "recovery_guide": "환경변수 LAW_API_KEY 또는 LAWGOKR_OC에 발급키를 설정하세요.",
                 "api_url": request_url,
             }
         params["OC"] = api_key
         logger.info("DRF request | url=%s OC=%s", request_url or "", cls.mask_api_key(api_key))
         return api_key, None
+
+    @staticmethod
+    def _sanitize_url(url: str) -> str:
+        """URL에서 OC 파라미터를 마스킹하여 반환합니다."""
+        if not url:
+            return url
+        try:
+            parsed = urllib.parse.urlparse(url)
+            query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+            if "OC" in query:
+                masked = BaseLawRepository.mask_api_key(query["OC"][0])
+                query["OC"] = [masked]
+            new_query = urllib.parse.urlencode(query, doseq=True)
+            return urllib.parse.urlunparse(parsed._replace(query=new_query))
+        except Exception:
+            return url
 
     @staticmethod
     def _has_html_body(body: str) -> bool:
@@ -110,22 +130,69 @@ class BaseLawRepository:
         """DRF 응답의 Content-Type/HTML 여부를 검증합니다."""
         content_type = response.headers.get("Content-Type", "")
         body = response.text or ""
-        is_json_or_xml = "application/json" in content_type.lower() or "application/xml" in content_type.lower() or "text/xml" in content_type.lower()
+        status_code = getattr(response, "status_code", None)
+        is_json_or_xml = (
+            "application/json" in content_type.lower()
+            or "application/xml" in content_type.lower()
+            or "text/xml" in content_type.lower()
+        )
+        is_html = "text/html" in content_type.lower() or cls._has_html_body(body)
+        sanitized_url = cls._sanitize_url(getattr(response, "url", ""))
+        snippet = " ".join(body.strip().split())
+        short_snippet = snippet[:200]
 
-        if not is_json_or_xml or cls._has_html_body(body):
-            snippet = " ".join(body.strip().split())
-            short_snippet = snippet[:200]
+        if status_code in (401, 403):
+            logger.warning(
+                "DRF response auth error | url=%s status=%s ct=%s",
+                sanitized_url,
+                status_code,
+                content_type,
+            )
+            return {
+                "error_code": "API_ERROR_AUTH",
+                "missing_reason": "API_ERROR_AUTH",
+                "error": "API 키 인증에 실패했습니다.",
+                "recovery_guide": "환경변수 LAW_API_KEY 또는 LAWGOKR_OC에 발급키를 설정하세요.",
+                "api_url": sanitized_url,
+                "status": status_code,
+                "content_type": content_type,
+                "short_snippet": short_snippet,
+            }
+
+        if is_html:
             logger.warning(
                 "DRF response invalid | url=%s status=%s ct=%s snippet=%r",
-                response.url,
-                response.status_code,
+                sanitized_url,
+                status_code,
                 content_type,
                 short_snippet,
             )
             return {
                 "error_code": "API_ERROR_HTML",
-                "api_url": response.url,
-                "status": response.status_code,
+                "missing_reason": "API_ERROR_HTML",
+                "error": "API가 HTML 안내 페이지를 반환했습니다.",
+                "recovery_guide": "API 키 설정 또는 정책/차단 여부를 확인하세요.",
+                "api_url": sanitized_url,
+                "status": status_code,
+                "content_type": content_type,
+                "short_snippet": short_snippet,
+            }
+
+        if not is_json_or_xml:
+            logger.warning(
+                "DRF response invalid | url=%s status=%s ct=%s snippet=%r",
+                sanitized_url,
+                status_code,
+                content_type,
+                short_snippet,
+            )
+            return {
+                "error_code": "API_ERROR_OTHER",
+                "missing_reason": "API_ERROR_OTHER",
+                "error": "API 응답 형식이 JSON/XML이 아닙니다.",
+                "recovery_guide": "API 서버 상태를 확인하거나 잠시 후 다시 시도하세요.",
+                "api_url": sanitized_url,
+                "status": status_code,
                 "content_type": content_type,
                 "short_snippet": short_snippet,
             }

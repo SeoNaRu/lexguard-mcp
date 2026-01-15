@@ -64,10 +64,10 @@ class LawSearchRepository(BaseLawRepository):
             # 검색은 lawSearch.do 사용
             # 1차 시도: JSON
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            response.raise_for_status()
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
 
             json_decode_failed = False
             
@@ -88,11 +88,11 @@ class LawSearchRepository(BaseLawRepository):
                 
                 try:
                     xml_response = requests.get(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
-                    xml_response.raise_for_status()
                     
                     invalid_xml = self.validate_drf_response(xml_response)
                     if invalid_xml:
                         return invalid_xml
+                    xml_response.raise_for_status()
                     
                     # XML 파싱
                     try:
@@ -251,6 +251,8 @@ class LawSearchRepository(BaseLawRepository):
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
                 "error": error_msg,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
@@ -321,11 +323,11 @@ class LawSearchRepository(BaseLawRepository):
                 return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=30)
-            response.raise_for_status()
             
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             # XML 파싱
             result = {
@@ -437,6 +439,8 @@ class LawSearchRepository(BaseLawRepository):
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
                 "error": error_msg,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }

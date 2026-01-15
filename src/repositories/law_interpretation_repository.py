@@ -77,11 +77,11 @@ class LawInterpretationRepository(BaseLawRepository):
                 return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            response.raise_for_status()
             
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             try:
                 data = response.json()
@@ -139,6 +139,8 @@ class LawInterpretationRepository(BaseLawRepository):
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
                 "error": error_msg,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
@@ -200,11 +202,11 @@ class LawInterpretationRepository(BaseLawRepository):
                 return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            response.raise_for_status()
             
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
+            response.raise_for_status()
             
             try:
                 data = response.json()
@@ -232,6 +234,8 @@ class LawInterpretationRepository(BaseLawRepository):
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
                 "error": error_msg,
                 "interpretation_id": interpretation_id,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."

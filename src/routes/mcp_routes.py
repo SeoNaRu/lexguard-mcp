@@ -181,7 +181,21 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
         
         try:
             body = await request.json()
-            logger.info("MCP request body: %s", body)
+            def _sanitize_body(payload):
+                if not isinstance(payload, dict):
+                    return payload
+                sanitized = json.loads(json.dumps(payload))  # shallow copy
+                params = sanitized.get("params") if isinstance(sanitized, dict) else None
+                if isinstance(params, dict):
+                    arguments = params.get("arguments")
+                    if isinstance(arguments, dict) and "document_text" in arguments:
+                        text = arguments.get("document_text") or ""
+                        arguments["document_text"] = f"[document_text length={len(text)}]"
+                    for k, v in list(arguments.items()) if isinstance(arguments, dict) else []:
+                        if isinstance(v, str) and len(v) > 200:
+                            arguments[k] = v[:200] + "...[truncated]"
+                return sanitized
+            logger.info("MCP request body: %s", _sanitize_body(body))
             
             jsonrpc = body.get("jsonrpc", "2.0")
             method = body.get("method")
@@ -1092,6 +1106,8 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         }
                         # 최종 JSON 크기 하드 제한 적용 (24KB)
                         final_response = shrink_response_bytes(final_response)
+                        final_response_size = get_response_size(final_response)
+                        logger.info("MCP: Final JSONRPC size=%d bytes (max: 24076)", final_response_size)
                         logger.info("MCP: Sending final response | tool=%s has_error=%s result_size=%d", 
                                    tool_name, 
                                    "error" in result if isinstance(result, dict) else False,
