@@ -3,6 +3,7 @@ HTTP Routes - 일반 HTTP 엔드포인트
 Controller 패턴: 요청을 받아 Service를 호출
 """
 from fastapi import FastAPI
+from starlette.requests import ClientDisconnect
 from ..services.law_service import LawService
 from ..services.health_service import HealthService
 from ..models import SearchLawRequest, ListLawNamesRequest, GetLawDetailRequest
@@ -120,7 +121,12 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
     @api.post("/tools/{tool_name}")
     async def call_tool_http(tool_name: str, request_data: dict):
         """HTTP endpoint: Call tool"""
-        logger.debug("HTTP call_tool | tool=%s request=%s", tool_name, request_data)
+        try:
+            logger.debug("HTTP call_tool | tool=%s request=%s", tool_name, request_data)
+        except ClientDisconnect:
+            logger.info("Client disconnected during tool call (normal for cancelled requests)")
+            return {"error": "Client disconnected", "recovery_guide": "요청이 취소되었습니다."}
+        
         env = request_data.get("env", {}) if isinstance(request_data, dict) else {}
         
         def convert_float_to_int(data: dict, keys: list):

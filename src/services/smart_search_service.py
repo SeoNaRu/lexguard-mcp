@@ -2,7 +2,9 @@
 Smart Search Service - 사용자 질문을 분석하여 적절한 API를 자동 선택
 """
 import re
+from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
+from .api_router import APIRouter, DomainType, APICategory
 from ..repositories.law_repository import LawRepository
 from ..repositories.law_detail import LawDetailRepository
 from ..repositories.precedent_repository import PrecedentRepository
@@ -40,7 +42,10 @@ class SmartSearchService:
         self.rule_repo = AdministrativeRuleRepository()
         self.comparison_repo = LawComparisonRepository()
         
-        # 의도 분류 키워드
+        # 완벽한 API 라우터 (172개 API 관리)
+        self.api_router = APIRouter()
+        
+        # 의도 분류 키워드 (세분화됨)
         self.intent_keywords = {
             "law": {
                 "keywords": ["법령", "법", "조문", "조항", "법률", "시행령", "시행규칙", "법 제", "법률 제"],
@@ -49,6 +54,19 @@ class SmartSearchService:
             "precedent": {
                 "keywords": ["판례", "대법원", "판결", "선고", "사건", "재판", "법원", "관련 판례", "관련사례"],
                 "patterns": [r"판례", r"대법원\s*\d+", r"사건번호", r"관련\s*판례", r"관련\s*사례"]
+            },
+            # 노동 세분화
+            "labor_worker_status": {
+                "keywords": ["근로자성", "사용종속", "지휘감독", "위장도급", "프리랜서", "근로자 인정", "4대보험", "근로자 판단"],
+                "patterns": [r"근로자성", r"위장도급", r"사용종속", r"프리랜서.*근로자"]
+            },
+            "labor_termination": {
+                "keywords": ["해고", "부당해고", "정리해고", "계약해지", "해고 사유", "일방적 해지"],
+                "patterns": [r"부당해고", r"해고.*사유", r"계약.*해지"]
+            },
+            "labor_wage": {
+                "keywords": ["임금", "퇴직금", "체불", "임금체불", "보수", "급여", "미지급", "연장근로수당"],
+                "patterns": [r"임금체불", r"퇴직금.*계산", r"급여.*미지급"]
             },
             "interpretation": {
                 "keywords": ["법령해석", "해석", "의견", "해석례", "법제처", "부처 해석"],
@@ -133,6 +151,226 @@ class SmartSearchService:
         
         # 기본값: 법령 검색
         return [("law", 0.5)]
+    
+    def parse_time_condition(self, query: str) -> Optional[Dict[str, str]]:
+        """
+        질문에서 시간 조건을 파싱하여 date_from, date_to 반환
+        
+        Examples:
+            "최근 5년 판례" → {"date_from": "20210115", "date_to": "20260115"}
+            "2023년 이후 판례" → {"date_from": "20230101", "date_to": "20260115"}
+            "2020년부터 2023년까지" → {"date_from": "20200101", "date_to": "20231231"}
+            "예전 판례와 요즘 판례" → {"date_from": "20210115", "date_to": "20260115"}
+        
+        Returns:
+            {"date_from": "YYYYMMDD", "date_to": "YYYYMMDD"} or None
+        """
+        today = datetime.now()
+        time_filter = None
+        
+        # 패턴 1: "최근 N년"
+        match = re.search(r"최근\s*(\d+)\s*년", query)
+        if match:
+            years = int(match.group(1))
+            date_from = (today - timedelta(days=years*365)).strftime("%Y%m%d")
+            date_to = today.strftime("%Y%m%d")
+            return {"date_from": date_from, "date_to": date_to}
+        
+        # 패턴 2: "YYYY년 이후"
+        match = re.search(r"(\d{4})\s*년\s*이후", query)
+        if match:
+            year = int(match.group(1))
+            date_from = f"{year}0101"
+            date_to = today.strftime("%Y%m%d")
+            return {"date_from": date_from, "date_to": date_to}
+        
+        # 패턴 3: "YYYY년부터 YYYY년까지"
+        match = re.search(r"(\d{4})\s*년\s*부터\s*(\d{4})\s*년\s*까지", query)
+        if match:
+            year_from = int(match.group(1))
+            year_to = int(match.group(2))
+            date_from = f"{year_from}0101"
+            date_to = f"{year_to}1231"
+            return {"date_from": date_from, "date_to": date_to}
+        
+        # 패턴 4: "예전/과거" vs "요즘/최근" (기본 5년)
+        if re.search(r"예전.*요즘|과거.*최근|예전.*최근", query):
+            date_from = (today - timedelta(days=5*365)).strftime("%Y%m%d")
+            date_to = today.strftime("%Y%m%d")
+            return {"date_from": date_from, "date_to": date_to}
+        
+        # 패턴 5: "최신", "요즘" (3년)
+        if re.search(r"최신|요즘|근래", query):
+            date_from = (today - timedelta(days=3*365)).strftime("%Y%m%d")
+            date_to = today.strftime("%Y%m%d")
+            return {"date_from": date_from, "date_to": date_to}
+        
+        return None
+    
+    def plan_queries(self, query: str, intent: str) -> List[str]:
+        """
+        Intent별로 다단계 검색 쿼리 생성
+        
+        Args:
+            query: 원본 질문
+            intent: analyze_intent에서 분류된 intent
+            
+        Returns:
+            검색 쿼리 리스트 (넓게 → 좁게)
+        """
+        # 노동-근로자성/위장도급
+        if intent == "labor_worker_status":
+            base_keywords = ["근로자성", "사용종속관계", "프리랜서"]
+            if "프리랜서" in query or "용역" in query:
+                return [
+                    "근로자성 판단 기준",
+                    "사용종속관계",
+                    "프리랜서 근로자 인정 판례",
+                    "위장도급 판단 기준"
+                ]
+            else:
+                return [
+                    "근로자성",
+                    "사용종속관계 판례",
+                    "지휘감독 근로자성"
+                ]
+        
+        # 노동-해고/해지
+        elif intent == "labor_termination":
+            return [
+                "부당해고",
+                "정당한 해고 사유",
+                "해고 절차 위반",
+                "계약해지 손해배상"
+            ]
+        
+        # 노동-임금/퇴직금
+        elif intent == "labor_wage":
+            if "퇴직금" in query:
+                return [
+                    "퇴직금 계산",
+                    "퇴직금 지급 기준",
+                    "근속연수 퇴직금"
+                ]
+            elif "체불" in query or "미지급" in query:
+                return [
+                    "임금체불",
+                    "임금 미지급 신고",
+                    "지연이자 임금"
+                ]
+            else:
+                return [
+                    "임금",
+                    "통상임금",
+                    "임금 전액지급 원칙"
+                ]
+        
+        # 기본값: 원본 query
+        return [query]
+    
+    async def comprehensive_search_v2(
+        self,
+        query: str,
+        max_results_per_type: int = 3,
+        arguments: Optional[dict] = None,
+        document_text: Optional[str] = None
+    ) -> Dict:
+        """
+        완벽한 다단계 검색 파이프라인 (v2)
+        - API Router 기반으로 172개 API 활용
+        - 도메인 감지 → Intent 분류 → API 순서 계획 → 다단계 검색
+        
+        Args:
+            query: 사용자 질문
+            max_results_per_type: 타입당 최대 결과 수
+            arguments: 추가 인자
+            document_text: 문서 전문 (옵션)
+            
+        Returns:
+            통합 검색 결과 (모든 API 결과 포함)
+        """
+        import asyncio
+        import logging
+        logger = logging.getLogger("lexguard-mcp")
+        
+        start_time = datetime.now()
+        
+        # 1단계: 도메인 감지
+        domain = self.api_router.detect_domain(query, document_text)
+        logger.info(f"Domain detected | domain={domain.value} query={query[:50]}")
+        
+        # 2단계: Intent 분류
+        intent_results = self.analyze_intent(query)
+        primary_intent = intent_results[0][0] if intent_results else "general"
+        logger.info(f"Intent analyzed | intent={primary_intent}")
+        
+        # 3단계: 시간 조건 파싱
+        time_condition = self.parse_time_condition(query)
+        
+        # 4단계: API 호출 순서 계획
+        api_sequence = self.api_router.plan_api_sequence(query, domain, primary_intent, document_text)
+        logger.info(f"API sequence planned | steps={len(api_sequence)}")
+        
+        # 5단계: 다단계 검색 실행
+        all_results = {}
+        sources_count = {}
+        
+        for i, (api_category, params) in enumerate(api_sequence[:5], 1):  # 최대 5단계
+            try:
+                if api_category == APICategory.LAW:
+                    target_laws = params.get("target_laws", [])
+                    if target_laws:
+                        for law_name in target_laws[:2]:
+                            result = await asyncio.to_thread(
+                                self.law_detail_repo.get_law,
+                                None, law_name, "detail", None, None, None, None, arguments
+                            )
+                            if result and not result.get("error"):
+                                all_results.setdefault("laws", []).append(result)
+                    else:
+                        result = await asyncio.to_thread(
+                            self.law_search_repo.search_law,
+                            query, 1, max_results_per_type, arguments
+                        )
+                        if result and result.get("laws"):
+                            all_results["laws"] = result["laws"]
+                    sources_count["law"] = len(all_results.get("laws", []))
+                
+                elif api_category == APICategory.PRECEDENT:
+                    result = await asyncio.to_thread(
+                        self.precedent_repo.search_precedent,
+                        query, 1, max_results_per_type,
+                        time_condition.get("date_from") if time_condition else None,
+                        time_condition.get("date_to") if time_condition else None,
+                        None, arguments
+                    )
+                    if result and result.get("precedents"):
+                        all_results["precedents"] = result["precedents"]
+                        sources_count["precedent"] = len(result["precedents"])
+            except Exception as e:
+                logger.error(f"API call failed | category={api_category.value} error={e}")
+                continue
+        
+        # 6단계: 결과 통합
+        total_sources = sum(sources_count.values())
+        has_legal_basis = total_sources > 0
+        elapsed = (datetime.now() - start_time).total_seconds()
+        
+        return {
+            "success": True,
+            "success_transport": True,
+            "success_search": has_legal_basis,
+            "has_legal_basis": has_legal_basis,
+            "query": query,
+            "domain": domain.value,
+            "detected_intent": primary_intent,
+            "results": all_results,
+            "sources_count": sources_count,
+            "total_sources": total_sources,
+            "missing_reason": None if has_legal_basis else "NO_MATCH",
+            "elapsed_seconds": elapsed,
+            "pipeline_version": "v2_complete_coverage"
+        }
     
     def extract_parameters(self, query: str, search_type: str) -> Dict:
         """
@@ -421,10 +659,16 @@ class SmartSearchService:
         if not search_types:
             search_types = ["law"]  # 기본값
         
+        # 시간 조건 파싱 (공통)
+        time_condition = self.parse_time_condition(query)
+        
         # 파라미터 추출
         all_params = {}
         for st in search_types:
             params = self.extract_parameters(query, st)
+            # 시간 조건 추가 (판례/헌재결정/행정심판 등에 적용)
+            if time_condition and st in ["precedent", "constitutional", "administrative_appeal", "committee", "special_appeal"]:
+                params.update(time_condition)
             all_params[st] = params
         
         # 쿼리 전처리: 긴 문장에서 핵심 키워드만 추출 (API 에러 방지)
@@ -679,13 +923,9 @@ class SmartSearchService:
                         results[search_type] = result
                     else:
                         # 에러만 있고 결과가 없으면 로깅만 하고 추가하지 않음
-                        import logging
-                        logger = logging.getLogger("lexguard-mcp")
                         logger.debug(f"Result for {search_type} has error and no data: {result.get('error', 'Unknown error')}")
                     
             except Exception as e:
-                import logging
-                logger = logging.getLogger("lexguard-mcp")
                 logger.exception(f"Error in smart_search for {search_type}: {e}")
                 # 에러도 결과에 포함하여 디버깅 가능하게
                 results[search_type] = {

@@ -114,7 +114,8 @@ class BaseLawRepository:
                 query["OC"] = [masked]
             new_query = urllib.parse.urlencode(query, doseq=True)
             return urllib.parse.urlunparse(parsed._replace(query=new_query))
-        except Exception:
+        except Exception as e:
+            logger.debug("URL sanitization failed: %s", e)
             return url
 
     @staticmethod

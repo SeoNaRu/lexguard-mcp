@@ -34,7 +34,6 @@ if __name__ == "__main__":
     # Streamable HTTP 모드로 실행 (MCP 규칙 준수)
     import uvicorn
     import logging
-    import signal
     import atexit
     
     port = int(os.environ.get('PORT', 8099))
@@ -66,16 +65,8 @@ if __name__ == "__main__":
     access_logger = logging.getLogger("uvicorn.access")
     access_logger.addFilter(HealthCheckFilter())
     
-    # Graceful shutdown 핸들러
-    def signal_handler(signum, frame):
-        """시그널 핸들러: 서버 종료 시 로그 출력"""
-        logger.info(f"🛑 종료 시그널 수신: {signum}")
-        logger.info("서버 종료 중...")
-        sys.exit(0)
-    
-    # SIGTERM, SIGINT 핸들러 등록 (Render가 SIGTERM을 보냄)
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
+    # Graceful shutdown은 uvicorn이 자동으로 처리하므로
+    # 별도의 signal handler는 제거하고 atexit만 사용
     
     # 종료 시 실행되는 핸들러
     def exit_handler():

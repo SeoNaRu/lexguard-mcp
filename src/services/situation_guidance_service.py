@@ -232,7 +232,64 @@ class SituationGuidanceService:
         
         # 최대 8개로 제한
         return " ".join(merged[:8]) if merged else situation[:50]
-
+    def _infer_document_type(self, situation: str) -> str:
+        """
+        문서 타입 추론: 노동/용역, 임대차, 약관, 기타
+        
+        우선순위:
+        1. 노동/용역 계약 (labor)
+        2. 임대차 계약 (lease)
+        3. 서비스 약관 (terms)
+        4. 기타 계약 (other)
+        """
+        # 노동/용역 계약 시그널 (높은 가중치)
+        labor_signals = [
+            ("갑", 2), ("을", 2), ("용역", 3), ("프리랜서", 4), ("위탁", 2),
+            ("업무", 1), ("지시", 2), ("출퇴근", 3), ("근로", 4), ("임금", 3),
+            ("사용종속", 4), ("지휘감독", 4), ("위장도급", 5), ("4대보험", 3)
+        ]
+        
+        # 임대차 계약 시그널
+        lease_signals = [
+            ("임대인", 5), ("임차인", 5), ("보증금", 4), ("전세", 5),
+            ("임대차", 5), ("월세", 4), ("임차료", 4), ("명도", 4)
+        ]
+        
+        # 약관 시그널
+        terms_signals = [
+            ("회원", 2), ("이용약관", 5), ("서비스 제공", 2), ("청약철회", 3),
+            ("환불", 2), ("면책", 2), ("약관", 1)
+        ]
+        
+        # 점수 계산
+        labor_score = sum(weight for keyword, weight in labor_signals if keyword in situation)
+        lease_score = sum(weight for keyword, weight in lease_signals if keyword in situation)
+        terms_score = sum(weight for keyword, weight in terms_signals if keyword in situation)
+        
+        # 명확한 배제 조건
+        if lease_score > 10:
+            # 임대차가 명확하면 노동 점수를 낮춤
+            labor_score = max(0, labor_score - 5)
+        if labor_score > 10:
+            # 노동이 명확하면 임대차 점수를 낮춤
+            lease_score = max(0, lease_score - 5)
+        
+        # 최고 점수 선택
+        scores = {
+            "labor": labor_score,
+            "lease": lease_score,
+            "terms": terms_score,
+            "other": 0
+        }
+        
+        doc_type = max(scores, key=scores.get)
+        
+        # 최소 임계값 (점수가 너무 낮으면 other)
+        if scores[doc_type] < 3:
+            return "other"
+        
+        return doc_type
+    
     def build_document_analysis(self, situation: str) -> Optional[Dict]:
         """
         문서 입력 감지 및 조항별 이슈/근거 힌트 분석
@@ -241,6 +298,9 @@ class SituationGuidanceService:
         if not any(keyword in situation for keyword in ["계약서", "약관", "임대인", "임차인"]) and not has_clause_pattern:
             return None
 
+        # ===== 1. 문서 타입 추론 (최우선) =====
+        doc_type = self._infer_document_type(situation)
+        
         issues = []
         clauses = []
 
@@ -336,57 +396,74 @@ class SituationGuidanceService:
                     "issue_tags": issue_tags
                 })
 
-        # 조항별 근거 조회 힌트 생성
+        # 조항별 근거 조회 힌트 생성 (문서 타입별로 분기)
         clause_basis_hints = []
         for item in clause_issues:
             hints = []
             for tag in item.get("issue_tags", []):
                 if tag == "해지 요건":
-                    hints.extend(["민법 임대차 해지 요건", "임대차 계약 해지 요건"])
+                    if doc_type == "labor":
+                        hints.extend(["근로계약 해지 요건", "용역계약 해지 손해배상", "민법 해지 통고"])
+                    elif doc_type == "lease":
+                        hints.extend(["민법 임대차 해지 요건", "주택임대차보호법 해지"])
+                    else:
+                        hints.extend(["약관법 계약 해지", "소비자 계약 해지 요건"])
+                        
                 elif tag == "보증금 반환":
-                    hints.extend(["주택임대차보호법 보증금 반환", "임대차 보증금 반환 판례"])
+                    if doc_type == "lease":
+                        hints.extend(["주택임대차보호법 보증금 반환", "임대차 보증금 반환 판례"])
+                    else:
+                        # 보증금은 주로 임대차이지만 다른 경우도 존재
+                        hints.extend(["계약 보증금 반환", "민법 보증금"])
+                        
                 elif tag == "특약 효력":
-                    hints.extend(["임대차 계약서 특약 효력", "약관법 불공정약관"])
+                    if doc_type == "lease":
+                        hints.extend(["임대차 계약서 특약 효력", "주택임대차보호법 특약"])
+                    else:
+                        hints.extend(["약관법 불공정약관", "계약 특약 효력"])
+                        
                 elif tag == "계약 기간/갱신":
-                    hints.extend(["임대차 계약 갱신 요건", "주택임대차보호법 갱신요구권"])
+                    if doc_type == "labor":
+                        hints.extend(["용역계약 기간", "근로기준법 기간제", "계약 갱신"])
+                    elif doc_type == "lease":
+                        hints.extend(["임대차 계약 갱신 요건", "주택임대차보호법 갱신요구권"])
+                    else:
+                        hints.extend(["약관 계약 기간", "계약 갱신 조건"])
+                        
                 elif tag == "환불 제한":
                     hints.extend(["약관법 환불 제한", "전자상거래 청약철회 제한", "소비자기본법 환불"])
+                    
                 elif tag == "책임 제한":
-                    hints.extend(["약관법 손해배상 책임 제한", "면책조항 약관법", "고의과실 면책 무효"])
+                    if doc_type == "labor":
+                        hints.extend(["용역계약 손해배상 예정액", "근로기준법 손해배상", "약관법 손해배상"])
+                    else:
+                        hints.extend(["약관법 손해배상 책임 제한", "면책조항 약관법", "고의과실 면책 무효"])
+                        
                 elif tag == "약관 변경":
                     hints.extend(["약관 변경 사전고지", "사업자 일방 변경 약관법"])
+                    
                 elif tag == "관할 불리":
                     hints.extend(["전속관할 약관 무효", "소비자 관할 약관 불리"])
+                    
             if hints:
                 clause_basis_hints.append({
                     "clause": item.get("clause"),
                     "suggested_queries": list(dict.fromkeys(hints))[:5]
                 })
 
-        is_labor_contract = any(
-            keyword in situation for keyword in [
-                "근로", "근로자", "임금", "프리랜서", "용역", "도급", "위탁",
-                "사용종속", "지휘", "감독", "출퇴근"
-            ]
-        )
-        is_lease = any(
-            keyword in situation for keyword in [
-                "임대차", "임대인", "임차인", "보증금", "전세"
-            ]
-        )
-
-        if is_labor_contract:
+        # 문서 타입별 추천 검색어 (doc_type 기반)
+        if doc_type == "labor":
             suggested_queries = [
                 "근로자성 판단 기준",
                 "사용종속관계 판단 요소",
                 "지휘감독 여부 판례",
                 "위장도급 판단 기준",
-                "임금 전액지급 원칙",
-                "해지 손해배상 예정액 감액",
+                "용역계약 손해배상 예정액",
                 "근로기준법 제2조 근로자 정의",
-                "프리랜서 근로자성 판례"
+                "프리랜서 근로자성 판례",
+                "근로계약 해지 요건"
             ]
-        elif is_lease:
+        elif doc_type == "lease":
             suggested_queries = [
                 "주택임대차보호법 보증금 반환",
                 "민법 임대차 계약 해지 요건",
@@ -395,7 +472,17 @@ class SituationGuidanceService:
                 "주택임대차보호법 갱신요구권",
                 "임대차 보증금 반환 판례"
             ]
+        elif doc_type == "terms":
+            suggested_queries = [
+                "약관법 불공정약관",
+                "약관법 환불 제한",
+                "약관법 손해배상 책임 제한",
+                "약관 변경 사전고지",
+                "전속관할 약관 무효",
+                "전자상거래 청약철회"
+            ]
         else:
+            # 기타 계약
             suggested_queries = [
                 "약관법 환불 제한",
                 "약관법 손해배상 책임 제한",
@@ -405,15 +492,24 @@ class SituationGuidanceService:
                 "손해배상 예정액 감액"
             ]
 
+        # 문서 타입 표시명
+        doc_type_display = {
+            "labor": "노동/용역 계약서",
+            "lease": "임대차 계약서",
+            "terms": "서비스 이용약관",
+            "other": "계약서"
+        }.get(doc_type, "계약서")
+        
         return {
             "detected": True,
-            "document_type": "계약서",
+            "document_type": doc_type_display,
+            "document_type_code": doc_type,  # labor/lease/terms/other
             "clauses": clauses[:10],
             "clause_issues": clause_issues[:10],
             "clause_basis_hints": clause_basis_hints[:10],
             "issues": issues,
             "suggested_queries": suggested_queries,
-            "note": "문서 조항별로 법령·판례 근거를 조회해야 합니다.",
+            "note": f"문서 타입: {doc_type_display}. 조항별로 법령·판례 근거를 조회해야 합니다.",
             "document_basis_plan": [
                 "조항별 쟁점 태그를 확인",
                 "각 조항의 suggested_queries로 법령/판례 검색",
@@ -828,14 +924,32 @@ class SituationGuidanceService:
             if evidence_summary["has_legal_basis"]:
                 evidence_summary["missing_reason"] = None
             else:
-                reasons = [r.get("result", {}).get("missing_reason") for r in evidence_results]
-                if "API_ERROR_HTML" in reasons:
+                html_error_found = False
+                auth_error_found = False
+                timeout_error_found = False
+                other_error_found = False
+                for item in evidence_results:
+                    payload = item.get("result") if isinstance(item, dict) else None
+                    if not isinstance(payload, dict):
+                        continue
+                    error_code = payload.get("error_code") or payload.get("api_error", {}).get("error_code")
+                    content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type", "")
+                    if error_code == "API_ERROR_HTML" or (isinstance(content_type, str) and content_type.lower().startswith("text/html")):
+                        html_error_found = True
+                    if error_code == "API_ERROR_AUTH":
+                        auth_error_found = True
+                    if error_code == "API_ERROR_TIMEOUT":
+                        timeout_error_found = True
+                    if error_code == "API_ERROR_OTHER":
+                        other_error_found = True
+                reasons = [r.get("result", {}).get("missing_reason") for r in evidence_results if isinstance(r, dict)]
+                if html_error_found or "API_ERROR_HTML" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR_HTML"
-                elif "API_ERROR_AUTH" in reasons:
+                elif auth_error_found or "API_ERROR_AUTH" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR_AUTH"
-                elif "API_ERROR_TIMEOUT" in reasons:
+                elif timeout_error_found or "API_ERROR_TIMEOUT" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR_TIMEOUT"
-                elif "API_ERROR_OTHER" in reasons:
+                elif other_error_found or "API_ERROR_OTHER" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR_OTHER"
                 else:
                     evidence_summary["missing_reason"] = "NO_MATCH"
