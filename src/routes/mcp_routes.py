@@ -300,6 +300,41 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 }
                             },
                             {
+                                "name": "document_issue_tool",
+                                "priority": 1,
+                                "category": "document",
+                                "description": "**문서/계약서 조항 분석 툴**: 계약서·약관 텍스트를 입력받아 조항별 이슈와 근거 조회 힌트를 생성합니다. 옵션으로 조항별 자동 검색까지 수행할 수 있습니다.\n\n**응답 구조**:\n```json\n{\n  \"success\": true,\n  \"document_analysis\": {\n    \"clauses\": [\"제1조 ...\"],\n    \"clause_issues\": [...],\n    \"clause_basis_hints\": [...]\n  },\n  \"evidence_results\": [...],\n  \"legal_basis_block\": {...}\n}\n```",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "document_text": {
+                                            "type": "string",
+                                            "description": "계약서/약관 등 문서 텍스트"
+                                        },
+                                        "auto_search": {
+                                            "type": "boolean",
+                                            "description": "조항별 추천 검색어로 자동 검색 수행 여부",
+                                            "default": True
+                                        },
+                                        "max_clauses": {
+                                            "type": "integer",
+                                            "description": "자동 검색할 조항 수 제한",
+                                            "default": 3,
+                                            "minimum": 1,
+                                            "maximum": 10
+                                        },
+                                        "max_results_per_type": {
+                                            "type": "integer",
+                                            "description": "자동 검색 시 타입당 최대 결과 수",
+                                            "default": 3,
+                                            "minimum": 1,
+                                            "maximum": 10
+                                        }
+                                    },
+                                    "required": ["document_text"]
+                                }
+                            },
+                            {
                                 "name": "search_law_tool",
                                 "priority": 2,
                                 "category": "law",
@@ -598,6 +633,19 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                     situation,
                                     max_results,
                                     None
+                                )
+                            elif tool_name == "document_issue_tool":
+                                document_text = arguments.get("document_text")
+                                auto_search = arguments.get("auto_search", True)
+                                max_clauses = arguments.get("max_clauses", 3)
+                                max_results = arguments.get("max_results_per_type", 3)
+                                logger.debug("Calling document_issue | length=%s", len(document_text) if document_text else 0)
+                                result = await situation_guidance_service.document_issue_analysis(
+                                    document_text,
+                                    None,
+                                    auto_search=auto_search,
+                                    max_clauses=max_clauses,
+                                    max_results_per_type=max_results
                                 )
                             elif tool_name == "search_law_tool":
                                 query = arguments.get("query")

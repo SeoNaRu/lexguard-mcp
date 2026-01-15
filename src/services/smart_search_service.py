@@ -783,13 +783,71 @@ class SmartSearchService:
         # missing_reason 판단
         missing_reason = None
         if not has_legal_basis:
-            import os
-            api_key = os.environ.get("LAW_API_KEY", "")
-            if not api_key:
-                missing_reason = "API_NOT_READY"
+            # API 에러 여부 확인 (api_error / error+api_url / text/html)
+            api_error_found = False
+            for _, result in results.items():
+                if isinstance(result, dict):
+                    content_type = result.get("content_type") or result.get("api_error", {}).get("content_type")
+                    if ("api_error" in result or ("error" in result and "api_url" in result) or
+                        (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
+                        api_error_found = True
+                        break
+            if api_error_found:
+                missing_reason = "API_ERROR"
             else:
-                missing_reason = "NO_MATCH"
+                import os
+                api_key = os.environ.get("LAW_API_KEY", "")
+                if not api_key:
+                    missing_reason = "API_NOT_READY"
+                else:
+                    missing_reason = "NO_MATCH"
         
+        # API 에러 시 기본 법적 근거(정적) 제공
+        fallback_legal_basis = None
+        if missing_reason == "API_ERROR":
+            fallback_items = []
+            if any(k in query for k in ["근로자", "근로기준법", "프리랜서", "임금", "출퇴근", "지휘", "감독"]):
+                fallback_items.append({
+                    "type": "law",
+                    "title": "근로기준법 제2조 제1항 제1호(근로자 정의)",
+                    "summary": "근로자는 임금을 목적으로 사업 또는 사업장에 근로를 제공하는 자를 말합니다.",
+                    "source": "static_reference"
+                })
+                fallback_items.append({
+                    "type": "precedent",
+                    "title": "근로자성 판단 기준(대법원 판례 취지)",
+                    "summary": "계약 명칭보다 실질을 중시하고, 근무시간·장소 지정, 지휘·감독, 고정급 여부, 전속성 등을 종합 고려합니다.",
+                    "source": "static_reference"
+                })
+            if any(k in query for k in ["임대차", "전세", "보증금", "임대인", "임차인", "계약서"]):
+                fallback_items.append({
+                    "type": "law",
+                    "title": "주택임대차보호법(보증금 반환·임차인 보호 규정)",
+                    "summary": "보증금 반환 및 임차인 보호를 위한 규정이 있으며, 계약 해지·보증금 반환 관련 쟁점이 발생할 수 있습니다.",
+                    "source": "static_reference"
+                })
+                fallback_items.append({
+                    "type": "law",
+                    "title": "민법 임대차 규정(해지·특약 효력)",
+                    "summary": "임대차 계약의 해지 요건과 특약 효력은 민법 규정 및 판례에 따라 판단됩니다.",
+                    "source": "static_reference"
+                })
+            if fallback_items:
+                fallback_legal_basis = {
+                    "items": fallback_items,
+                    "note": "API 오류로 실시간 근거를 조회하지 못해 일반적 법적 근거를 제공합니다. 실제 적용 전 확인이 필요합니다."
+                }
+        
+        # 에러 정보 보존
+        errors = {}
+        for search_type, result in results.items():
+            if isinstance(result, dict):
+                content_type = result.get("content_type") or result.get("api_error", {}).get("content_type")
+                if "error" in result or "api_error" in result:
+                    errors[search_type] = result
+                elif isinstance(content_type, str) and content_type.lower().startswith("text/html"):
+                    errors[search_type] = result
+
         # citations 생성
         citations = []
         for search_type, result in results.items():
@@ -878,6 +936,39 @@ class SmartSearchService:
                 "피해 규모는 어느 정도인가요?"
             ]
         
+        legal_basis_summary = {
+            "has_legal_basis": has_legal_basis,
+            "types": [k for k, v in sources_count.items() if v > 0],
+            "counts": sources_count,
+            "missing_reason": missing_reason
+        }
+        
+        # legal_basis_block_text 생성 (상단 요약용)
+        citations_titles = []
+        for c in citations[:5]:
+            if isinstance(c, dict):
+                title = c.get("name") or c.get("case_number") or c.get("id")
+                if title:
+                    citations_titles.append(str(title))
+        fallback_titles = []
+        if fallback_legal_basis and isinstance(fallback_legal_basis, dict):
+            for item in fallback_legal_basis.get("items", [])[:3]:
+                if isinstance(item, dict) and item.get("title"):
+                    fallback_titles.append(item.get("title"))
+        if has_legal_basis:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"유형={','.join(legal_basis_summary.get('types', [])) or '없음'}, "
+                f"근거 수={sum(sources_count.values())}. "
+                f"주요 근거={', '.join(citations_titles) if citations_titles else '없음'}"
+            )
+        else:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"근거를 찾지 못했습니다({missing_reason}). "
+                f"대체 근거={', '.join(fallback_titles) if fallback_titles else '없음'}"
+            )
+        
         response = {
             "success": True,
             "has_legal_basis": has_legal_basis,
@@ -890,9 +981,19 @@ class SmartSearchService:
             "partial_success": partial_success or (successful_types and failed_types),
             "sources_count": sources_count,
             "missing_reason": missing_reason,
+            "legal_basis_summary": legal_basis_summary,
+            "fallback_legal_basis": fallback_legal_basis,
+            "errors": errors,
             "citations": citations[:10],  # 최대 10개
             "one_line_answer": one_line_answer,
-            "next_questions": next_questions[:5]  # 최대 5개
+            "next_questions": next_questions[:5],  # 최대 5개
+            "legal_basis_block_text": legal_basis_block_text,
+            "response_policy": {
+                "must_include": ["legal_basis_block_text", "legal_basis_block", "legal_basis_summary", "citations"],
+                "preferred_order": ["legal_basis_block_text", "legal_basis_block", "one_line_answer"],
+                "if_has_legal_basis_false": "no_conclusions",
+                "when_api_error": "explain_api_error_and_request_retry"
+            }
         }
         
         # 안내 메시지 추가

@@ -47,7 +47,8 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "search_local_ordinance_tool": "ordinance_list",
         "search_administrative_rule_tool": "rule_list",
         "smart_search_tool": "integrated_search",
-        "situation_guidance_tool": "situation_guidance"
+        "situation_guidance_tool": "situation_guidance",
+        "document_issue_tool": "document_issue"
     }
     
     meta["response_type"] = response_type_map.get(tool_name, "unknown")
@@ -59,6 +60,10 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         for key in formatted.keys():
             if key not in ["success", "api_url", "_meta"]:
                 fields.append(key)
+        # 법적 근거 블록은 최상단 고정
+        if "legal_basis_block" in fields:
+            fields.remove("legal_basis_block")
+            fields.insert(0, "legal_basis_block")
     else:
         # 에러 응답의 주요 필드
         fields = ["error", "recovery_guide"]
@@ -86,6 +91,7 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "rule_list": "results.rules 배열에 행정규칙 목록이 있습니다.",
         "integrated_search": "results.results 객체에 검색 타입별 결과가 있습니다. results.detected_intents로 감지된 의도를 확인하세요.",
         "situation_guidance": "results.guidance 배열에 단계별 가이드가 있습니다. results.laws, results.precedents, results.interpretations에 관련 법적 정보가 있습니다.",
+        "document_issue": "results.document_analysis에 조항별 이슈와 근거 조회 힌트가 있습니다.",
         "clarification_needed": "results.possible_intents 배열에 가능한 의도 후보가 있습니다. results.suggestion을 참고하여 사용자에게 질문하세요."
     }
     
@@ -315,12 +321,31 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
                 "suggestion": result.get("suggestion", "")
             }
         
+        legal_basis_block = {
+            "summary": result.get("legal_basis_summary"),
+            "citations": result.get("citations", []),
+            "fallback": result.get("fallback_legal_basis"),
+            "missing_reason": result.get("missing_reason")
+        }
         formatted = {
-            "success": True,
+            "success": result.get("success", True),
+            "success_transport": result.get("success_transport", True),
+            "success_search": result.get("success_search", result.get("success", True)),
             "query": result.get("query"),
             "detected_intents": result.get("detected_intents", []),
             "results": result.get("results", {}),
-            "total_types": result.get("total_types", 0)
+            "total_types": result.get("total_types", 0),
+            "sources_count": result.get("sources_count"),
+            "missing_reason": result.get("missing_reason"),
+            "legal_basis_summary": result.get("legal_basis_summary"),
+            "legal_basis_block": legal_basis_block,
+            "citations": result.get("citations", []),
+            "one_line_answer": result.get("one_line_answer"),
+            "next_questions": result.get("next_questions", []),
+            "fallback_legal_basis": result.get("fallback_legal_basis"),
+            "legal_basis_block_text": result.get("legal_basis_block_text"),
+            "response_policy": result.get("response_policy"),
+            "errors": result.get("errors")
         }
         # 부분 실패 처리 필드 추가 (Phase 2 개선)
         if "partial_success" in result:
@@ -334,14 +359,53 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
         return formatted
     
     elif tool_name == "situation_guidance_tool":
+        legal_basis_block = {
+            "summary": result.get("legal_basis_summary"),
+            "citations": result.get("citations", []),
+            "fallback": result.get("fallback_legal_basis"),
+            "missing_reason": result.get("missing_reason")
+        }
         return {
-            "success": True,
+            "success": result.get("success", True),
+            "success_transport": result.get("success_transport", True),
+            "success_search": result.get("success_search", result.get("success", True)),
+            "has_legal_basis": result.get("has_legal_basis"),
+            "missing_reason": result.get("missing_reason"),
             "situation": result.get("situation"),
             "detected_domains": result.get("detected_domains", []),
             "laws": result.get("laws", {}),
             "precedents": result.get("precedents", {}),
             "interpretations": result.get("interpretations", {}),
-            "guidance": result.get("guidance", [])
+            "administrative_appeals": result.get("administrative_appeals", {}),
+            "sources_count": result.get("sources_count"),
+            "legal_basis_summary": result.get("legal_basis_summary"),
+            "legal_basis_block": legal_basis_block,
+            "citations": result.get("citations", []),
+            "one_line_answer": result.get("one_line_answer"),
+            "fallback_legal_basis": result.get("fallback_legal_basis"),
+            "legal_basis_block_text": result.get("legal_basis_block_text"),
+            "document_analysis": result.get("document_analysis"),
+            "errors": result.get("errors"),
+            "response_policy": result.get("response_policy"),
+            "guidance": result.get("guidance", []),
+            "summary": result.get("summary")
+        }
+    
+    elif tool_name == "document_issue_tool":
+        return {
+            "success": result.get("success", True),
+            "success_transport": result.get("success_transport", True),
+            "success_search": result.get("success_search", result.get("success", True)),
+            "has_legal_basis": result.get("has_legal_basis"),
+            "missing_reason": result.get("missing_reason"),
+            "document_text": result.get("document_text"),
+            "document_analysis": result.get("document_analysis"),
+            "evidence_results": result.get("evidence_results", []),
+            "evidence_summary": result.get("evidence_summary"),
+            "legal_basis_summary": result.get("legal_basis_summary"),
+            "legal_basis_block": result.get("legal_basis_block"),
+            "legal_basis_block_text": result.get("legal_basis_block_text"),
+            "response_policy": result.get("response_policy")
         }
     
     # 기본: 원본 반환 (구조가 유동적인 경우)
@@ -368,6 +432,13 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     # JSON 문자열로 변환 (LLM이 파싱하기 쉽도록)
     formatted_json = json.dumps(formatted, ensure_ascii=False, indent=2)
     
+    # legal_basis_block_text가 있으면 최상단에 노출
+    legal_basis_block_text = formatted.get("legal_basis_block_text")
+    if legal_basis_block_text:
+        formatted_text = f"{legal_basis_block_text}\n\n{formatted_json}"
+    else:
+        formatted_text = formatted_json
+    
     # 에러 여부 확인
     is_error = not formatted.get("success", True) or "error" in formatted
     
@@ -375,7 +446,7 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
         "content": [
             {
                 "type": "text",
-                "text": formatted_json
+                "text": formatted_text
             }
         ],
         "isError": is_error

@@ -37,7 +37,11 @@ class SituationGuidanceService:
         "노동": {
             "laws": ["근로기준법", "고용보험법", "산업안전보건법", "최저임금법"],
             "agencies": ["고용노동부", "노동위원회", "고용보험심사위원회"],
-            "keywords": ["근로", "임금", "해고", "퇴직금", "근로시간", "휴가"]
+            "keywords": [
+                "근로", "임금", "해고", "퇴직금", "근로시간", "휴가",
+                "근로자성", "사용종속", "지휘감독", "위장도급", "용역", "도급",
+                "출퇴근", "고정급", "전속"
+            ]
         },
         "세금": {
             "laws": ["소득세법", "부가가치세법", "법인세법", "종합소득세법"],
@@ -173,6 +177,167 @@ class SituationGuidanceService:
         
         return terms
     
+    def normalize_query_for_search(self, situation: str, domains: List[str], key_terms: Dict) -> str:
+        """
+        긴 문장을 검색용 키워드로 정규화
+        """
+        # 도메인별 대표 키워드 (상황 기반 가중치 반영)
+        domain_keywords = []
+        situation_lower = situation.lower()
+        for domain in domains[:2]:
+            config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
+            keywords = config.get("keywords", [])
+            prioritized = []
+            if domain == "노동":
+                if any(k in situation for k in ["프리랜서", "용역", "도급"]):
+                    prioritized.extend(["근로자성", "지휘감독", "사용종속", "위장도급"])
+                if "해고" in situation:
+                    prioritized.extend(["부당해고", "징계", "해고예고"])
+                if "출퇴근" in situation or "근로시간" in situation:
+                    prioritized.extend(["출퇴근", "근로시간", "고정급", "전속"])
+            # 우선 키워드 + 기본 키워드 병합
+            for k in prioritized:
+                if k not in domain_keywords:
+                    domain_keywords.append(k)
+            for k in keywords:
+                if k not in domain_keywords:
+                    domain_keywords.append(k)
+            # 도메인별 최대 6개만 사용
+            domain_keywords = domain_keywords[:6]
+        
+        # 문장 내 핵심 키워드 추출
+        text = situation
+        # 조사/어미 제거
+        for qw in ["인가", "인지", "인가요", "인지요", "알려줘", "찾아줘", "확인", "가능", "해줘"]:
+            text = text.replace(qw, "")
+        
+        keywords = re.findall(r'[가-힣]{2,}', text)
+        keywords = [k for k in keywords if k not in ["이", "그", "저", "및", "관련", "문제", "확인"]]
+        keywords = list(dict.fromkeys(keywords))  # 순서 유지 중복 제거
+        
+        merged = []
+        # 법령명은 우선 포함하되, 키워드도 함께 유지
+        for law in key_terms.get("laws", [])[:2]:
+            if law not in merged:
+                merged.append(law)
+        for k in domain_keywords:
+            if k not in merged:
+                merged.append(k)
+        for k in keywords:
+            if k not in merged:
+                merged.append(k)
+        
+        # 최대 8개로 제한
+        return " ".join(merged[:8]) if merged else situation[:50]
+
+    def build_document_analysis(self, situation: str) -> Optional[Dict]:
+        """
+        문서 입력 감지 및 조항별 이슈/근거 힌트 분석
+        """
+        if not any(keyword in situation for keyword in ["계약서", "약관", "제", "임대인", "임차인"]):
+            return None
+
+        issues = []
+        clauses = []
+
+        # 조항 단위 추출 (예: "제1조 ...")
+        clause_pattern = re.compile(r'(제\s*\d+\s*조[^\n]*)', re.MULTILINE)
+        matches = clause_pattern.findall(situation)
+        for m in matches:
+            clause_text = m.strip()
+            clauses.append(clause_text)
+
+        # 문서 전체 기준 핵심 쟁점 탐지
+        if "즉시" in situation and "해지" in situation:
+            issues.append({
+                "issue": "일방적 즉시 해지 조항",
+                "risk": "해지 요건·사유가 불명확하거나 과도할 수 있음",
+                "needs_review": True,
+                "related_clause": "해지"
+            })
+        if "보증금" in situation and "반환" in situation and "지연" in situation:
+            issues.append({
+                "issue": "보증금 반환 지연 조항",
+                "risk": "지연 사유/기간이 불명확할 수 있음",
+                "needs_review": True,
+                "related_clause": "보증금 반환"
+            })
+        if "내부 기준" in situation or "내부기준" in situation:
+            issues.append({
+                "issue": "일방 기준 준용",
+                "risk": "외부에 공개되지 않은 기준으로 의무가 확장될 수 있음",
+                "needs_review": True,
+                "related_clause": "특약"
+            })
+        if "계약 기간" in situation and ("갱신" in situation or "연장" in situation):
+            issues.append({
+                "issue": "갱신/연장 조건",
+                "risk": "갱신 조건이 불명확할 수 있음",
+                "needs_review": True,
+                "related_clause": "계약 기간"
+            })
+
+        # 조항별 키워드 매핑
+        clause_issues = []
+        for clause in clauses:
+            issue_tags = []
+            if "해지" in clause:
+                issue_tags.append("해지 요건")
+            if "보증금" in clause and "반환" in clause:
+                issue_tags.append("보증금 반환")
+            if "특약" in clause or "내부 기준" in clause:
+                issue_tags.append("특약 효력")
+            if "계약 기간" in clause or "기간" in clause:
+                issue_tags.append("계약 기간/갱신")
+
+            if issue_tags:
+                clause_issues.append({
+                    "clause": clause,
+                    "issue_tags": issue_tags
+                })
+
+        # 조항별 근거 조회 힌트 생성
+        clause_basis_hints = []
+        for item in clause_issues:
+            hints = []
+            for tag in item.get("issue_tags", []):
+                if tag == "해지 요건":
+                    hints.extend(["민법 임대차 해지 요건", "임대차 계약 해지 요건"])
+                elif tag == "보증금 반환":
+                    hints.extend(["주택임대차보호법 보증금 반환", "임대차 보증금 반환 판례"])
+                elif tag == "특약 효력":
+                    hints.extend(["임대차 계약서 특약 효력", "약관법 불공정약관"])
+                elif tag == "계약 기간/갱신":
+                    hints.extend(["임대차 계약 갱신 요건", "주택임대차보호법 갱신요구권"])
+            if hints:
+                clause_basis_hints.append({
+                    "clause": item.get("clause"),
+                    "suggested_queries": list(dict.fromkeys(hints))[:5]
+                })
+
+        suggested_queries = [
+            "주택임대차보호법 보증금 반환",
+            "민법 임대차 계약 해지 요건",
+            "임대차 계약서 특약 효력",
+            "임대차 계약 갱신 요건"
+        ]
+
+        return {
+            "detected": True,
+            "document_type": "계약서",
+            "clauses": clauses[:10],
+            "clause_issues": clause_issues[:10],
+            "clause_basis_hints": clause_basis_hints[:10],
+            "issues": issues,
+            "suggested_queries": suggested_queries,
+            "note": "문서 조항별로 법령·판례 근거를 조회해야 합니다.",
+            "document_basis_plan": [
+                "조항별 쟁점 태그를 확인",
+                "각 조항의 suggested_queries로 법령/판례 검색",
+                "근거 결과를 법적 근거 요약 블록에 반영"
+            ]
+        }
+    
     async def comprehensive_search(
         self,
         situation: str,
@@ -216,12 +381,21 @@ class SituationGuidanceService:
                 else:
                     search_types.extend(["precedent", "law", "interpretation"])
         
-        # 중복 제거
-        search_types = list(set(search_types))[:3]  # 최대 3개
+        # 중복 제거 (순서 보장)
+        seen = set()
+        dedup = []
+        for t in search_types:
+            if t not in seen:
+                seen.add(t)
+                dedup.append(t)
+        search_types = dedup[:3]  # 최대 3개
+        
+        # 검색 쿼리 정규화 (긴 문장 방지)
+        normalized_query = self.normalize_query_for_search(situation, detected_domains, key_terms)
         
         # smart_search 호출
         smart_result = await smart_search_service.smart_search(
-            situation,
+            normalized_query,
             search_types if search_types else None,
             max_results_per_type,
             arguments
@@ -234,12 +408,75 @@ class SituationGuidanceService:
         interpretation_results = results.get("interpretation", {})
         appeal_results = results.get("administrative_appeal", {})
         
+        # 에러만 있는 결과는 근거로 취급하지 않음
+        def has_law_data(payload: dict) -> bool:
+            if not isinstance(payload, dict):
+                return False
+            if "error" in payload:
+                return False
+            if payload.get("laws"):
+                return True
+            if payload.get("law_name"):
+                return True
+            return False
+        
+        def has_precedent_data(payload: dict) -> bool:
+            if not isinstance(payload, dict):
+                return False
+            if "error" in payload:
+                return False
+            return bool(payload.get("precedents"))
+        
+        def has_interpretation_data(payload: dict) -> bool:
+            if not isinstance(payload, dict):
+                return False
+            if "error" in payload:
+                return False
+            return bool(payload.get("interpretations"))
+        
+        def has_appeal_data(payload: dict) -> bool:
+            if not isinstance(payload, dict):
+                return False
+            if "error" in payload:
+                return False
+            return bool(payload.get("appeals"))
+        
+        law_results_clean = law_results if has_law_data(law_results) else {}
+        precedent_results_clean = precedent_results if has_precedent_data(precedent_results) else {}
+        interpretation_results_clean = interpretation_results if has_interpretation_data(interpretation_results) else {}
+        appeal_results_clean = appeal_results if has_appeal_data(appeal_results) else {}
+        
+        # 에러 정보는 별도로 보존 (error/api_error/text/html 대응)
+        def collect_error(payload: dict) -> Optional[dict]:
+            if not isinstance(payload, dict):
+                return None
+            content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type")
+            if "error" in payload or "api_error" in payload:
+                return payload
+            if isinstance(content_type, str) and content_type.lower().startswith("text/html"):
+                return payload
+            return None
+        
+        errors = {}
+        law_error = collect_error(law_results)
+        if law_error:
+            errors["law"] = law_error
+        precedent_error = collect_error(precedent_results)
+        if precedent_error:
+            errors["precedent"] = precedent_error
+        interpretation_error = collect_error(interpretation_results)
+        if interpretation_error:
+            errors["interpretation"] = interpretation_error
+        appeal_error = collect_error(appeal_results)
+        if appeal_error:
+            errors["administrative_appeal"] = appeal_error
+        
         # sources_count 계산
         sources_count = {
-            "law": len(law_results.get("laws", [])) if isinstance(law_results, dict) and "laws" in law_results else (1 if law_results and "law_name" in law_results else 0),
-            "precedent": len(precedent_results.get("precedents", [])) if isinstance(precedent_results, dict) and "precedents" in precedent_results else 0,
-            "interpretation": len(interpretation_results.get("interpretations", [])) if isinstance(interpretation_results, dict) and "interpretations" in interpretation_results else 0,
-            "administrative_appeal": len(appeal_results.get("appeals", [])) if isinstance(appeal_results, dict) and "appeals" in appeal_results else 0
+            "law": len(law_results_clean.get("laws", [])) if isinstance(law_results_clean, dict) and "laws" in law_results_clean else (1 if law_results_clean and "law_name" in law_results_clean else 0),
+            "precedent": len(precedent_results_clean.get("precedents", [])) if isinstance(precedent_results_clean, dict) and "precedents" in precedent_results_clean else 0,
+            "interpretation": len(interpretation_results_clean.get("interpretations", [])) if isinstance(interpretation_results_clean, dict) and "interpretations" in interpretation_results_clean else 0,
+            "administrative_appeal": len(appeal_results_clean.get("appeals", [])) if isinstance(appeal_results_clean, dict) and "appeals" in appeal_results_clean else 0
         }
         
         # has_legal_basis 판단
@@ -249,42 +486,211 @@ class SituationGuidanceService:
         # missing_reason 판단
         missing_reason = None
         if not has_legal_basis:
-            # API 준비 상태 확인
-            import os
-            api_key = os.environ.get("LAW_API_KEY", "")
-            if not api_key:
-                missing_reason = "API_NOT_READY"
+            # API 에러 여부 확인
+            api_error_found = False
+            for payload in [law_results, precedent_results, interpretation_results, appeal_results]:
+                if isinstance(payload, dict):
+                    content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type")
+                    if ("api_error" in payload or ("error" in payload and "api_url" in payload) or
+                        (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
+                        api_error_found = True
+                        break
+            if api_error_found:
+                missing_reason = "API_ERROR"
             else:
-                missing_reason = "NO_MATCH"
+                # API 준비 상태 확인
+                import os
+                api_key = os.environ.get("LAW_API_KEY", "")
+                if not api_key:
+                    missing_reason = "API_NOT_READY"
+                else:
+                    missing_reason = "NO_MATCH"
+        
+        # 법적 근거 요약
+        legal_basis_summary = {
+            "has_legal_basis": has_legal_basis,
+            "types": [k for k, v in sources_count.items() if v > 0],
+            "counts": sources_count,
+            "missing_reason": missing_reason
+        }
+        
+        # 문서 입력 감지 및 분석 (계약서/약관 등)
+        document_analysis = self.build_document_analysis(situation)
+        
+        # legal_basis_block_text 생성 (상단 요약용)
+        citations_titles = []
+        for c in smart_result.get("citations", []) if isinstance(smart_result, dict) else []:
+            if isinstance(c, dict):
+                title = c.get("name") or c.get("case_number") or c.get("id")
+                if title:
+                    citations_titles.append(str(title))
+        fallback_titles = []
+        if isinstance(smart_result, dict):
+            fb = smart_result.get("fallback_legal_basis")
+            if fb and isinstance(fb, dict):
+                for item in fb.get("items", [])[:3]:
+                    if isinstance(item, dict) and item.get("title"):
+                        fallback_titles.append(item.get("title"))
+        if has_legal_basis:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"유형={','.join(legal_basis_summary.get('types', [])) or '없음'}, "
+                f"근거 수={sum(sources_count.values())}. "
+                f"주요 근거={', '.join(citations_titles) if citations_titles else '없음'}"
+            )
+        else:
+            legal_basis_block_text = (
+                "법적 근거 요약: "
+                f"근거를 찾지 못했습니다({missing_reason}). "
+                f"대체 근거={', '.join(fallback_titles) if fallback_titles else '없음'}"
+            )
         
         # 가이드 생성
         guidance = self.generate_guidance(
             situation,
             detected_domains,
             key_terms,
-            law_results if law_results else {},
-            precedent_results if precedent_results else {},
-            interpretation_results if interpretation_results else {}
+            law_results_clean,
+            precedent_results_clean,
+            interpretation_results_clean,
+            missing_reason,
+            normalized_query
         )
         
+        success_transport = True
+        success_search = has_legal_basis
+        
         return {
+            "success_transport": success_transport,
+            "success_search": success_search,
             "success": True,
             "has_legal_basis": has_legal_basis,
             "situation": situation,
             "detected_domains": detected_domains,
-            "laws": law_results if law_results else {},
-            "precedents": precedent_results if precedent_results else {},
-            "interpretations": interpretation_results if interpretation_results else {},
-            "administrative_appeals": appeal_results if appeal_results else {},
+            "laws": law_results_clean,
+            "precedents": precedent_results_clean,
+            "interpretations": interpretation_results_clean,
+            "administrative_appeals": appeal_results_clean,
             "sources_count": sources_count,
             "guidance": guidance,
+            "legal_basis_summary": legal_basis_summary,
+            "citations": smart_result.get("citations", []) if isinstance(smart_result, dict) else [],
+            "one_line_answer": smart_result.get("one_line_answer") if isinstance(smart_result, dict) else None,
+            "fallback_legal_basis": smart_result.get("fallback_legal_basis") if isinstance(smart_result, dict) else None,
+            "legal_basis_block_text": legal_basis_block_text,
             "missing_reason": missing_reason,
+            "document_analysis": document_analysis,
+            "errors": errors,
+            "response_policy": {
+                "must_include": ["legal_basis_block_text", "legal_basis_block", "legal_basis_summary"],
+                "preferred_order": ["legal_basis_block_text", "legal_basis_block", "one_line_answer"],
+                "if_has_legal_basis_false": "no_conclusions",
+                "when_api_error": "explain_api_error_and_request_retry"
+            },
             "summary": self.generate_summary(
                 detected_domains,
-                law_results if law_results else {},
-                precedent_results if precedent_results else {},
-                interpretation_results if interpretation_results else {}
+                law_results_clean,
+                precedent_results_clean,
+                interpretation_results_clean
             )
+        }
+    
+    async def document_issue_analysis(
+        self,
+        document_text: str,
+        arguments: Optional[dict] = None,
+        auto_search: bool = True,
+        max_clauses: int = 3,
+        max_results_per_type: int = 3
+    ) -> Dict:
+        """
+        문서(계약서/약관 등) 입력에 대한 조항별 이슈 및 조회 힌트 분석
+        """
+        analysis = self.build_document_analysis(document_text or "")
+        evidence_results = []
+        evidence_summary = {
+            "searched_clauses": 0,
+            "has_legal_basis": False,
+            "missing_reason": "NO_SEARCH"
+        }
+        
+        # 조항별 자동 검색 (옵션)
+        if auto_search and analysis and analysis.get("clause_basis_hints"):
+            from ..services.smart_search_service import SmartSearchService
+            smart_search_service = SmartSearchService()
+            
+            for item in analysis.get("clause_basis_hints", [])[:max_clauses]:
+                clause = item.get("clause")
+                queries = item.get("suggested_queries", [])
+                if not queries:
+                    continue
+                query = queries[0]
+                result = await smart_search_service.smart_search(
+                    query,
+                    None,
+                    max_results_per_type,
+                    arguments
+                )
+                evidence_results.append({
+                    "clause": clause,
+                    "query": query,
+                    "result": result
+                })
+            
+            # 요약 집계
+            evidence_summary["searched_clauses"] = len(evidence_results)
+            evidence_summary["has_legal_basis"] = any(
+                r.get("result", {}).get("has_legal_basis") for r in evidence_results
+            )
+            # missing_reason 집계
+            if evidence_summary["has_legal_basis"]:
+                evidence_summary["missing_reason"] = None
+            else:
+                reasons = [r.get("result", {}).get("missing_reason") for r in evidence_results]
+                if "API_ERROR" in reasons:
+                    evidence_summary["missing_reason"] = "API_ERROR"
+                elif "API_NOT_READY" in reasons:
+                    evidence_summary["missing_reason"] = "API_NOT_READY"
+                else:
+                    evidence_summary["missing_reason"] = "NO_MATCH"
+        
+        legal_basis_summary = {
+            "has_legal_basis": evidence_summary["has_legal_basis"],
+            "types": [],
+            "counts": {},
+            "missing_reason": evidence_summary["missing_reason"]
+        }
+        legal_basis_block = {
+            "summary": legal_basis_summary,
+            "citations": [],
+            "fallback": None,
+            "missing_reason": evidence_summary["missing_reason"]
+        }
+        legal_basis_block_text = (
+            "법적 근거 요약: "
+            f"근거를 찾지 못했습니다({evidence_summary['missing_reason']}). "
+            "문서 분석 결과를 기반으로 조항별 검색을 진행하세요."
+        )
+        
+        return {
+            "success_transport": True,
+            "success_search": evidence_summary["has_legal_basis"],
+            "success": True,
+            "has_legal_basis": evidence_summary["has_legal_basis"],
+            "missing_reason": evidence_summary["missing_reason"],
+            "document_text": document_text,
+            "document_analysis": analysis,
+            "evidence_results": evidence_results,
+            "evidence_summary": evidence_summary,
+            "legal_basis_summary": legal_basis_summary,
+            "legal_basis_block": legal_basis_block,
+            "legal_basis_block_text": legal_basis_block_text,
+            "response_policy": {
+                "must_include": ["document_analysis", "legal_basis_block_text", "legal_basis_block"],
+                "preferred_order": ["legal_basis_block_text", "document_analysis"],
+                "if_has_legal_basis_false": "no_conclusions",
+                "when_api_error": "explain_api_error_and_request_retry"
+            }
         }
     
     def generate_guidance(
@@ -294,47 +700,88 @@ class SituationGuidanceService:
         key_terms: Dict,
         law_results: Dict,
         precedent_results: Dict,
-        interpretation_results: Dict
+        interpretation_results: Dict,
+        missing_reason: Optional[str] = None,
+        normalized_query: Optional[str] = None
     ) -> Dict:
         """
         사용자에게 단계별 가이드 제공
         """
         steps = []
         
+        # 0단계: API 에러 안내 (근거 조회 실패 시 최우선)
+        if missing_reason == "API_ERROR":
+            steps.append({
+                "step": len(steps) + 1,
+                "title": "API 근거 조회 실패(HTML)",
+                "description": "국가법령정보센터에서 HTML 응답을 반환하여 근거를 조회하지 못했습니다.",
+                "action": f"재시도 검색어 제안: {normalized_query}" if normalized_query else "검색어를 짧은 키워드로 줄여 다시 시도하세요."
+            })
+        
         # 1단계: 관련 법령 확인
         if law_results:
-            steps.append({
-                "step": 1,
-                "title": "관련 법령 확인",
-                "description": f"다음 법령들이 관련될 수 있습니다: {', '.join(law_results.keys())}",
-                "action": "각 법령의 조문을 확인하여 본인의 상황에 적용되는지 검토하세요."
-            })
+            law_names = []
+            if isinstance(law_results, dict):
+                if law_results.get("law_name"):
+                    law_names.append(law_results.get("law_name"))
+                if isinstance(law_results.get("laws"), list):
+                    for item in law_results.get("laws", [])[:5]:
+                        if isinstance(item, dict):
+                            name = item.get("법령명한글") or item.get("lawNm") or item.get("법령명")
+                            if name:
+                                law_names.append(name)
+            law_names = [n for n in law_names if n]
+            if law_names:
+                steps.append({
+                    "step": len(steps) + 1,
+                    "title": "관련 법령 확인",
+                    "description": f"다음 법령들이 관련될 수 있습니다: {', '.join(law_names)}",
+                    "action": "각 법령의 조문을 확인하여 본인의 상황에 적용되는지 검토하세요."
+                })
         
         # 2단계: 유사 판례 확인
         if precedent_results:
-            steps.append({
-                "step": 2,
-                "title": "유사 판례 검토",
-                "description": f"{len(precedent_results)}개의 유사 판례를 찾았습니다.",
-                "action": "유사한 사건이 어떻게 판결되었는지 확인하여 참고하세요."
-            })
+            precedent_count = 0
+            if isinstance(precedent_results, dict):
+                if "precedents" in precedent_results and isinstance(precedent_results.get("precedents"), list):
+                    precedent_count = len(precedent_results.get("precedents"))
+                elif "total" in precedent_results:
+                    precedent_count = int(precedent_results.get("total", 0) or 0)
+            if precedent_count > 0:
+                steps.append({
+                    "step": len(steps) + 1,
+                    "title": "유사 판례 검토",
+                    "description": f"{precedent_count}개의 유사 판례를 찾았습니다.",
+                    "action": "유사한 사건이 어떻게 판결되었는지 확인하여 참고하세요."
+                })
         
         # 3단계: 기관 해석 확인
         if interpretation_results:
-            steps.append({
-                "step": 3,
-                "title": "관련 기관 해석 확인",
-                "description": f"다음 기관들의 공식 해석을 확인하세요: {', '.join(interpretation_results.keys())}",
-                "action": "기관의 공식 해석이 본인의 상황에 어떻게 적용되는지 검토하세요."
-            })
+            agencies = []
+            if isinstance(interpretation_results, dict):
+                if "interpretations" in interpretation_results and isinstance(interpretation_results.get("interpretations"), list):
+                    for item in interpretation_results.get("interpretations", [])[:5]:
+                        if isinstance(item, dict):
+                            agency = item.get("agency_name") or item.get("agency")
+                            if agency:
+                                agencies.append(agency)
+            agencies = [a for a in agencies if a]
+            if agencies:
+                steps.append({
+                    "step": len(steps) + 1,
+                    "title": "관련 기관 해석 확인",
+                    "description": f"다음 기관들의 공식 해석을 확인하세요: {', '.join(agencies)}",
+                    "action": "기관의 공식 해석이 본인의 상황에 어떻게 적용되는지 검토하세요."
+                })
         
-        # 4단계: 행정심판/소청 가능성
-        if domains:
+        # 4단계: 행정심판/소청 가능성 (근거 있을 때만 후순위로)
+        has_any_evidence = bool(law_results or precedent_results or interpretation_results)
+        if has_any_evidence and domains:
             domain_config = self.LEGAL_DOMAIN_KEYWORDS.get(domains[0], {})
             agencies = domain_config.get("agencies", [])
             if agencies:
                 steps.append({
-                    "step": 4,
+                    "step": len(steps) + 1,
                     "title": "행정심판/소청 고려",
                     "description": f"관련 기관({', '.join(agencies[:2])})에 행정심판이나 소청을 제기할 수 있습니다.",
                     "action": "유사한 행정심판 사례를 참고하여 절차를 확인하세요."
@@ -370,14 +817,28 @@ class SituationGuidanceService:
             summary_parts.append(f"법적 영역: {', '.join(domains)}")
         
         if law_results:
-            summary_parts.append(f"관련 법령 {len(law_results)}개 발견")
+            law_count = 0
+            if isinstance(law_results, dict):
+                if isinstance(law_results.get("laws"), list):
+                    law_count = len(law_results.get("laws"))
+                elif law_results.get("law_name"):
+                    law_count = 1
+            summary_parts.append(f"관련 법령 {law_count}개 발견")
         
         if precedent_results:
-            total_precedents = sum(len(r.get("precedents", [])) for r in precedent_results.values())
+            total_precedents = 0
+            if isinstance(precedent_results, dict):
+                if isinstance(precedent_results.get("precedents"), list):
+                    total_precedents = len(precedent_results.get("precedents"))
+                elif precedent_results.get("total"):
+                    total_precedents = int(precedent_results.get("total", 0) or 0)
             summary_parts.append(f"유사 판례 {total_precedents}개 발견")
         
         if interpretation_results:
-            summary_parts.append(f"기관 해석 {len(interpretation_results)}개 발견")
+            interpretation_count = 0
+            if isinstance(interpretation_results, dict) and isinstance(interpretation_results.get("interpretations"), list):
+                interpretation_count = len(interpretation_results.get("interpretations"))
+            summary_parts.append(f"기관 해석 {interpretation_count}개 발견")
         
         if not summary_parts:
             return "관련 법적 정보를 찾지 못했습니다. 더 구체적인 상황을 설명해주세요."
