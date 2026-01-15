@@ -60,6 +60,25 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
         """HTTP POST endpoint: Health check"""
         return await health_service.check_health()
     
+    @api.get("/check-ip")
+    async def check_server_ip():
+        """서버의 실제 발신 IP 확인 (법령정보센터 등록용)"""
+        import requests
+        try:
+            # 외부 IP 확인 서비스 호출
+            response = requests.get("https://api.ipify.org?format=json", timeout=5)
+            external_ip = response.json().get("ip", "Unknown")
+            return {
+                "server_external_ip": external_ip,
+                "message": "이 IP를 국가법령정보센터 API 설정에 등록하세요",
+                "instruction": "OPEN API 신청 > 서버장비의 IP주소 필드에 추가"
+            }
+        except Exception as e:
+            return {
+                "error": str(e),
+                "message": "IP 확인 실패"
+            }
+    
     @api.get("/tools")
     async def get_tools_http():
         """HTTP endpoint: Get list of available tools"""
