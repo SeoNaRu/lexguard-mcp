@@ -459,10 +459,14 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         final_result = copy.deepcopy(cleaned_result)
                         final_result = shrink_response_bytes(final_result, request_id)
                         
+                        # MCP 표준 형식으로 변환
+                        from ..utils.response_formatter import format_mcp_response
+                        mcp_formatted = format_mcp_response(final_result, tool_name)
+                        
                         response = {
                             "jsonrpc": "2.0",
                             "id": request_id,
-                            "result": final_result
+                            "result": mcp_formatted
                         }
                         response_json = json.dumps(response, ensure_ascii=False)
                         logger.info("MCP: Sending final response | tool=%s has_error=%s result_size=%d",
