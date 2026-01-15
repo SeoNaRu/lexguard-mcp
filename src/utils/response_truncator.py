@@ -8,8 +8,8 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger("lexguard-mcp")
 
-# MCP 규격: 최대 응답 크기 24KB
-MAX_RESPONSE_SIZE = 24 * 1024  # 24KB
+# MCP 규격: 최대 응답 크기 24KB (하드 제한)
+MAX_RESPONSE_SIZE = 24000  # bytes
 RESERVE_SIZE = 500  # JSON 구조용 여유 공간 (메타데이터, 필드명 등)
 TARGET_SIZE = MAX_RESPONSE_SIZE - RESERVE_SIZE  # 실제 콘텐츠용 크기
 
@@ -212,4 +212,49 @@ def get_response_size(result: Dict[str, Any]) -> int:
     except Exception as e:
         logger.exception(f"Error calculating response size: {e}")
         return 0
+
+
+def shrink_response_bytes(result: Dict[str, Any], max_bytes: int = MAX_RESPONSE_SIZE) -> Dict[str, Any]:
+    """
+    최종 JSON 직렬화 기준으로 바이트 크기를 하드 제한합니다.
+    """
+    try:
+        json_str = json.dumps(result, ensure_ascii=False)
+        if len(json_str.encode("utf-8")) <= max_bytes:
+            return result
+    except Exception:
+        return result
+
+    truncated = result.copy() if isinstance(result, dict) else result
+
+    # 1) content 텍스트 우선 축소
+    if isinstance(truncated, dict) and isinstance(truncated.get("content"), list):
+        for item in truncated["content"]:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                item["text"] = summarize_text(item["text"], max(300, max_bytes // 4))
+                item["truncated"] = True
+
+    # 2) structuredContent 축소
+    if isinstance(truncated, dict) and isinstance(truncated.get("structuredContent"), dict):
+        truncated["structuredContent"] = aggressive_truncate(truncated["structuredContent"], max_bytes)
+
+    try:
+        json_str = json.dumps(truncated, ensure_ascii=False)
+        if len(json_str.encode("utf-8")) <= max_bytes:
+            return truncated
+    except Exception:
+        return truncated
+
+    # 3) structuredContent 제거 후 재시도
+    if isinstance(truncated, dict) and "structuredContent" in truncated:
+        trimmed = truncated.copy()
+        trimmed.pop("structuredContent", None)
+        try:
+            if len(json.dumps(trimmed, ensure_ascii=False).encode("utf-8")) <= max_bytes:
+                return trimmed
+        except Exception:
+            return trimmed
+        return trimmed
+
+    return truncated
 

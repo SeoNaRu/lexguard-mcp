@@ -34,8 +34,6 @@ class AdministrativeRuleRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "admrul",
@@ -58,19 +56,16 @@ class AdministrativeRuleRepository(BaseLawRepository):
                 if agency in agency_code_map:
                     params["orgCd"] = agency_code_map[agency]
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "query": query,
-                    "agency": agency,
-                    "api_url": response.url
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()

@@ -392,19 +392,59 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
         }
     
     elif tool_name == "document_issue_tool":
+        def _citation_title(item: Any) -> Optional[str]:
+            if isinstance(item, dict):
+                return (
+                    item.get("title")
+                    or item.get("name")
+                    or item.get("case_number")
+                    or item.get("caseNumber")
+                    or item.get("article")
+                    or item.get("article_number")
+                    or item.get("id")
+                )
+            if isinstance(item, str):
+                return item
+            return None
+
+        raw_answer = result.get("answer") if isinstance(result, dict) else {}
+        raw_risks = raw_answer.get("risk_findings", []) if isinstance(raw_answer, dict) else []
+        trimmed_risks = []
+        for item in raw_risks[:3]:
+            if not isinstance(item, dict):
+                continue
+            citations = []
+            for c in item.get("citations", []) or []:
+                title = _citation_title(c)
+                if title:
+                    citations.append(str(title))
+            trimmed_risks.append({
+                "clause": item.get("clause"),
+                "why": item.get("why"),
+                "citations": citations[:2]
+            })
+
+        citations_raw = []
+        if isinstance(result.get("legal_basis_block"), dict):
+            citations_raw = result.get("legal_basis_block", {}).get("citations", []) or []
+        if not citations_raw:
+            citations_raw = result.get("citations", []) or []
+        citations = []
+        for c in citations_raw:
+            title = _citation_title(c)
+            if title:
+                citations.append(str(title))
+        citations = list(dict.fromkeys(citations))[:5]
+
         return {
             "success": result.get("success", True),
             "success_transport": result.get("success_transport", True),
             "success_search": result.get("success_search", result.get("success", True)),
             "has_legal_basis": result.get("has_legal_basis"),
             "missing_reason": result.get("missing_reason"),
-            "document_text": result.get("document_text"),
             "document_analysis": result.get("document_analysis"),
-            "answer": result.get("answer"),
-            "evidence_results": result.get("evidence_results", []),
-            "evidence_summary": result.get("evidence_summary"),
-            "legal_basis_summary": result.get("legal_basis_summary"),
-            "legal_basis_block": result.get("legal_basis_block"),
+            "answer": {"risk_findings": trimmed_risks},
+            "citations": citations,
             "legal_basis_block_text": result.get("legal_basis_block_text"),
             "retry_plan": result.get("retry_plan"),
             "response_policy": result.get("response_policy")

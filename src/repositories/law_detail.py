@@ -32,8 +32,6 @@ class LawDetailRepository(BaseLawRepository):
                 "recovery_guide": "법령명을 입력해주세요. 예: '형법', '민법', '개인정보보호법'"
             }
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             # lawSearch.do를 사용해서 법령 검색 (query 파라미터 사용)
             # 검색 결과에서 법령일련번호를 찾아서 상세 조회
@@ -45,49 +43,17 @@ class LawDetailRepository(BaseLawRepository):
                 "display": 10  # 더 많은 결과를 받아서 정확한 매칭을 위해
             }
             
-            if api_key:
-                search_params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             # 법령명 검색은 lawSearch.do 사용
             search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
             search_response.raise_for_status()
             
-            if search_response.text.strip().startswith('<!DOCTYPE') or '<html' in search_response.text.lower():
-                # HTML 에러 페이지 디버깅 정보 로깅
-                text = search_response.text or ""
-                try:
-                    import re as _re
-                    title_match = _re.search(r"<title[^>]*>(.*?)</title>", text, _re.IGNORECASE | _re.DOTALL)
-                    title_text = title_match.group(1).strip() if title_match else None
-                except Exception:
-                    title_text = None
-                
-                head_snippet = text[:300]
-                status_code = search_response.status_code
-                content_type = search_response.headers.get("content-type")
-                
-                logger.error(
-                    "API returned HTML error page (law_detail search) | url=%s status=%s ct=%s title=%r head=%r",
-                    search_response.url,
-                    status_code,
-                    content_type,
-                    title_text,
-                    head_snippet,
-                )
-                
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다. API 키를 확인하세요.",
-                    "law_name": law_name,
-                    "api_url": search_response.url,
-                    "api_error": {
-                        "status": status_code,
-                        "content_type": content_type,
-                        "title": title_text,
-                        "head": head_snippet,
-                    },
-                    "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고, 법령명을 더 단순하게 입력해 다시 시도하세요.",
-                    "note": "법령명을 정확히 입력해주세요."
-                }
+            invalid_response = self.validate_drf_response(search_response)
+            if invalid_response:
+                return invalid_response
             
             # JSON에서 법령일련번호 추출
             law_id = None
@@ -171,47 +137,16 @@ class LawDetailRepository(BaseLawRepository):
                 "MST": law_id  # 법령일련번호는 MST로 사용
             }
             
-            if api_key:
-                detail_params["OC"] = api_key
-            
+            _, api_key_error = self.attach_api_key(detail_params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
+
             detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
             detail_response.raise_for_status()
-            
-            if detail_response.text.strip().startswith('<!DOCTYPE') or '<html' in detail_response.text.lower():
-                text = detail_response.text or ""
-                try:
-                    import re as _re
-                    title_match = _re.search(r"<title[^>]*>(.*?)</title>", text, _re.IGNORECASE | _re.DOTALL)
-                    title_text = title_match.group(1).strip() if title_match else None
-                except Exception:
-                    title_text = None
-                
-                head_snippet = text[:300]
-                status_code = detail_response.status_code
-                content_type = detail_response.headers.get("content-type")
-                
-                logger.error(
-                    "API returned HTML error page (law_detail detail) | url=%s status=%s ct=%s title=%r head=%r",
-                    detail_response.url,
-                    status_code,
-                    content_type,
-                    title_text,
-                    head_snippet,
-                )
-                
-                return {
-                    "error": "법령 상세 조회 실패. API 키가 필요하거나 권한이 없을 수 있습니다.",
-                    "law_name": law_name,
-                    "law_id": law_id,
-                    "api_url": detail_response.url,
-                    "api_error": {
-                        "status": status_code,
-                        "content_type": content_type,
-                        "title": title_text,
-                        "head": head_snippet,
-                    },
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+
+            invalid_response = self.validate_drf_response(detail_response)
+            if invalid_response:
+                return invalid_response
             
             # detail_response JSON에서 법령일련번호 재확인 (더 정확한 ID)
             detail_data = None
@@ -288,7 +223,6 @@ class LawDetailRepository(BaseLawRepository):
         
         # 법령명이 입력되면 검색해서 ID 찾기
         if law_name and not law_id:
-            api_key = self.get_api_key(arguments)
             try:
                 search_params = {
                     "target": "law",
@@ -298,18 +232,17 @@ class LawDetailRepository(BaseLawRepository):
                     "display": 10  # 더 많은 결과를 받아서 정확한 매칭을 위해
                 }
                 
-                if api_key:
-                    search_params["OC"] = api_key
+                _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
+                if api_key_error:
+                    return api_key_error
                 
                 # 법령명 검색은 lawSearch.do 사용
                 search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
                 search_response.raise_for_status()
                 
-                if search_response.text.strip().startswith('<!DOCTYPE') or '<html' in search_response.text.lower():
-                    return {
-                        "error": "API가 HTML 에러 페이지를 반환했습니다. API 키를 확인하세요.",
-                        "law_name": law_name
-                    }
+                invalid_response = self.validate_drf_response(search_response)
+                if invalid_response:
+                    return invalid_response
                 
                 try:
                     search_data = search_response.json()
@@ -394,9 +327,6 @@ class LawDetailRepository(BaseLawRepository):
                 "recovery_guide": "법령 ID 또는 법령명 중 하나는 필수입니다. 예: law_name='형법' 또는 law_id='123456'"
             }
         
-        # API 키 가져오기 (arguments.env 또는 환경변수에서)
-        api_key = self.get_api_key(arguments)
-        
         try:
             # lawService.do API 호출 파라미터 설정
             params = {
@@ -405,27 +335,17 @@ class LawDetailRepository(BaseLawRepository):
                 "MST": law_id          # 법령일련번호는 MST로 사용
             }
             
-            # API 키가 있으면 OC 파라미터에 추가
-            if api_key:
-                params["OC"] = api_key
-                logger.debug("Using API key for law articles request")
-            else:
-                logger.debug("No API key provided, using public API")
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             # API 호출
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            # HTML 에러 페이지 체크 (API 키 문제 등)
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 법령 ID가 잘못되었을 수 있습니다."
-                logger.error("API returned HTML error page | url=%s", response.url)
-                return {
-                    "error": error_msg,
-                    "law_id": law_id,
-                    "api_url": response.url,
-                    "note": "법령 ID를 확인하거나, 국가법령정보센터 OPEN API 사용 권한을 확인하세요."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             # JSON 파싱 시작
             try:
@@ -576,8 +496,6 @@ class LawDetailRepository(BaseLawRepository):
                 "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'"
             }
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             # 1단계: 법령 상세 정보를 가져와서 시행일자(efYd) 확인
             detail_params = {
@@ -586,12 +504,17 @@ class LawDetailRepository(BaseLawRepository):
                 "MST": law_id  # 법령일련번호는 MST로 사용
             }
             
-            if api_key:
-                detail_params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(detail_params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
             detail_response.raise_for_status()
-            
+
+            invalid_detail = self.validate_drf_response(detail_response)
+            if invalid_detail:
+                return invalid_detail
+
             detail_data = detail_response.json()
             
             # 시행일자(efYd) 추출
@@ -646,25 +569,19 @@ class LawDetailRepository(BaseLawRepository):
                 if mok_char:
                     params["MOK"] = mok_char
             
-            if api_key:
-                params["OC"] = api_key
-            
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
+
             logger.debug("Calling eflawjosub API | params=%s", {k: v for k, v in params.items() if k != "OC"})
             
             # 3단계: 단일 조문 조회
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
-            
-            # HTML 에러 페이지인지 확인
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 조문 정보가 없을 수 있습니다."
-                logger.error("API returned HTML error page | url=%s", response.url)
-                return {
-                    "error": error_msg,
-                    "law_id": law_id,
-                    "article_number": article_number,
-                    "api_url": response.url
-                }
+
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             # JSON 파싱
             try:

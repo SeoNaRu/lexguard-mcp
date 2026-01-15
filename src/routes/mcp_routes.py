@@ -4,6 +4,7 @@ Controller 패턴: 요청을 받아 Service를 호출
 """
 import json
 import asyncio
+import re
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from ..services.law_service import LawService
@@ -21,7 +22,7 @@ from ..services.administrative_rule_service import AdministrativeRuleService
 from ..services.smart_search_service import SmartSearchService
 from ..services.situation_guidance_service import SituationGuidanceService
 from ..tools.dynamic_tool_generator import get_tool_generator
-from ..utils.response_truncator import truncate_response, get_response_size
+from ..utils.response_truncator import truncate_response, get_response_size, shrink_response_bytes
 from ..utils.response_formatter import format_mcp_response
 from ..models import (
     SearchLawRequest, GetLawRequest, ListLawNamesRequest, GetLawDetailRequest, GetLawArticlesRequest, GetSingleArticleRequest,
@@ -234,9 +235,9 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         # async generator는 자동으로 종료됨
                         
                     elif method == "tools/list":
-                        # 핵심 툴 목록 (10개로 축소 - 18개 제한 대응)
+                        # 핵심 툴 목록 (페이지네이션 지원)
                         cursor_value = params.get("cursor")
-                        page_size = 20
+                        page_size = 12
                         start_index = 0
                         if isinstance(cursor_value, str) and cursor_value.isdigit():
                             start_index = int(cursor_value)
@@ -402,9 +403,8 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         "missing_reason": {"type": ["string", "null"]},
                                         "document_analysis": {"type": ["object", "null"]},
                                         "answer": {"type": ["object", "null"]},
-                                        "evidence_results": {"type": "array"},
+                                        "citations": {"type": "array"},
                                         "legal_basis_block_text": {"type": ["string", "null"]},
-                                        "legal_basis_block": {"type": "object"},
                                         "retry_plan": {"type": ["object", "null"]}
                                     }
                                 }
@@ -708,37 +708,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                     }
                                 }
                             },
-                            {
-                                "name": "compare_laws_tool",
-                                "priority": 2,
-                                "category": "utility",
-                                "description": "법령을 비교합니다. 신구법 비교, 법령 연혁, 3단 비교를 지원합니다. 예: '형법의 변경사항을 알려줘', '개인정보보호법 신구법 비교', '민법 연혁 확인'.",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "law_name": {
-                                            "type": "string",
-                                            "description": "법령명 (예: '형법', '민법', '개인정보보호법')"
-                                        },
-                                        "compare_type": {
-                                            "type": "string",
-                                            "description": "비교 유형",
-                                            "enum": ["신구법", "연혁", "3단비교"],
-                                            "default": "신구법"
-                                        }
-                                    },
-                                    "required": ["law_name"]
-                                },
-                                "outputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "success": {"type": "boolean"},
-                                        "law_name": {"type": ["string", "null"]},
-                                        "compare_type": {"type": ["string", "null"]},
-                                        "results": {"type": ["object", "array", "null"]}
-                                    }
-                                }
-                            }
                         ]
                         
                         # 표준 권장: 무파라미터 툴 스키마 보강 + outputSchema 기본 제공
@@ -934,6 +903,107 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 )
                                 logger.debug("Calling search_administrative_appeal | query=%s page=%d per_page=%d", query, page, per_page)
                                 result = await administrative_appeal_service.search_administrative_appeal(req, None)
+                            elif tool_name == "get_administrative_appeal_tool":
+                                appeal_id = arguments.get("appeal_id")
+                                req = GetAdministrativeAppealRequest(appeal_id=appeal_id)
+                                logger.debug("Calling get_administrative_appeal | appeal_id=%s", appeal_id)
+                                result = await administrative_appeal_service.get_administrative_appeal(req, None)
+                            elif tool_name == "search_committee_decision_tool":
+                                committee_type = arguments.get("committee_type")
+                                query = arguments.get("query")
+                                page = arguments.get("page", 1)
+                                per_page = arguments.get("per_page", 20)
+                                req = SearchCommitteeDecisionRequest(
+                                    committee_type=committee_type,
+                                    query=query,
+                                    page=page,
+                                    per_page=per_page
+                                )
+                                logger.debug("Calling search_committee_decision | committee_type=%s query=%s page=%d per_page=%d",
+                                           committee_type, query, page, per_page)
+                                result = await committee_decision_service.search_committee_decision(req, None)
+                            elif tool_name == "get_committee_decision_tool":
+                                committee_type = arguments.get("committee_type")
+                                decision_id = arguments.get("decision_id")
+                                req = GetCommitteeDecisionRequest(
+                                    committee_type=committee_type,
+                                    decision_id=decision_id
+                                )
+                                logger.debug("Calling get_committee_decision | committee_type=%s decision_id=%s",
+                                           committee_type, decision_id)
+                                result = await committee_decision_service.get_committee_decision(req, None)
+                            elif tool_name == "search_constitutional_decision_tool":
+                                query = arguments.get("query")
+                                page = arguments.get("page", 1)
+                                per_page = arguments.get("per_page", 20)
+                                date_from = arguments.get("date_from")
+                                date_to = arguments.get("date_to")
+                                req = SearchConstitutionalDecisionRequest(
+                                    query=query,
+                                    page=page,
+                                    per_page=per_page,
+                                    date_from=date_from,
+                                    date_to=date_to
+                                )
+                                logger.debug("Calling search_constitutional_decision | query=%s page=%d per_page=%d", query, page, per_page)
+                                result = await constitutional_decision_service.search_constitutional_decision(req, None)
+                            elif tool_name == "get_constitutional_decision_tool":
+                                decision_id = arguments.get("decision_id")
+                                req = GetConstitutionalDecisionRequest(decision_id=decision_id)
+                                logger.debug("Calling get_constitutional_decision | decision_id=%s", decision_id)
+                                result = await constitutional_decision_service.get_constitutional_decision(req, None)
+                            elif tool_name == "search_special_administrative_appeal_tool":
+                                tribunal_type = arguments.get("tribunal_type")
+                                query = arguments.get("query")
+                                page = arguments.get("page", 1)
+                                per_page = arguments.get("per_page", 20)
+                                req = SearchSpecialAdministrativeAppealRequest(
+                                    tribunal_type=tribunal_type,
+                                    query=query,
+                                    page=page,
+                                    per_page=per_page
+                                )
+                                logger.debug("Calling search_special_administrative_appeal | tribunal_type=%s query=%s page=%d per_page=%d",
+                                           tribunal_type, query, page, per_page)
+                                result = await special_administrative_appeal_service.search_special_administrative_appeal(req, None)
+                            elif tool_name == "get_special_administrative_appeal_tool":
+                                tribunal_type = arguments.get("tribunal_type")
+                                appeal_id = arguments.get("appeal_id")
+                                req = GetSpecialAdministrativeAppealRequest(
+                                    tribunal_type=tribunal_type,
+                                    appeal_id=appeal_id
+                                )
+                                logger.debug("Calling get_special_administrative_appeal | tribunal_type=%s appeal_id=%s",
+                                           tribunal_type, appeal_id)
+                                result = await special_administrative_appeal_service.get_special_administrative_appeal(req, None)
+                            elif tool_name == "search_local_ordinance_tool":
+                                query = arguments.get("query")
+                                local_government = arguments.get("local_government")
+                                page = arguments.get("page", 1)
+                                per_page = arguments.get("per_page", 20)
+                                req = SearchLocalOrdinanceRequest(
+                                    query=query,
+                                    local_government=local_government,
+                                    page=page,
+                                    per_page=per_page
+                                )
+                                logger.debug("Calling search_local_ordinance | query=%s local_government=%s page=%d per_page=%d",
+                                           query, local_government, page, per_page)
+                                result = await local_ordinance_service.search_local_ordinance(req, None)
+                            elif tool_name == "search_administrative_rule_tool":
+                                query = arguments.get("query")
+                                agency = arguments.get("agency")
+                                page = arguments.get("page", 1)
+                                per_page = arguments.get("per_page", 20)
+                                req = SearchAdministrativeRuleRequest(
+                                    query=query,
+                                    agency=agency,
+                                    page=page,
+                                    per_page=per_page
+                                )
+                                logger.debug("Calling search_administrative_rule | query=%s agency=%s page=%d per_page=%d",
+                                           query, agency, page, per_page)
+                                result = await administrative_rule_service.search_administrative_rule(req, None)
                             elif tool_name == "compare_laws_tool":
                                 law_name = arguments.get("law_name")
                                 compare_type = arguments.get("compare_type", "신구법")
@@ -976,18 +1046,16 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             }
                         
                         # JSON 직렬화 전에 데이터 정리 (특수문자, 제어문자 제거)
+                        _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
                         def clean_for_json(obj):
-                            """JSON 직렬화를 위해 데이터 정리"""
+                            """JSON 직렬화를 위해 데이터 정리 (개행 유지)"""
                             if isinstance(obj, dict):
                                 return {k: clean_for_json(v) for k, v in obj.items()}
                             elif isinstance(obj, list):
                                 return [clean_for_json(item) for item in obj]
                             elif isinstance(obj, str):
-                                # 제어 문자 제거 (줄바꿈, 탭 등은 공백으로 변환)
-                                cleaned = obj.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-                                # 연속된 공백을 하나로
-                                cleaned = ' '.join(cleaned.split())
-                                return cleaned
+                                # 제어 문자 제거 (개행/탭은 유지)
+                                return _CONTROL_CHARS_RE.sub("", obj)
                             else:
                                 return obj
                         
@@ -1022,6 +1090,8 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             "id": request_id,
                             "result": mcp_result
                         }
+                        # 최종 JSON 크기 하드 제한 적용 (24KB)
+                        final_response = shrink_response_bytes(final_response)
                         logger.info("MCP: Sending final response | tool=%s has_error=%s result_size=%d", 
                                    tool_name, 
                                    "error" in result if isinstance(result, dict) else False,

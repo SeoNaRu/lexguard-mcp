@@ -26,8 +26,6 @@ class LawComparisonRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             # 먼저 법령명으로 법령 ID 찾기
             search_params = {
@@ -38,18 +36,16 @@ class LawComparisonRepository(BaseLawRepository):
                 "display": 10  # 더 많은 결과에서 정확한 매칭을 위해
             }
             
-            if api_key:
-                search_params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
             search_response.raise_for_status()
             
-            if search_response.text.strip().startswith('<!DOCTYPE') or '<html' in search_response.text.lower():
-                return {
-                    "error": "법령 검색 API가 HTML 에러 페이지를 반환했습니다.",
-                    "law_name": law_name,
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+            invalid_search = self.validate_drf_response(search_response)
+            if invalid_search:
+                return invalid_search
             
             law_id = None
             normalized_query = self.normalize_search_query(law_name)
@@ -110,20 +106,16 @@ class LawComparisonRepository(BaseLawRepository):
                 "MST": law_id
             }
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "law_name": law_name,
-                    "compare_type": compare_type,
-                    "api_url": response.url,
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()

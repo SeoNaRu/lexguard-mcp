@@ -34,8 +34,6 @@ class AdministrativeAppealRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "decc",
@@ -54,18 +52,16 @@ class AdministrativeAppealRepository(BaseLawRepository):
             elif date_to:
                 params["deccYd"] = f"{date_to}~{date_to}"
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "query": query,
-                    "api_url": response.url
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()
@@ -145,8 +141,6 @@ class AdministrativeAppealRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "decc",
@@ -154,18 +148,16 @@ class AdministrativeAppealRepository(BaseLawRepository):
                 "ID": appeal_id
             }
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "appeal_id": appeal_id,
-                    "api_url": response.url
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()

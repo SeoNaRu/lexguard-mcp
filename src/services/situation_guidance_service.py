@@ -363,16 +363,47 @@ class SituationGuidanceService:
                     "suggested_queries": list(dict.fromkeys(hints))[:5]
                 })
 
-        suggested_queries = [
-            "주택임대차보호법 보증금 반환",
-            "민법 임대차 계약 해지 요건",
-            "임대차 계약서 특약 효력",
-            "임대차 계약 갱신 요건",
-            "약관법 환불 제한",
-            "약관법 손해배상 책임 제한",
-            "약관 변경 사전고지",
-            "전속관할 약관 무효"
-        ]
+        is_labor_contract = any(
+            keyword in situation for keyword in [
+                "근로", "근로자", "임금", "프리랜서", "용역", "도급", "위탁",
+                "사용종속", "지휘", "감독", "출퇴근"
+            ]
+        )
+        is_lease = any(
+            keyword in situation for keyword in [
+                "임대차", "임대인", "임차인", "보증금", "전세"
+            ]
+        )
+
+        if is_labor_contract:
+            suggested_queries = [
+                "근로자성 판단 기준",
+                "사용종속관계 판단 요소",
+                "지휘감독 여부 판례",
+                "위장도급 판단 기준",
+                "임금 전액지급 원칙",
+                "해지 손해배상 예정액 감액",
+                "근로기준법 제2조 근로자 정의",
+                "프리랜서 근로자성 판례"
+            ]
+        elif is_lease:
+            suggested_queries = [
+                "주택임대차보호법 보증금 반환",
+                "민법 임대차 계약 해지 요건",
+                "임대차 계약서 특약 효력",
+                "임대차 계약 갱신 요건",
+                "주택임대차보호법 갱신요구권",
+                "임대차 보증금 반환 판례"
+            ]
+        else:
+            suggested_queries = [
+                "약관법 환불 제한",
+                "약관법 손해배상 책임 제한",
+                "약관 변경 사전고지",
+                "전속관할 약관 무효",
+                "계약 해지 요건",
+                "손해배상 예정액 감액"
+            ]
 
         return {
             "detected": True,
@@ -540,20 +571,24 @@ class SituationGuidanceService:
         if not has_legal_basis:
             # API 에러 여부 확인
             api_error_found = False
+            html_error_found = False
             for payload in [law_results, precedent_results, interpretation_results, appeal_results]:
                 if isinstance(payload, dict):
                     content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type")
-                    if ("api_error" in payload or ("error" in payload and "api_url" in payload) or
+                    if payload.get("error_code") == "API_ERROR_HTML":
+                        html_error_found = True
+                    if (payload.get("error_code") == "API_ERROR_HTML" or "api_error" in payload or
+                        ("error" in payload and "api_url" in payload) or
                         (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
                         api_error_found = True
                         break
             if api_error_found:
-                missing_reason = "API_ERROR"
+                missing_reason = "API_ERROR_HTML" if html_error_found else "API_ERROR"
             else:
                 # API 준비 상태 확인
-                import os
-                api_key = os.environ.get("LAW_API_KEY", "")
-                if not api_key:
+                from ..repositories.base import BaseLawRepository
+                api_key = BaseLawRepository.get_api_key(None)
+                if BaseLawRepository.is_placeholder_key(api_key):
                     missing_reason = "API_NOT_READY"
                 else:
                     missing_reason = "NO_MATCH"
@@ -775,7 +810,9 @@ class SituationGuidanceService:
                 evidence_summary["missing_reason"] = None
             else:
                 reasons = [r.get("result", {}).get("missing_reason") for r in evidence_results]
-                if "API_ERROR" in reasons:
+                if "API_ERROR_HTML" in reasons:
+                    evidence_summary["missing_reason"] = "API_ERROR_HTML"
+                elif "API_ERROR" in reasons:
                     evidence_summary["missing_reason"] = "API_ERROR"
                 elif "API_NOT_READY" in reasons:
                     evidence_summary["missing_reason"] = "API_NOT_READY"
@@ -824,11 +861,16 @@ class SituationGuidanceService:
                 f"근거 수={legal_basis_summary['counts'].get('citations', 0)}."
             )
         else:
-            legal_basis_block_text = (
-                "법적 근거 요약: "
-                f"근거를 찾지 못했습니다({evidence_summary['missing_reason']}). "
-                "문서 분석 결과를 기반으로 조항별 검색을 진행하세요."
-            )
+            if evidence_summary["missing_reason"] == "API_ERROR_HTML":
+                legal_basis_block_text = (
+                    "법적 근거 요약: API가 HTML 안내 페이지를 반환하여 근거를 가져오지 못했습니다."
+                )
+            else:
+                legal_basis_block_text = (
+                    "법적 근거 요약: "
+                    f"근거를 찾지 못했습니다({evidence_summary['missing_reason']}). "
+                    "문서 분석 결과를 기반으로 조항별 검색을 진행하세요."
+                )
         retry_plan = None
         if analysis and analysis.get("suggested_queries"):
             retry_plan = {

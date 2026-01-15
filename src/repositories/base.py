@@ -43,14 +43,93 @@ class BaseLawRepository:
             if isinstance(env, dict) and "LAW_API_KEY" in env:
                 api_key = env["LAW_API_KEY"]
                 logger.debug("API key from arguments.env")
-                return api_key
+                return api_key.strip() if isinstance(api_key, str) else api_key
         
         # Priority 2: Get from .env file
         api_key = os.environ.get("LAW_API_KEY", "")
         if api_key:
             logger.debug("API key from .env file")
-        
-        return api_key
+
+        return api_key.strip() if isinstance(api_key, str) else api_key
+
+    @staticmethod
+    def is_placeholder_key(api_key: Optional[str]) -> bool:
+        """API 키가 비어 있거나 placeholder인지 확인합니다."""
+        if not api_key or not isinstance(api_key, str):
+            return True
+        normalized = api_key.strip().lower()
+        if not normalized:
+            return True
+        placeholders = {
+            "your_api_key",
+            "your_law_api_key",
+            "change_me",
+            "placeholder",
+            "test",
+            "dummy",
+            "none",
+            "null",
+        }
+        return normalized in placeholders or normalized.startswith("your_")
+
+    @staticmethod
+    def mask_api_key(api_key: Optional[str]) -> str:
+        """API 키를 마스킹(앞4+뒤4)하여 반환합니다."""
+        if not api_key or not isinstance(api_key, str):
+            return ""
+        key = api_key.strip()
+        if len(key) <= 8:
+            return key[:2] + "****" + key[-2:]
+        return key[:4] + "****" + key[-4:]
+
+    @classmethod
+    def attach_api_key(cls, params: dict, arguments: Optional[dict] = None, request_url: Optional[str] = None):
+        """API 키를 params에 추가하고 유효성 검증을 수행합니다."""
+        api_key = cls.get_api_key(arguments)
+        if cls.is_placeholder_key(api_key):
+            return None, {
+                "error_code": "API_NOT_READY",
+                "error": "LAW_API_KEY가 설정되지 않았습니다.",
+                "recovery_guide": "환경변수 LAW_API_KEY에 발급키를 설정하세요.",
+                "api_url": request_url,
+            }
+        params["OC"] = api_key
+        logger.info("DRF request | url=%s OC=%s", request_url or "", cls.mask_api_key(api_key))
+        return api_key, None
+
+    @staticmethod
+    def _has_html_body(body: str) -> bool:
+        """응답 본문에 HTML이 포함되어 있는지 확인합니다."""
+        if not body:
+            return False
+        head = body.lstrip()[:1000].lower()
+        return head.startswith("<!doctype html") or "<html" in head
+
+    @classmethod
+    def validate_drf_response(cls, response) -> Optional[dict]:
+        """DRF 응답의 Content-Type/HTML 여부를 검증합니다."""
+        content_type = response.headers.get("Content-Type", "")
+        body = response.text or ""
+        is_json_or_xml = "application/json" in content_type.lower() or "application/xml" in content_type.lower() or "text/xml" in content_type.lower()
+
+        if not is_json_or_xml or cls._has_html_body(body):
+            snippet = " ".join(body.strip().split())
+            short_snippet = snippet[:200]
+            logger.warning(
+                "DRF response invalid | url=%s status=%s ct=%s snippet=%r",
+                response.url,
+                response.status_code,
+                content_type,
+                short_snippet,
+            )
+            return {
+                "error_code": "API_ERROR_HTML",
+                "api_url": response.url,
+                "status": response.status_code,
+                "content_type": content_type,
+                "short_snippet": short_snippet,
+            }
+        return None
     
     @staticmethod
     def normalize_search_query(query: str) -> str:

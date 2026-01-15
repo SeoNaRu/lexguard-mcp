@@ -785,19 +785,23 @@ class SmartSearchService:
         if not has_legal_basis:
             # API 에러 여부 확인 (api_error / error+api_url / text/html)
             api_error_found = False
+            html_error_found = False
             for _, result in results.items():
                 if isinstance(result, dict):
                     content_type = result.get("content_type") or result.get("api_error", {}).get("content_type")
-                    if ("api_error" in result or ("error" in result and "api_url" in result) or
+                    if result.get("error_code") == "API_ERROR_HTML":
+                        html_error_found = True
+                    if (result.get("error_code") == "API_ERROR_HTML" or "api_error" in result or
+                        ("error" in result and "api_url" in result) or
                         (isinstance(content_type, str) and content_type.lower().startswith("text/html"))):
                         api_error_found = True
                         break
             if api_error_found:
-                missing_reason = "API_ERROR"
+                missing_reason = "API_ERROR_HTML" if html_error_found else "API_ERROR"
             else:
-                import os
-                api_key = os.environ.get("LAW_API_KEY", "")
-                if not api_key:
+                from ..repositories.base import BaseLawRepository
+                api_key = BaseLawRepository.get_api_key(None)
+                if BaseLawRepository.is_placeholder_key(api_key):
                     missing_reason = "API_NOT_READY"
                 else:
                     missing_reason = "NO_MATCH"

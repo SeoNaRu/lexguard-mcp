@@ -48,8 +48,6 @@ class LawSearchRepository(BaseLawRepository):
             logger.debug("Failure cache hit, skipping | query=%r", query)
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "law",
@@ -59,55 +57,31 @@ class LawSearchRepository(BaseLawRepository):
                 "display": per_page  # lawSearch.do는 display 파라미터 사용
             }
             
-            if api_key:
-                params["OC"] = api_key
-                logger.debug("Using API key for request")
-            else:
-                logger.debug("No API key provided, using public API")
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             # 검색은 lawSearch.do 사용
             # 1차 시도: JSON
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
-            
-            # HTML 에러 페이지인지 확인
-            is_html_error = response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower()
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
+
             json_decode_failed = False
             
             # JSON 파싱 시도
             data = None
-            if not is_html_error:
-                try:
-                    data = response.json()
-                except json.JSONDecodeError:
-                    json_decode_failed = True
+            try:
+                data = response.json()
+            except json.JSONDecodeError:
+                json_decode_failed = True
             
             # JSON 실패 또는 HTML 에러 시 XML로 재시도
-            if is_html_error or json_decode_failed:
-                logger.warning("JSON request failed, trying XML fallback | is_html=%s json_failed=%s", is_html_error, json_decode_failed)
-                
-                # HTML 에러 페이지 디버깅 정보 로깅 (JSON 시도 실패 시)
-                if is_html_error:
-                    text = response.text or ""
-                    try:
-                        title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-                        title_text = title_match.group(1).strip() if title_match else None
-                    except Exception:
-                        title_text = None
-                    
-                    head_snippet = text[:300]
-                    status_code = response.status_code
-                    content_type = response.headers.get("content-type")
-                    
-                    logger.error(
-                        "API returned HTML error page (JSON) | url=%s status=%s ct=%s title=%r head=%r",
-                        response.url,
-                        status_code,
-                        content_type,
-                        title_text,
-                        head_snippet,
-                    )
-                
+            if json_decode_failed:
+                logger.warning("JSON request failed, trying XML fallback")
+
                 # XML로 재시도
                 xml_params = params.copy()
                 xml_params["type"] = "XML"
@@ -116,43 +90,9 @@ class LawSearchRepository(BaseLawRepository):
                     xml_response = requests.get(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
                     xml_response.raise_for_status()
                     
-                    # XML도 HTML 에러인지 확인
-                    if xml_response.text.strip().startswith('<!DOCTYPE') or '<html' in xml_response.text.lower():
-                        # XML도 실패
-                        text = xml_response.text or ""
-                        try:
-                            title_match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
-                            title_text = title_match.group(1).strip() if title_match else None
-                        except Exception:
-                            title_text = None
-                        
-                        head_snippet = text[:300]
-                        status_code = xml_response.status_code
-                        content_type = xml_response.headers.get("content-type")
-                        
-                        logger.error(
-                            "API returned HTML error page (XML fallback also failed) | url=%s status=%s ct=%s title=%r head=%r",
-                            xml_response.url,
-                            status_code,
-                            content_type,
-                            title_text,
-                            head_snippet,
-                        )
-                        
-                        error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
-                        return {
-                            "error": error_msg,
-                            "query": normalized_query,
-                            "api_url": xml_response.url,
-                            "api_error": {
-                                "status": status_code,
-                                "content_type": content_type,
-                                "title": title_text,
-                                "head": head_snippet,
-                            },
-                            "recovery_guide": "API 키가 필요하거나, 요청 형식이 잘못되었을 수 있습니다. 서버 로그의 api_error 정보를 확인하고 검색어를 단순한 키워드로 줄여서 다시 시도하세요.",
-                            "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
-                        }
+                    invalid_xml = self.validate_drf_response(xml_response)
+                    if invalid_xml:
+                        return invalid_xml
                     
                     # XML 파싱
                     try:
@@ -360,8 +300,6 @@ class LawSearchRepository(BaseLawRepository):
             logger.debug("Failure cache hit, skipping")
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             # lawSearch.do는 JSON을 지원하지 않으므로 XML 사용
             params = {
@@ -378,23 +316,16 @@ class LawSearchRepository(BaseLawRepository):
             else:
                 params["query"] = "*"
             
-            if api_key:
-                params["OC"] = api_key
-                logger.debug("Using API key for request")
-            else:
-                logger.debug("No API key provided, using public API")
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=30)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
-                logger.error("API returned HTML error page | url=%s", response.url)
-                return {
-                    "error": error_msg,
-                    "api_url": response.url,
-                    "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             # XML 파싱
             result = {

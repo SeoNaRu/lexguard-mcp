@@ -43,7 +43,7 @@ if __name__ == "__main__":
     print("서버: lexguard-mcp-service", file=sys.stderr)
     print("전송 방식: Streamable HTTP", file=sys.stderr)
     print(f"포트: {port}", file=sys.stderr)
-    print("사용 가능한 도구: health, search_law_tool, get_law_tool", file=sys.stderr)
+    print("사용 가능한 도구: tools/list에서 확인", file=sys.stderr)
     print("MCP 엔드포인트: POST /mcp", file=sys.stderr)
     print(f"로컬 테스트: http://localhost:{port}/mcp", file=sys.stderr)
     

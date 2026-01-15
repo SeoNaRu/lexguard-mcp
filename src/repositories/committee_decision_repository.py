@@ -58,8 +58,6 @@ class CommitteeDecisionRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": target,
@@ -71,8 +69,9 @@ class CommitteeDecisionRepository(BaseLawRepository):
             if query:
                 params["query"] = self.normalize_search_query(query)
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
@@ -88,15 +87,9 @@ class CommitteeDecisionRepository(BaseLawRepository):
                     "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
                 }
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다. API 키가 필요하거나 권한이 없을 수 있습니다.",
-                    "committee_type": committee_type,
-                    "query": query,
-                    "api_url": response.url,
-                    "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다.",
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()
@@ -185,8 +178,6 @@ class CommitteeDecisionRepository(BaseLawRepository):
         if cache_key in failure_cache:
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": target,
@@ -194,20 +185,16 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "ID": decision_id
             }
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "committee_type": committee_type,
-                    "decision_id": decision_id,
-                    "api_url": response.url,
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()

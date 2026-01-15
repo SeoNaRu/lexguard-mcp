@@ -61,8 +61,6 @@ class PrecedentRepository(BaseLawRepository):
             logger.debug("Failure cache hit, skipping")
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "prec",
@@ -84,22 +82,16 @@ class PrecedentRepository(BaseLawRepository):
             elif date_to:
                 params["prncYd"] = f"{date_to}~{date_to}"
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다. API 키가 유효하지 않거나 API 사용 권한이 없을 수 있습니다."
-                logger.error("API returned HTML error page")
-                return {
-                    "error": error_msg,
-                    "query": query,
-                    "api_url": response.url,
-                    "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다.",
-                    "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요."
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()
@@ -205,8 +197,6 @@ class PrecedentRepository(BaseLawRepository):
         """
         내부 검색 메서드 (캐시 체크 없이 직접 API 호출)
         """
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "prec",
@@ -228,18 +218,16 @@ class PrecedentRepository(BaseLawRepository):
             elif date_to:
                 params["prncYd"] = f"{date_to}~{date_to}"
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                return {
-                    "error": "API가 HTML 에러 페이지를 반환했습니다.",
-                    "query": query,
-                    "api_url": response.url
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()
@@ -707,8 +695,6 @@ class PrecedentRepository(BaseLawRepository):
             logger.debug("Failure cache hit, skipping")
             return failure_cache[cache_key]
         
-        api_key = self.get_api_key(arguments)
-        
         try:
             params = {
                 "target": "prec",
@@ -716,20 +702,16 @@ class PrecedentRepository(BaseLawRepository):
                 "ID": precedent_id
             }
             
-            if api_key:
-                params["OC"] = api_key
+            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
+            if api_key_error:
+                return api_key_error
             
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             
-            if response.text.strip().startswith('<!DOCTYPE') or '<html' in response.text.lower():
-                error_msg = "API가 HTML 에러 페이지를 반환했습니다."
-                logger.error("API returned HTML error page")
-                return {
-                    "error": error_msg,
-                    "precedent_id": precedent_id,
-                    "api_url": response.url
-                }
+            invalid_response = self.validate_drf_response(response)
+            if invalid_response:
+                return invalid_response
             
             try:
                 data = response.json()
