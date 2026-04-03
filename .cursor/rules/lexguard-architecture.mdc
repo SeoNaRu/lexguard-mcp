@@ -1,0 +1,26 @@
+---
+description: LexGuard MCP 프로젝트 아키텍처 규칙 — 항상 적용
+alwaysApply: true
+---
+
+# LexGuard MCP 아키텍처 규칙
+
+## 레이어 의존성
+- Routes → Services → Repositories (역방향 의존 금지)
+- Repository는 반드시 `BaseLawRepository` 상속
+- 모든 API 호출은 `attach_api_key()` + `validate_drf_response()` 통과 필수
+
+## 코드 규칙
+- 새 Repository: `search_cache` / `failure_cache` 캐싱 패턴 준수
+- 새 MCP 툴: `tools/list` 스키마 + `tools/call` 분기 + `format_mcp_response` 통과
+- 에러 응답: `{"error_code": "...", "error": "...", "recovery_guide": "..."}` 형식 통일
+- 로그: `logger.debug` (반복 경로), `logger.info` (중요 이벤트), 헤더 전체 노출 금지
+
+## 응답 형식
+- MCP 최종 응답: `format_mcp_response(result, tool_name)` 반드시 통과
+- 답변에 단정적 결론·이모지·조문 전체 인용 포함 금지
+- 판단 유보 문장 (`본 답변은 법적 판단을 대신하지 않으며...`) 필수
+
+## 테스트
+- 새 기능 추가 시 `tests/` 폴더에 대응 테스트 작성
+- API 키 없이 동작하는 순수 로직 테스트 우선

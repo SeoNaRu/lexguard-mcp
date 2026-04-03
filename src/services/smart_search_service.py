@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 from .api_router import APIRouter, DomainType, APICategory
+from ..utils.reranker import get_reranker
 from ..repositories.law_repository import LawRepository
 from ..repositories.law_detail import LawDetailRepository
 from ..repositories.precedent_repository import PrecedentRepository
@@ -53,7 +54,15 @@ class SmartSearchService:
             },
             "precedent": {
                 "keywords": ["판례", "대법원", "판결", "선고", "사건", "재판", "법원", "관련 판례", "관련사례"],
-                "patterns": [r"판례", r"대법원\s*\d+", r"사건번호", r"관련\s*판례", r"관련\s*사례"]
+                "patterns": [
+                    r"판례", r"대법원\s*\d+", r"사건번호", r"관련\s*판례", r"관련\s*사례",
+                    # 판례 번호 패턴: 2023다12345, 2019도4321, 2022나1234
+                    r"\d{4}[가나다라마바사아자차카타파하도]\d+",
+                    # 법원 + 번호: 대법원 2023다12345
+                    r"(?:대법원|고등법원|지방법원|가정법원)\s*\d{4}",
+                    # 공식 사건번호: "2023다 12345", "2021도1234"
+                    r"\d{4}\s*[가나다라마바사아자차카타파하도]\s*\d+",
+                ]
             },
             # 노동 세분화
             "labor_worker_status": {
@@ -78,7 +87,11 @@ class SmartSearchService:
             },
             "constitutional": {
                 "keywords": ["헌법재판소", "헌재", "위헌", "헌법", "헌법재판"],
-                "patterns": [r"헌법재판소", r"헌재", r"위헌"]
+                "patterns": [
+                    r"헌법재판소", r"헌재", r"위헌",
+                    # 헌재 결정번호: 2021헌마123, 2020헌바45
+                    r"\d{4}헌[마바가나다라]\d+",
+                ]
             },
             "committee": {
                 "keywords": ["위원회", "결정문", "개인정보보호위원회", "금융위원회", "노동위원회"],
@@ -102,6 +115,11 @@ class SmartSearchService:
             }
         }
     
+    # 헌법재판소 결정번호 패턴 (최우선 감지)
+    _CONST_CASE_RE = re.compile(r"\d{4}헌[마바가나다라]\d+")
+    # 일반 법원 사건번호 패턴
+    _COURT_CASE_RE = re.compile(r"\d{4}\s*[가나다라마바사아자차카타파하도]\s*\d+")
+
     def analyze_intent(self, query: str) -> List[Tuple[str, float]]:
         """
         사용자 질문의 의도를 분석하여 검색 타입과 신뢰도를 반환
@@ -109,6 +127,12 @@ class SmartSearchService:
         Returns:
             [(search_type, confidence), ...] - 신뢰도 순으로 정렬
         """
+        # 판례 번호 직접 입력 시 최우선 감지 (keyword scoring 우회)
+        if self._CONST_CASE_RE.search(query):
+            return [("constitutional", 1.0)]
+        if self._COURT_CASE_RE.search(query):
+            return [("precedent", 1.0)]
+
         query_lower = query.lower()
         scores = {}
         
@@ -268,6 +292,62 @@ class SmartSearchService:
         # 기본값: 원본 query
         return [query]
     
+    async def _fetch_category_v2(
+        self,
+        api_category: "APICategory",
+        cat_params: dict,
+        query: str,
+        max_results: int,
+        time_condition: Optional[dict],
+        arguments: Optional[dict],
+    ) -> tuple:
+        """
+        단일 API 카테고리를 비동기 조회 (comprehensive_search_v2 내부 병렬용).
+
+        Returns:
+            (api_category, result_dict | None)
+        """
+        import asyncio
+        try:
+            if api_category == APICategory.LAW:
+                target_laws = cat_params.get("target_laws", [])
+                if target_laws:
+                    law_tasks = [
+                        asyncio.to_thread(
+                            self.law_detail_repo.get_law,
+                            None, law_name, "detail", None, None, None, None, arguments,
+                        )
+                        for law_name in target_laws[:2]
+                    ]
+                    law_results = await asyncio.gather(*law_tasks, return_exceptions=True)
+                    laws = [
+                        r for r in law_results
+                        if isinstance(r, dict) and not r.get("error")
+                    ]
+                    return (api_category, {"laws": laws})
+                else:
+                    result = await asyncio.to_thread(
+                        self.law_search_repo.search_law,
+                        query, 1, max_results, arguments,
+                    )
+                    return (api_category, result)
+
+            elif api_category == APICategory.PRECEDENT:
+                result = await asyncio.to_thread(
+                    self.precedent_repo.search_precedent,
+                    query, 1, max_results,
+                    time_condition.get("date_from") if time_condition else None,
+                    time_condition.get("date_to") if time_condition else None,
+                    None, arguments,
+                )
+                return (api_category, result)
+
+            return (api_category, None)
+
+        except Exception as e:
+            logger.error("_fetch_category_v2 failed | category=%s error=%s", api_category.value, e)
+            return (api_category, None)
+
     async def comprehensive_search_v2(
         self,
         query: str,
@@ -278,84 +358,67 @@ class SmartSearchService:
         """
         완벽한 다단계 검색 파이프라인 (v2)
         - API Router 기반으로 172개 API 활용
-        - 도메인 감지 → Intent 분류 → API 순서 계획 → 다단계 검색
-        
+        - 도메인 감지 → Intent 분류 → API 순서 계획 → 병렬 검색
+
         Args:
             query: 사용자 질문
             max_results_per_type: 타입당 최대 결과 수
             arguments: 추가 인자
             document_text: 문서 전문 (옵션)
-            
+
         Returns:
-            통합 검색 결과 (모든 API 결과 포함)
+            통합 검색 결과
         """
         import asyncio
-        import logging
-        logger = logging.getLogger("lexguard-mcp")
-        
+
         start_time = datetime.now()
-        
+
         # 1단계: 도메인 감지
         domain = self.api_router.detect_domain(query, document_text)
-        logger.info(f"Domain detected | domain={domain.value} query={query[:50]}")
-        
+        logger.info("Domain detected | domain=%s query=%s", domain.value, query[:50])
+
         # 2단계: Intent 분류
         intent_results = self.analyze_intent(query)
         primary_intent = intent_results[0][0] if intent_results else "general"
-        logger.info(f"Intent analyzed | intent={primary_intent}")
-        
+        logger.info("Intent analyzed | intent=%s", primary_intent)
+
         # 3단계: 시간 조건 파싱
         time_condition = self.parse_time_condition(query)
-        
+
         # 4단계: API 호출 순서 계획
         api_sequence = self.api_router.plan_api_sequence(query, domain, primary_intent, document_text)
-        logger.info(f"API sequence planned | steps={len(api_sequence)}")
-        
-        # 5단계: 다단계 검색 실행
-        all_results = {}
-        sources_count = {}
-        
-        for i, (api_category, params) in enumerate(api_sequence[:5], 1):  # 최대 5단계
-            try:
-                if api_category == APICategory.LAW:
-                    target_laws = params.get("target_laws", [])
-                    if target_laws:
-                        for law_name in target_laws[:2]:
-                            result = await asyncio.to_thread(
-                                self.law_detail_repo.get_law,
-                                None, law_name, "detail", None, None, None, None, arguments
-                            )
-                            if result and not result.get("error"):
-                                all_results.setdefault("laws", []).append(result)
-                    else:
-                        result = await asyncio.to_thread(
-                            self.law_search_repo.search_law,
-                            query, 1, max_results_per_type, arguments
-                        )
-                        if result and result.get("laws"):
-                            all_results["laws"] = result["laws"]
-                    sources_count["law"] = len(all_results.get("laws", []))
-                
-                elif api_category == APICategory.PRECEDENT:
-                    result = await asyncio.to_thread(
-                        self.precedent_repo.search_precedent,
-                        query, 1, max_results_per_type,
-                        time_condition.get("date_from") if time_condition else None,
-                        time_condition.get("date_to") if time_condition else None,
-                        None, arguments
-                    )
-                    if result and result.get("precedents"):
-                        all_results["precedents"] = result["precedents"]
-                        sources_count["precedent"] = len(result["precedents"])
-            except Exception as e:
-                logger.error(f"API call failed | category={api_category.value} error={e}")
-                continue
-        
+        logger.info("API sequence planned | steps=%d", len(api_sequence))
+
+        # 5단계: 병렬 검색 실행 (asyncio.gather)
+        gather_tasks = [
+            self._fetch_category_v2(cat, params, query, max_results_per_type, time_condition, arguments)
+            for cat, params in api_sequence[:5]
+        ]
+        raw_results = await asyncio.gather(*gather_tasks)
+        logger.info("Parallel fetch done | fetched=%d", len(raw_results))
+
         # 6단계: 결과 통합
+        all_results: Dict = {}
+        sources_count: Dict = {}
+
+        for api_category, result in raw_results:
+            if result is None:
+                continue
+            if api_category == APICategory.LAW:
+                laws = result.get("laws", [])
+                if laws:
+                    all_results["laws"] = laws
+                sources_count["law"] = len(all_results.get("laws", []))
+            elif api_category == APICategory.PRECEDENT:
+                precedents = result.get("precedents", [])
+                if precedents:
+                    all_results["precedents"] = precedents
+                    sources_count["precedent"] = len(precedents)
+
         total_sources = sum(sources_count.values())
         has_legal_basis = total_sources > 0
         elapsed = (datetime.now() - start_time).total_seconds()
-        
+
         return {
             "success": True,
             "success_transport": True,
@@ -369,7 +432,7 @@ class SmartSearchService:
             "total_sources": total_sources,
             "missing_reason": None if has_legal_basis else "NO_MATCH",
             "elapsed_seconds": elapsed,
-            "pipeline_version": "v2_complete_coverage"
+            "pipeline_version": "v2_parallel",
         }
     
     def extract_parameters(self, query: str, search_type: str) -> Dict:
@@ -566,6 +629,173 @@ class SmartSearchService:
         
         return params
     
+    async def _fetch_search_type(
+        self,
+        search_type: str,
+        params: dict,
+        query: str,
+        keyword_query: str,
+        max_results: int,
+        arguments: Optional[dict],
+    ) -> tuple:
+        """
+        단일 검색 타입을 비동기 조회하고 (search_type, result) 반환.
+        각 타입별 fallback 로직 포함. smart_search 내부 병렬용.
+
+        Returns:
+            (search_type, result_dict | None)
+        """
+        import asyncio
+        result = None
+        try:
+            if search_type == "law":
+                if "law_name" in params:
+                    mode = "single" if "article_number" in params else "detail"
+                    result = await asyncio.to_thread(
+                        self.law_detail_repo.get_law,
+                        None,
+                        params["law_name"],
+                        mode,
+                        params.get("article_number"),
+                        params.get("hang"),
+                        params.get("ho"),
+                        params.get("mok"),
+                        arguments,
+                    )
+                else:
+                    result = await asyncio.to_thread(
+                        self.law_search_repo.search_law, query, 1, max_results, arguments,
+                    )
+                    if result and "error" in result and not result.get("laws"):
+                        if keyword_query and keyword_query != query:
+                            logger.info("Law fallback: keyword '%s'", keyword_query)
+                            result = await asyncio.to_thread(
+                                self.law_search_repo.search_law, keyword_query, 1, max_results, arguments,
+                            )
+                    if result and "error" in result and not result.get("laws"):
+                        if any(k in query for k in ["근로", "노동", "해고", "퇴직", "임금", "프리랜서", "근로자"]):
+                            logger.info("Law fallback: '근로기준법' direct search")
+                            result = await asyncio.to_thread(
+                                self.law_detail_repo.get_law,
+                                None, "근로기준법", "detail", None, None, None, None, arguments,
+                            )
+
+            elif search_type == "precedent":
+                result = await asyncio.to_thread(
+                    self.precedent_repo.search_precedent,
+                    query, 1, max_results, None, None, None, arguments,
+                )
+                if result and "error" in result and not result.get("precedents"):
+                    if keyword_query and keyword_query != query:
+                        logger.info("Precedent fallback: keyword '%s'", keyword_query)
+                        result = await asyncio.to_thread(
+                            self.precedent_repo.search_precedent,
+                            keyword_query, 1, max_results, None, None, None, arguments,
+                        )
+                if result and "error" in result and not result.get("precedents"):
+                    kws = keyword_query.split()
+                    if len(kws) >= 2:
+                        short_q = " ".join(kws[:2])
+                        logger.info("Precedent fallback: short query '%s'", short_q)
+                        result = await asyncio.to_thread(
+                            self.precedent_repo.search_precedent,
+                            short_q, 1, max_results, None, None, None, arguments,
+                        )
+
+            elif search_type == "interpretation":
+                result = await asyncio.to_thread(
+                    self.interpretation_repo.search_law_interpretation,
+                    query, 1, max_results, params.get("agency"), arguments,
+                )
+                if result and "error" in result and not result.get("interpretations"):
+                    if keyword_query and keyword_query != query:
+                        logger.info("Interpretation fallback: keyword '%s'", keyword_query)
+                        result = await asyncio.to_thread(
+                            self.interpretation_repo.search_law_interpretation,
+                            keyword_query, 1, max_results, params.get("agency"), arguments,
+                        )
+
+            elif search_type == "administrative_appeal":
+                result = await asyncio.to_thread(
+                    self.appeal_repo.search_administrative_appeal,
+                    query, 1, max_results, None, None, arguments,
+                )
+
+            elif search_type == "constitutional":
+                result = await asyncio.to_thread(
+                    self.constitutional_repo.search_constitutional_decision,
+                    query, 1, max_results, None, None, arguments,
+                )
+
+            elif search_type == "committee" and "committee_type" in params:
+                result = await asyncio.to_thread(
+                    self.committee_repo.search_committee_decision,
+                    params["committee_type"], query, 1, max_results, arguments,
+                )
+
+            elif search_type == "special_appeal" and "tribunal_type" in params:
+                result = await asyncio.to_thread(
+                    self.special_appeal_repo.search_special_administrative_appeal,
+                    params["tribunal_type"], query, 1, max_results, arguments,
+                )
+
+            elif search_type == "ordinance":
+                result = await asyncio.to_thread(
+                    self.ordinance_repo.search_local_ordinance,
+                    query, None, 1, max_results, arguments,
+                )
+
+            elif search_type == "rule":
+                result = await asyncio.to_thread(
+                    self.rule_repo.search_administrative_rule,
+                    query, params.get("agency"), 1, max_results, arguments,
+                )
+
+            elif search_type == "comparison" and "law_name" in params:
+                compare_type = params.get("compare_type", "신구법")
+                result = await asyncio.to_thread(
+                    self.comparison_repo.compare_laws,
+                    params["law_name"], compare_type, arguments,
+                )
+
+            # 결과 필터링: 부분 데이터 있으면 포함, 에러만 있으면 None
+            if result:
+                has_data = "error" not in result or any(result.get(k) for k in [
+                    "laws", "precedents", "interpretations", "appeals",
+                    "decisions", "law_name", "law_id", "detail", "precedent", "interpretation",
+                ])
+                if not has_data:
+                    logger.debug("_fetch_search_type: error-only result | type=%s", search_type)
+                    return (search_type, None)
+
+                # Reranker 파이프라인: 리스트 결과를 쿼리 관련도 순으로 재정렬
+                _RERANK_KEYS = {
+                    "precedents": "precedents",
+                    "interpretations": "interpretations",
+                    "appeals": "appeals",
+                    "laws": "laws",
+                }
+                reranker = get_reranker()
+                for key in _RERANK_KEYS:
+                    items = result.get(key)
+                    if items and isinstance(items, list) and len(items) > 1:
+                        result[key] = reranker.rerank(items, query, method="hybrid")
+                        logger.debug(
+                            "Reranker applied | type=%s key=%s count=%d",
+                            search_type, key, len(items),
+                        )
+
+                return (search_type, result)
+
+        except Exception as e:
+            logger.exception("_fetch_search_type error | type=%s error=%s", search_type, e)
+            return (search_type, {
+                "error": str(e),
+                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요.",
+            })
+
+        return (search_type, None)
+
     async def smart_search(
         self,
         query: str,
@@ -693,248 +923,22 @@ class SmartSearchService:
         # 키워드 추출
         keyword_query = extract_keywords(query)
         
-        # 병렬 검색 실행
-        results = {}
-        
-        for search_type in search_types[:3]:  # 최대 3개 타입만 검색
-            try:
-                params = all_params.get(search_type, {"query": query})
-                params["per_page"] = max_results_per_type
-                params["page"] = 1
-                
-                if search_type == "law":
-                    if "law_name" in params:
-                        # get_law 시그니처: get_law(law_id=None, law_name=None, mode="detail", article_number=None, ...)
-                        mode = "single" if "article_number" in params else "detail"
-                        # 항, 호, 목 파라미터도 전달 (복잡한 파라미터 자동 추출 강화)
-                        result = await asyncio.to_thread(
-                            self.law_detail_repo.get_law,
-                            None,  # law_id
-                            params["law_name"],  # law_name
-                            mode,  # mode
-                            params.get("article_number"),  # article_number
-                            params.get("hang"),  # hang (자동 추출)
-                            params.get("ho"),  # ho (자동 추출)
-                            params.get("mok"),  # mok (자동 추출)
-                            arguments
-                        )
-                    else:
-                        # 첫 시도: 원본 query
-                        result = await asyncio.to_thread(
-                            self.law_search_repo.search_law,
-                            query,
-                            1,
-                            max_results_per_type,
-                            arguments
-                        )
-                        
-                        # 실패 시 Fallback: 키워드만으로 재시도
-                        if result and "error" in result and not result.get("laws"):
-                            if keyword_query and keyword_query != query:
-                                import logging
-                                logger = logging.getLogger("lexguard-mcp")
-                                logger.info(f"Law search fallback: using keywords '{keyword_query}' instead of full query")
-                                result = await asyncio.to_thread(
-                                    self.law_search_repo.search_law,
-                                    keyword_query,
-                                    1,
-                                    max_results_per_type,
-                                    arguments
-                                )
-                        
-                        # 여전히 실패 시: 도메인별 직접 법령명 검색
-                        if result and "error" in result and not result.get("laws"):
-                            # 노동 관련 키워드가 있으면 "근로기준법" 직접 검색
-                            if any(k in query for k in ["근로", "노동", "해고", "퇴직", "임금", "프리랜서", "근로자"]):
-                                import logging
-                                logger = logging.getLogger("lexguard-mcp")
-                                logger.info("Law search fallback: directly searching '근로기준법'")
-                                result = await asyncio.to_thread(
-                                    self.law_detail_repo.get_law,
-                                    None,
-                                    "근로기준법",
-                                    "detail",
-                                    None, None, None, None,
-                                    arguments
-                                )
-                
-                elif search_type == "precedent":
-                    # 첫 시도: 원본 query
-                    result = await asyncio.to_thread(
-                        self.precedent_repo.search_precedent,
-                        query,
-                        1,
-                        max_results_per_type,
-                        None,
-                        None,
-                        None,
-                        arguments
-                    )
-                    
-                    # 실패 시 Fallback: 키워드만으로 재시도
-                    if result and "error" in result and not result.get("precedents"):
-                        if keyword_query and keyword_query != query:
-                            import logging
-                            logger = logging.getLogger("lexguard-mcp")
-                            logger.info(f"Precedent search fallback: using keywords '{keyword_query}' instead of full query")
-                            result = await asyncio.to_thread(
-                                self.precedent_repo.search_precedent,
-                                keyword_query,
-                                1,
-                                max_results_per_type,
-                                None,
-                                None,
-                                None,
-                                arguments
-                            )
-                    
-                    # 여전히 실패 시: 핵심 키워드 1-2개만으로 재시도
-                    if result and "error" in result and not result.get("precedents"):
-                        keywords = keyword_query.split()
-                        if len(keywords) >= 2:
-                            # 가장 긴 키워드 2개만 사용
-                            short_query = " ".join(keywords[:2])
-                            import logging
-                            logger = logging.getLogger("lexguard-mcp")
-                            logger.info(f"Precedent search fallback: using short query '{short_query}'")
-                            result = await asyncio.to_thread(
-                                self.precedent_repo.search_precedent,
-                                short_query,
-                                1,
-                                max_results_per_type,
-                                None,
-                                None,
-                                None,
-                                arguments
-                            )
-                
-                elif search_type == "interpretation":
-                    # 첫 시도: 원본 query
-                    result = await asyncio.to_thread(
-                        self.interpretation_repo.search_law_interpretation,
-                        query,
-                        1,
-                        max_results_per_type,
-                        params.get("agency"),  # 부처명 전달
-                        arguments
-                    )
-                    
-                    # 실패 시 Fallback: 키워드만으로 재시도
-                    if result and "error" in result and not result.get("interpretations"):
-                        if keyword_query and keyword_query != query:
-                            import logging
-                            logger = logging.getLogger("lexguard-mcp")
-                            logger.info(f"Interpretation search fallback: using keywords '{keyword_query}' instead of full query")
-                            result = await asyncio.to_thread(
-                                self.interpretation_repo.search_law_interpretation,
-                                keyword_query,
-                                1,
-                                max_results_per_type,
-                                params.get("agency"),
-                                arguments
-                            )
-                
-                elif search_type == "administrative_appeal":
-                    result = await asyncio.to_thread(
-                        self.appeal_repo.search_administrative_appeal,
-                        query,
-                        1,
-                        max_results_per_type,
-                        None,
-                        None,
-                        arguments
-                    )
-                
-                elif search_type == "constitutional":
-                    result = await asyncio.to_thread(
-                        self.constitutional_repo.search_constitutional_decision,
-                        query,
-                        1,
-                        max_results_per_type,
-                        None,
-                        None,
-                        arguments
-                    )
-                
-                elif search_type == "committee" and "committee_type" in params:
-                    result = await asyncio.to_thread(
-                        self.committee_repo.search_committee_decision,
-                        params["committee_type"],
-                        query,
-                        1,
-                        max_results_per_type,
-                        arguments
-                    )
-                
-                elif search_type == "special_appeal" and "tribunal_type" in params:
-                    result = await asyncio.to_thread(
-                        self.special_appeal_repo.search_special_administrative_appeal,
-                        params["tribunal_type"],
-                        query,
-                        1,
-                        max_results_per_type,
-                        arguments
-                    )
-                
-                elif search_type == "ordinance":
-                    result = await asyncio.to_thread(
-                        self.ordinance_repo.search_local_ordinance,
-                        query,
-                        None,
-                        1,
-                        max_results_per_type,
-                        arguments
-                    )
-                
-                elif search_type == "rule":
-                    result = await asyncio.to_thread(
-                        self.rule_repo.search_administrative_rule,
-                        query,
-                        params.get("agency"),  # 부처명 전달
-                        1,
-                        max_results_per_type,
-                        arguments
-                    )
-                
-                elif search_type == "comparison" and "law_name" in params:
-                    # 법령 비교는 law_name이 필요
-                    compare_type = params.get("compare_type", "신구법")
-                    result = await asyncio.to_thread(
-                        self.comparison_repo.compare_laws,
-                        params["law_name"],
-                        compare_type,
-                        arguments
-                    )
-                
-                else:
-                    continue
-                
-                # 결과가 있으면 추가
-                if result:
-                    # 에러가 없으면 무조건 추가
-                    if "error" not in result:
-                        results[search_type] = result
-                    # 에러가 있어도 부분 결과가 있으면 추가
-                    elif (result.get("laws") or result.get("precedents") or 
-                          result.get("interpretations") or result.get("appeals") or 
-                          result.get("decisions") or result.get("law_name") or 
-                          result.get("law_id") or result.get("detail") or
-                          result.get("precedent") or result.get("interpretation")):
-                        results[search_type] = result
-                    else:
-                        # 에러만 있고 결과가 없으면 로깅만 하고 추가하지 않음
-                        logger.debug(f"Result for {search_type} has error and no data: {result.get('error', 'Unknown error')}")
-                    
-            except Exception as e:
-                logger.exception(f"Error in smart_search for {search_type}: {e}")
-                # 에러도 결과에 포함하여 디버깅 가능하게
-                results[search_type] = {
-                    "error": str(e),
-                    "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
-                }
-        
-        # 부분 실패 처리 개선
-        successful_types = []
+        # 병렬 검색 실행 (asyncio.gather)
+        gather_tasks = [
+            self._fetch_search_type(
+                st,
+                dict(all_params.get(st, {"query": query}), per_page=max_results_per_type, page=1),
+                query,
+                keyword_query,
+                max_results_per_type,
+                arguments,
+            )
+            for st in search_types[:3]
+        ]
+        raw_type_results = await asyncio.gather(*gather_tasks)
+        results = {st: res for st, res in raw_type_results if res is not None}
+
+
         failed_types = []
         partial_success = False
         
