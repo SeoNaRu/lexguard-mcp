@@ -2,6 +2,7 @@
 Smart Search Service - 사용자 질문을 분석하여 적절한 API를 자동 선택
 """
 import re
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 from .api_router import APIRouter, DomainType, APICategory
@@ -17,6 +18,8 @@ from ..repositories.special_administrative_appeal_repository import SpecialAdmin
 from ..repositories.local_ordinance_repository import LocalOrdinanceRepository
 from ..repositories.administrative_rule_repository import AdministrativeRuleRepository
 from ..repositories.law_comparison_repository import LawComparisonRepository
+
+logger = logging.getLogger("lexguard-mcp")
 
 
 class SmartSearchService:

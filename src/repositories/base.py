@@ -218,6 +218,9 @@ class BaseLawRepository:
         Returns:
             6자리 숫자 문자열 (예: '000100')
         """
+        # int 등 비문자열 타입 가드
+        if isinstance(article_str, (int, float)):
+            article_str = str(int(article_str))
         if not article_str:
             return "000000"
         
