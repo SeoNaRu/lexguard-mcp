@@ -1,7 +1,8 @@
 """
 Law Comparison Repository - 법령 비교 및 연혁 조회 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 from typing import Optional
 from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_URL, search_cache, failure_cache
@@ -10,7 +11,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_UR
 class LawComparisonRepository(BaseLawRepository):
     """법령 비교 및 연혁 조회 관련 기능을 담당하는 Repository"""
 
-    def compare_laws(
+    async def compare_laws(
         self,
         law_name: str,
         compare_type: str = "신구법",
@@ -40,7 +41,7 @@ class LawComparisonRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
+            search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=10)
 
             invalid_search = self.validate_drf_response(search_response)
             if invalid_search:
@@ -110,7 +111,7 @@ class LawComparisonRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -139,7 +140,7 @@ class LawComparisonRepository(BaseLawRepository):
             search_cache[cache_key] = result
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_result = {
                 "error": "API 호출 타임아웃",
                 "law_name": law_name,
@@ -148,7 +149,7 @@ class LawComparisonRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_result = {
                 "error": f"API 요청 실패: {str(e)}",
                 "law_name": law_name,

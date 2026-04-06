@@ -4,7 +4,6 @@ MCP Resources 엔드포인트 테스트
 resource_handlers.py의 build_resources_list / parse_resource_uri / 텍스트 포맷 함수를 검증.
 read_resource 는 실제 API 호출이 필요해서 URI 파싱 + 에러 응답만 단위 테스트.
 """
-import pytest
 from src.routes.resource_handlers import (
     build_resources_list,
     parse_resource_uri,
@@ -49,7 +48,7 @@ class TestBuildResourcesList:
         result = build_resources_list()
         for r in result["resources"]:
             assert "uri" in r
-            assert r["uri"].startswith("law://")
+            assert r["uri"].startswith("law://") or r["uri"].startswith("lexguard://")
 
     def test_each_resource_has_name_and_description(self):
         result = build_resources_list()
@@ -61,15 +60,16 @@ class TestBuildResourcesList:
     def test_each_resource_has_mime_type(self):
         result = build_resources_list()
         for r in result["resources"]:
-            assert r.get("mimeType") == "text/plain"
+            assert r.get("mimeType") in ("text/plain", "text/markdown")
 
     def test_templates_cover_all_schemes(self):
         result = build_resources_list()
         templates = result["resourceTemplates"]
         uri_templates = [t["uriTemplate"] for t in templates]
-        assert any("law://" in u for u in uri_templates)
+        assert sum(1 for u in uri_templates if u.startswith("law://")) >= 3
         assert any("case://" in u for u in uri_templates)
         assert any("interpret://" in u for u in uri_templates)
+        assert any("appeal://" in u for u in uri_templates)
 
     def test_templates_have_required_fields(self):
         result = build_resources_list()
@@ -83,6 +83,11 @@ class TestBuildResourcesList:
         result = build_resources_list()
         uris = [r["uri"] for r in result["resources"]]
         assert "law://근로기준법" in uris
+
+    def test_integration_handbook_present(self):
+        result = build_resources_list()
+        uris = [r["uri"] for r in result["resources"]]
+        assert "lexguard://integration-handbook" in uris
 
 
 # ---------------------------------------------------------------------------

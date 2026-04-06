@@ -1,7 +1,6 @@
 """
 Law Interpretation Service - 법령해석 관련 비즈니스 로직
 """
-import asyncio
 from typing import Optional
 from ..repositories.law_interpretation_repository import LawInterpretationRepository
 from ..models import SearchLawInterpretationRequest, GetLawInterpretationRequest
@@ -22,8 +21,7 @@ class LawInterpretationService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.search_law_interpretation,
+            return await self.repository.search_law_interpretation(
                 req.query,
                 req.page,
                 req.per_page,
@@ -45,8 +43,7 @@ class LawInterpretationService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.get_law_interpretation,
+            return await self.repository.get_law_interpretation(
                 req.interpretation_id,
                 arguments
             )
@@ -55,4 +52,3 @@ class LawInterpretationService:
                 "error": f"법령해석 조회 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-

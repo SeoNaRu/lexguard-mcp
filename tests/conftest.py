@@ -70,3 +70,16 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_api: API 키가 필요한 통합 테스트 (LAW_API_KEY 환경변수)"
     )
+    config.addinivalue_line(
+        "markers", "requires_eflaw_e2e: eflawjosub 실네트워크 스모크 (LEXGUARD_RUN_EFLAW_E2E=1)"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """requires_eflaw_e2e: LEXGUARD_RUN_EFLAW_E2E!=1 이면 스킵"""
+    if os.environ.get("LEXGUARD_RUN_EFLAW_E2E") == "1":
+        return
+    skip_e2e = pytest.mark.skip(reason="LEXGUARD_RUN_EFLAW_E2E=1 일 때만 실행")
+    for item in items:
+        if "requires_eflaw_e2e" in [m.name for m in item.iter_markers()]:
+            item.add_marker(skip_e2e)

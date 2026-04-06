@@ -1,7 +1,6 @@
 """
 Committee Decision Service - 위원회 결정문 관련 비즈니스 로직
 """
-import asyncio
 from typing import Optional
 from ..repositories.committee_decision_repository import CommitteeDecisionRepository
 from ..models import SearchCommitteeDecisionRequest, GetCommitteeDecisionRequest
@@ -22,8 +21,7 @@ class CommitteeDecisionService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.search_committee_decision,
+            return await self.repository.search_committee_decision(
                 req.committee_type,
                 req.query,
                 req.page,
@@ -45,8 +43,7 @@ class CommitteeDecisionService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.get_committee_decision,
+            return await self.repository.get_committee_decision(
                 req.committee_type,
                 req.decision_id,
                 arguments
@@ -56,4 +53,3 @@ class CommitteeDecisionService:
                 "error": f"위원회 결정문 조회 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-

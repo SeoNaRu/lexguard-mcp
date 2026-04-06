@@ -63,10 +63,9 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
     @api.get("/check-ip")
     async def check_server_ip():
         """서버의 실제 발신 IP 확인 (법령정보센터 등록용)"""
-        import requests
+        from ..utils.http_client import async_get
         try:
-            # 외부 IP 확인 서비스 호출
-            response = requests.get("https://api.ipify.org?format=json", timeout=5)
+            response = await async_get("https://api.ipify.org?format=json", timeout=5.0)
             external_ip = response.json().get("ip", "Unknown")
             return {
                 "server_external_ip": external_ip,

@@ -1,7 +1,8 @@
 """
 Administrative Rule Repository - 행정규칙 검색 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 from typing import Optional
 from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, failure_cache
@@ -10,7 +11,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, f
 class AdministrativeRuleRepository(BaseLawRepository):
     """행정규칙 검색 관련 기능을 담당하는 Repository"""
 
-    def search_administrative_rule(
+    async def search_administrative_rule(
         self,
         query: Optional[str] = None,
         agency: Optional[str] = None,
@@ -60,7 +61,7 @@ class AdministrativeRuleRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -127,14 +128,14 @@ class AdministrativeRuleRepository(BaseLawRepository):
             search_cache[cache_key] = result
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_result = {
                 "error": "API 호출 타임아웃",
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_result = {
                 "error": f"API 요청 실패: {str(e)}",
                 "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."

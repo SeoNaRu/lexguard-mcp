@@ -1,7 +1,8 @@
 """
 Precedent Repository - 판례 검색 및 조회 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 from typing import Optional, List, Dict
 from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_URL, search_cache, failure_cache
@@ -19,7 +20,7 @@ from ..utils.axis_query_builder import get_axis_query_builder
 class PrecedentRepository(BaseLawRepository):
     """판례 검색 및 조회 관련 기능을 담당하는 Repository"""
 
-    def search_precedent(
+    async def search_precedent(
         self,
         query: Optional[str] = None,
         page: int = 1,
@@ -86,7 +87,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -158,7 +159,7 @@ class PrecedentRepository(BaseLawRepository):
 
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
@@ -169,7 +170,7 @@ class PrecedentRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             error_result = {
@@ -186,7 +187,7 @@ class PrecedentRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
-    def _search_precedent_internal(
+    async def _search_precedent_internal(
         self,
         query: Optional[str] = None,
         page: int = 1,
@@ -224,7 +225,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -284,14 +285,14 @@ class PrecedentRepository(BaseLawRepository):
 
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             return {
                 "error_code": "API_ERROR_TIMEOUT",
                 "missing_reason": "API_ERROR_TIMEOUT",
                 "error": "API 호출 타임아웃",
                 "query": query
             }
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             return {
                 "error": f"API 요청 실패: {str(e)}",
                 "query": query
@@ -302,7 +303,7 @@ class PrecedentRepository(BaseLawRepository):
                 "query": query
             }
 
-    def search_precedent_with_fallback(
+    async def search_precedent_with_fallback(
         self,
         query: Optional[str] = None,
         page: int = 1,
@@ -350,7 +351,7 @@ class PrecedentRepository(BaseLawRepository):
         if query:
             logger.debug("Step A: Original query | query=%r date_from=%r date_to=%r",
                         query, date_from, date_to)
-            result = self._search_precedent_internal(
+            result = await self._search_precedent_internal(
                 query, page, per_page, court, date_from, date_to, arguments
             )
             attempts.append({
@@ -392,7 +393,7 @@ class PrecedentRepository(BaseLawRepository):
 
             logger.debug("Step B: Query set | query=%r strategy=%s",
                         q, q_plan.get("strategy"))
-            result = self._search_precedent_internal(
+            result = await self._search_precedent_internal(
                 q, page, per_page, court, date_from, date_to, arguments
             )
             attempts.append({
@@ -433,7 +434,7 @@ class PrecedentRepository(BaseLawRepository):
 
             # 원본 쿼리로 다시 시도
             if original_query:
-                result = self._search_precedent_internal(
+                result = await self._search_precedent_internal(
                     original_query, page, per_page, court, expanded_from, expanded_to, arguments
                 )
                 attempts.append({
@@ -468,7 +469,7 @@ class PrecedentRepository(BaseLawRepository):
                 keyword_query = " ".join(keywords[:3])  # 상위 3개만
                 logger.debug("Step D: Keyword only | query=%r", keyword_query)
 
-                result = self._search_precedent_internal(
+                result = await self._search_precedent_internal(
                     keyword_query, page, per_page, court, None, None, arguments  # 날짜 제한 없음
                 )
                 attempts.append({
@@ -634,7 +635,7 @@ class PrecedentRepository(BaseLawRepository):
             "axis_queries": axis_queries if axis_queries else None
         }
 
-    def get_precedent(
+    async def get_precedent(
         self,
         precedent_id: Optional[str] = None,
         case_number: Optional[str] = None,
@@ -661,7 +662,7 @@ class PrecedentRepository(BaseLawRepository):
 
         # case_number로 검색해서 precedent_id 찾기
         if case_number and not precedent_id:
-            search_result = self.search_precedent(query=case_number, per_page=1, arguments=arguments)
+            search_result = await self.search_precedent(query=case_number, per_page=1, arguments=arguments)
             if "error" in search_result:
                 return search_result
 
@@ -708,7 +709,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -737,7 +738,7 @@ class PrecedentRepository(BaseLawRepository):
 
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
@@ -749,7 +750,7 @@ class PrecedentRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             error_result = {"error": error_msg, "precedent_id": precedent_id}

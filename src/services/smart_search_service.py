@@ -13,8 +13,14 @@ from ..repositories.precedent_repository import PrecedentRepository
 from ..repositories.law_interpretation_repository import LawInterpretationRepository
 from ..repositories.administrative_appeal_repository import AdministrativeAppealRepository
 from ..repositories.constitutional_decision_repository import ConstitutionalDecisionRepository
-from ..repositories.committee_decision_repository import CommitteeDecisionRepository
-from ..repositories.special_administrative_appeal_repository import SpecialAdministrativeAppealRepository
+from ..repositories.committee_decision_repository import (
+    CommitteeDecisionRepository,
+    COMMITTEE_TARGET_MAP,
+)
+from ..repositories.special_administrative_appeal_repository import (
+    SpecialAdministrativeAppealRepository,
+    TRIBUNAL_TARGET_MAP,
+)
 from ..repositories.local_ordinance_repository import LocalOrdinanceRepository
 from ..repositories.administrative_rule_repository import AdministrativeRuleRepository
 from ..repositories.law_comparison_repository import LawComparisonRepository
@@ -122,6 +128,20 @@ class SmartSearchService:
     _CONST_CASE_RE = re.compile(r"\d{4}헌[마바가나다라]\d+")
     # 일반 법원 사건번호 패턴
     _COURT_CASE_RE = re.compile(r"\d{4}\s*[가나다라마바사아자차카타파하도]\s*\d+")
+
+    _RERANK_LIST_KEYS = ("precedents", "interpretations", "appeals", "laws")
+
+    def _apply_rerank_lists(self, query: str, result: Optional[dict]) -> Optional[dict]:
+        """검색 결과 내 리스트 필드를 쿼리 관련도 기준 hybrid rerank (in-place)."""
+        if not result or not isinstance(result, dict):
+            return result
+        reranker = get_reranker()
+        for key in self._RERANK_LIST_KEYS:
+            items = result.get(key)
+            if items and isinstance(items, list) and len(items) > 1:
+                result[key] = reranker.rerank(items, query, method="hybrid")
+                logger.debug("Reranker | key=%s count=%d", key, len(items))
+        return result
 
     def analyze_intent(self, query: str) -> List[Tuple[str, float]]:
         """
@@ -314,8 +334,7 @@ class SmartSearchService:
                 target_laws = cat_params.get("target_laws", [])
                 if target_laws:
                     law_tasks = [
-                        asyncio.to_thread(
-                            self.law_detail_repo.get_law,
+                        self.law_detail_repo.get_law(
                             None, law_name, "detail", None, None, None, None, arguments,
                         )
                         for law_name in target_laws[:2]
@@ -325,22 +344,26 @@ class SmartSearchService:
                         r for r in law_results
                         if isinstance(r, dict) and not r.get("error")
                     ]
-                    return (api_category, {"laws": laws})
+                    merged = {"laws": laws}
+                    return (api_category, self._apply_rerank_lists(query, merged))
                 else:
-                    result = await asyncio.to_thread(
-                        self.law_search_repo.search_law,
+                    result = await self.law_search_repo.search_law(
                         query, 1, max_results, arguments,
                     )
+                    self._apply_rerank_lists(query, result)
                     return (api_category, result)
 
             elif api_category == APICategory.PRECEDENT:
-                result = await asyncio.to_thread(
-                    self.precedent_repo.search_precedent,
-                    query, 1, max_results,
+                result = await self.precedent_repo.search_precedent(
+                    query,
+                    1,
+                    max_results,
+                    None,
                     time_condition.get("date_from") if time_condition else None,
                     time_condition.get("date_to") if time_condition else None,
-                    None, arguments,
+                    arguments,
                 )
+                self._apply_rerank_lists(query, result)
                 return (api_category, result)
 
             return (api_category, None)
@@ -348,6 +371,180 @@ class SmartSearchService:
         except Exception as e:
             logger.error("_fetch_category_v2 failed | category=%s error=%s", api_category.value, e)
             return (api_category, None)
+
+    async def precedent_lookup(
+        self,
+        keyword: Optional[str] = None,
+        case_number: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 10,
+        court: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """판례만 검색 (사건번호 또는 키워드). 통합 legal_qa_tool과 구분해 에이전트가 선택하기 쉽게 함."""
+        q = (case_number or "").strip() or (keyword or "").strip()
+        if not q:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "사건번호 또는 검색 키워드 중 하나는 필요합니다.",
+                "recovery_guide": "case_number(예: 2023다12345) 또는 keyword를 입력하세요.",
+            }
+        result = await self.precedent_repo.search_precedent(
+            q,
+            page,
+            per_page,
+            court,
+            date_from,
+            date_to,
+            arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(q, result)
+        return result
+
+    async def interpretation_lookup(
+        self,
+        query: str,
+        page: int = 1,
+        per_page: int = 10,
+        agency: Optional[str] = None,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """법령해석만 검색."""
+        qq = (query or "").strip()
+        if not qq:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어가 비어 있습니다.",
+                "recovery_guide": "법령해석 검색어(키워드)를 입력하세요.",
+            }
+        result = await self.interpretation_repo.search_law_interpretation(
+            qq,
+            page,
+            per_page,
+            agency,
+            arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(qq, result)
+        return result
+
+    async def administrative_appeal_lookup(
+        self,
+        query: str,
+        page: int = 1,
+        per_page: int = 10,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """행정심판 재결만 검색."""
+        qq = (query or "").strip()
+        if not qq:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어가 비어 있습니다.",
+                "recovery_guide": "행정심판 재결 검색어를 입력하세요.",
+            }
+        result = await self.appeal_repo.search_administrative_appeal(
+            qq,
+            page,
+            per_page,
+            date_from,
+            date_to,
+            arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(qq, result)
+        return result
+
+    async def constitutional_decision_lookup(
+        self,
+        query: str,
+        page: int = 1,
+        per_page: int = 10,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """헌법재판소 결정만 검색."""
+        qq = (query or "").strip()
+        if not qq:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어가 비어 있습니다.",
+                "recovery_guide": "헌재결정 검색어(키워드 또는 사건번호 형태)를 입력하세요.",
+            }
+        result = await self.constitutional_repo.search_constitutional_decision(
+            qq, page, per_page, date_from, date_to, arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(qq, result)
+        return result
+
+    async def committee_decision_lookup(
+        self,
+        committee_type: str,
+        query: str,
+        page: int = 1,
+        per_page: int = 10,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """위원회 결정문만 검색."""
+        ct = (committee_type or "").strip()
+        if ct not in COMMITTEE_TARGET_MAP:
+            return {
+                "error_code": "INVALID_COMMITTEE",
+                "error": f"지원하지 않는 위원회 종류입니다: {committee_type}",
+                "recovery_guide": "지원: " + ", ".join(sorted(COMMITTEE_TARGET_MAP.keys())),
+                "supported_committees": list(COMMITTEE_TARGET_MAP.keys()),
+            }
+        qq = (query or "").strip()
+        if not qq:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어가 비어 있습니다.",
+                "recovery_guide": "결정문 검색어를 입력하세요.",
+            }
+        result = await self.committee_repo.search_committee_decision(
+            ct, qq, page, per_page, arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(qq, result)
+        return result
+
+    async def special_administrative_appeal_lookup(
+        self,
+        tribunal_type: str,
+        query: str,
+        page: int = 1,
+        per_page: int = 10,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """특별행정심판원 재결만 검색."""
+        tt = (tribunal_type or "").strip()
+        if tt not in TRIBUNAL_TARGET_MAP:
+            return {
+                "error_code": "INVALID_TRIBUNAL",
+                "error": f"지원하지 않는 심판원입니다: {tribunal_type}",
+                "recovery_guide": "지원: " + ", ".join(sorted(TRIBUNAL_TARGET_MAP.keys())),
+                "supported_tribunals": list(TRIBUNAL_TARGET_MAP.keys()),
+            }
+        qq = (query or "").strip()
+        if not qq:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어가 비어 있습니다.",
+                "recovery_guide": "재결 검색어를 입력하세요.",
+            }
+        result = await self.special_appeal_repo.search_special_administrative_appeal(
+            tt, qq, page, per_page, arguments,
+        )
+        if isinstance(result, dict):
+            self._apply_rerank_lists(qq, result)
+        return result
 
     async def comprehensive_search_v2(
         self,
@@ -646,14 +843,12 @@ class SmartSearchService:
         Returns:
             (search_type, result_dict | None)
         """
-        import asyncio
         result = None
         try:
             if search_type == "law":
                 if "law_name" in params:
                     mode = "single" if "article_number" in params else "detail"
-                    result = await asyncio.to_thread(
-                        self.law_detail_repo.get_law,
+                    result = await self.law_detail_repo.get_law(
                         None,
                         params["law_name"],
                         mode,
@@ -664,33 +859,28 @@ class SmartSearchService:
                         arguments,
                     )
                 else:
-                    result = await asyncio.to_thread(
-                        self.law_search_repo.search_law, query, 1, max_results, arguments,
-                    )
+                    result = await self.law_search_repo.search_law(query, 1, max_results, arguments)
                     if result and "error" in result and not result.get("laws"):
                         if keyword_query and keyword_query != query:
                             logger.info("Law fallback: keyword '%s'", keyword_query)
-                            result = await asyncio.to_thread(
-                                self.law_search_repo.search_law, keyword_query, 1, max_results, arguments,
+                            result = await self.law_search_repo.search_law(
+                                keyword_query, 1, max_results, arguments,
                             )
                     if result and "error" in result and not result.get("laws"):
                         if any(k in query for k in ["근로", "노동", "해고", "퇴직", "임금", "프리랜서", "근로자"]):
                             logger.info("Law fallback: '근로기준법' direct search")
-                            result = await asyncio.to_thread(
-                                self.law_detail_repo.get_law,
+                            result = await self.law_detail_repo.get_law(
                                 None, "근로기준법", "detail", None, None, None, None, arguments,
                             )
 
             elif search_type == "precedent":
-                result = await asyncio.to_thread(
-                    self.precedent_repo.search_precedent,
+                result = await self.precedent_repo.search_precedent(
                     query, 1, max_results, None, None, None, arguments,
                 )
                 if result and "error" in result and not result.get("precedents"):
                     if keyword_query and keyword_query != query:
                         logger.info("Precedent fallback: keyword '%s'", keyword_query)
-                        result = await asyncio.to_thread(
-                            self.precedent_repo.search_precedent,
+                        result = await self.precedent_repo.search_precedent(
                             keyword_query, 1, max_results, None, None, None, arguments,
                         )
                 if result and "error" in result and not result.get("precedents"):
@@ -698,64 +888,54 @@ class SmartSearchService:
                     if len(kws) >= 2:
                         short_q = " ".join(kws[:2])
                         logger.info("Precedent fallback: short query '%s'", short_q)
-                        result = await asyncio.to_thread(
-                            self.precedent_repo.search_precedent,
+                        result = await self.precedent_repo.search_precedent(
                             short_q, 1, max_results, None, None, None, arguments,
                         )
 
             elif search_type == "interpretation":
-                result = await asyncio.to_thread(
-                    self.interpretation_repo.search_law_interpretation,
+                result = await self.interpretation_repo.search_law_interpretation(
                     query, 1, max_results, params.get("agency"), arguments,
                 )
                 if result and "error" in result and not result.get("interpretations"):
                     if keyword_query and keyword_query != query:
                         logger.info("Interpretation fallback: keyword '%s'", keyword_query)
-                        result = await asyncio.to_thread(
-                            self.interpretation_repo.search_law_interpretation,
+                        result = await self.interpretation_repo.search_law_interpretation(
                             keyword_query, 1, max_results, params.get("agency"), arguments,
                         )
 
             elif search_type == "administrative_appeal":
-                result = await asyncio.to_thread(
-                    self.appeal_repo.search_administrative_appeal,
+                result = await self.appeal_repo.search_administrative_appeal(
                     query, 1, max_results, None, None, arguments,
                 )
 
             elif search_type == "constitutional":
-                result = await asyncio.to_thread(
-                    self.constitutional_repo.search_constitutional_decision,
+                result = await self.constitutional_repo.search_constitutional_decision(
                     query, 1, max_results, None, None, arguments,
                 )
 
             elif search_type == "committee" and "committee_type" in params:
-                result = await asyncio.to_thread(
-                    self.committee_repo.search_committee_decision,
+                result = await self.committee_repo.search_committee_decision(
                     params["committee_type"], query, 1, max_results, arguments,
                 )
 
             elif search_type == "special_appeal" and "tribunal_type" in params:
-                result = await asyncio.to_thread(
-                    self.special_appeal_repo.search_special_administrative_appeal,
+                result = await self.special_appeal_repo.search_special_administrative_appeal(
                     params["tribunal_type"], query, 1, max_results, arguments,
                 )
 
             elif search_type == "ordinance":
-                result = await asyncio.to_thread(
-                    self.ordinance_repo.search_local_ordinance,
+                result = await self.ordinance_repo.search_local_ordinance(
                     query, None, 1, max_results, arguments,
                 )
 
             elif search_type == "rule":
-                result = await asyncio.to_thread(
-                    self.rule_repo.search_administrative_rule,
+                result = await self.rule_repo.search_administrative_rule(
                     query, params.get("agency"), 1, max_results, arguments,
                 )
 
             elif search_type == "comparison" and "law_name" in params:
                 compare_type = params.get("compare_type", "신구법")
-                result = await asyncio.to_thread(
-                    self.comparison_repo.compare_laws,
+                result = await self.comparison_repo.compare_laws(
                     params["law_name"], compare_type, arguments,
                 )
 
@@ -769,23 +949,7 @@ class SmartSearchService:
                     logger.debug("_fetch_search_type: error-only result | type=%s", search_type)
                     return (search_type, None)
 
-                # Reranker 파이프라인: 리스트 결과를 쿼리 관련도 순으로 재정렬
-                _RERANK_KEYS = {
-                    "precedents": "precedents",
-                    "interpretations": "interpretations",
-                    "appeals": "appeals",
-                    "laws": "laws",
-                }
-                reranker = get_reranker()
-                for key in _RERANK_KEYS:
-                    items = result.get(key)
-                    if items and isinstance(items, list) and len(items) > 1:
-                        result[key] = reranker.rerank(items, query, method="hybrid")
-                        logger.debug(
-                            "Reranker applied | type=%s key=%s count=%d",
-                            search_type, key, len(items),
-                        )
-
+                self._apply_rerank_lists(query, result)
                 return (search_type, result)
 
         except Exception as e:

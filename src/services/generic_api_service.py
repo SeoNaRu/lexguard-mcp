@@ -2,7 +2,6 @@
 범용 API 서비스
 범용 API 호출을 위한 비즈니스 로직 처리
 """
-import asyncio
 from typing import Optional, Dict, Any
 from ..repositories.generic_api_repository import GenericAPIRepository
 
@@ -21,8 +20,7 @@ class GenericAPIService:
     ) -> Dict:
         """API를 호출합니다"""
         try:
-            return await asyncio.to_thread(
-                self.repository.call_api,
+            return await self.repository.call_api(
                 api_id,
                 params,
                 arguments
@@ -36,20 +34,14 @@ class GenericAPIService:
     async def get_api_info(self, api_id: int) -> Optional[Dict]:
         """API 정보를 조회합니다"""
         try:
-            return await asyncio.to_thread(
-                self.repository.get_api_info,
-                api_id
-            )
+            return self.repository.get_api_info(api_id)
         except Exception:
             return None
 
     async def list_available_apis(self, category: Optional[str] = None) -> list:
         """사용 가능한 API 목록을 조회합니다"""
         try:
-            return await asyncio.to_thread(
-                self.repository.list_available_apis,
-                category
-            )
+            return self.repository.list_available_apis(category)
         except Exception:
             return []
 

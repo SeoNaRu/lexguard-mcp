@@ -2,7 +2,6 @@
 Law Service - 법령 관련 비즈니스 로직
 Service 패턴: 비즈니스 로직을 처리하고 Repository를 호출
 """
-import asyncio
 from typing import Optional
 from ..repositories.law_repository import LawRepository
 from ..models import SearchLawRequest, GetLawRequest, ListLawNamesRequest, GetLawDetailRequest, GetLawArticlesRequest, GetSingleArticleRequest
@@ -20,8 +19,7 @@ class LawService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.search_law,
+            return await self.repository.search_law(
                 req.query,
                 req.page,
                 req.per_page,
@@ -58,8 +56,7 @@ class LawService:
             normalized_mok = normalize_mok(req.mok) if req.mok else None
 
             # Repository에서 원본 결과 조회
-            raw_result = await asyncio.to_thread(
-                self.repository.get_law,
+            raw_result = await self.repository.get_law(
                 req.law_id,
                 req.law_name,
                 req.mode,
@@ -141,8 +138,7 @@ class LawService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.list_law_names,
+            return await self.repository.list_law_names(
                 req.page,
                 req.per_page,
                 req.query,
@@ -159,8 +155,7 @@ class LawService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.get_law_detail,
+            return await self.repository.get_law_detail(
                 req.law_name,
                 arguments
             )
@@ -181,8 +176,7 @@ class LawService:
                     "error": "law_id 또는 law_name 중 하나는 필수입니다.",
                     "recovery_guide": "법령 ID 또는 법령명 중 하나를 입력해주세요. 예: law_name='형법' 또는 law_id='123456'"
                 }
-            return await asyncio.to_thread(
-                self.repository.get_law_articles,
+            return await self.repository.get_law_articles(
                 req.law_id,
                 req.law_name,
                 arguments
@@ -205,8 +199,7 @@ class LawService:
             normalized_ho = normalize_ho(req.ho) if req.ho else None
             normalized_mok = normalize_mok(req.mok) if req.mok else None
 
-            return await asyncio.to_thread(
-                self.repository.get_single_article,
+            return await self.repository.get_single_article(
                 req.law_id,
                 normalized_article_number,
                 normalized_hang,

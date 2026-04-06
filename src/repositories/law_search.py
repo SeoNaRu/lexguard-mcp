@@ -1,7 +1,8 @@
 """
 Law Search Repository - 법령 검색 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 import xml.etree.ElementTree as ET
 import re
@@ -12,7 +13,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, f
 class LawSearchRepository(BaseLawRepository):
     """법령 검색 관련 기능을 담당하는 Repository"""
 
-    def search_law(self, query: Optional[str] = None, page: int = 1, per_page: int = 10, arguments: Optional[dict] = None) -> dict:
+    async def search_law(self, query: Optional[str] = None, page: int = 1, per_page: int = 10, arguments: Optional[dict] = None) -> dict:
         """
         법령을 검색합니다 (통합: 검색 + 목록 조회).
 
@@ -63,7 +64,7 @@ class LawSearchRepository(BaseLawRepository):
 
             # 검색은 lawSearch.do 사용
             # 1차 시도: JSON
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
@@ -88,7 +89,7 @@ class LawSearchRepository(BaseLawRepository):
                 xml_params["type"] = "XML"
 
                 try:
-                    xml_response = requests.get(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
+                    xml_response = await aget(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
 
                     invalid_xml = self.validate_drf_response(xml_response)
                     if invalid_xml:
@@ -187,7 +188,7 @@ class LawSearchRepository(BaseLawRepository):
                             "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                         }
 
-                except requests.exceptions.RequestException as e:
+                except httpx.RequestError as e:
                     logger.error("XML fallback request failed: %s", str(e))
                     # XML 재시도도 실패하면 원래 JSON 에러 반환
                     if is_html_error:
@@ -248,7 +249,7 @@ class LawSearchRepository(BaseLawRepository):
 
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
@@ -259,7 +260,7 @@ class LawSearchRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             error_result = {"error": error_msg}
@@ -273,7 +274,7 @@ class LawSearchRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
-    def list_law_names(self, page: int = 1, per_page: int = 50, query: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
+    async def list_law_names(self, page: int = 1, per_page: int = 50, query: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
         """
         법령명 목록을 조회합니다.
 
@@ -323,7 +324,7 @@ class LawSearchRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=30)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=30)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -436,7 +437,7 @@ class LawSearchRepository(BaseLawRepository):
 
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             error_result = {
@@ -447,7 +448,7 @@ class LawSearchRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             error_result = {"error": error_msg}

@@ -1,7 +1,6 @@
 """
 Precedent Service - 판례 관련 비즈니스 로직
 """
-import asyncio
 from typing import Optional, List
 from ..repositories.precedent_repository import PrecedentRepository
 from ..models import SearchPrecedentRequest, GetPrecedentRequest
@@ -19,15 +18,12 @@ class PrecedentService:
             if arguments is None:
                 arguments = {}
 
-            # use_fallback이 True이거나 issue_type/must_include가 있으면 fallback 사용
             if req.use_fallback or req.issue_type or req.must_include:
                 return await self.search_precedent_with_fallback(
                     req, arguments, req.issue_type, req.must_include
                 )
 
-            # 기존 방식 (호환성 유지)
-            return await asyncio.to_thread(
-                self.repository.search_precedent,
+            return await self.repository.search_precedent(
                 req.query,
                 req.page,
                 req.per_page,
@@ -53,8 +49,7 @@ class PrecedentService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.search_precedent_with_fallback,
+            return await self.repository.search_precedent_with_fallback(
                 req.query,
                 req.page,
                 req.per_page,
@@ -81,8 +76,7 @@ class PrecedentService:
                     "error": "precedent_id 또는 case_number 중 하나는 필수입니다.",
                     "recovery_guide": "판례 일련번호(precedent_id) 또는 사건번호(case_number) 중 하나를 입력해주세요."
                 }
-            return await asyncio.to_thread(
-                self.repository.get_precedent,
+            return await self.repository.get_precedent(
                 req.precedent_id,
                 req.case_number,
                 arguments
@@ -92,4 +86,3 @@ class PrecedentService:
                 "error": f"판례 조회 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-

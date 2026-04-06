@@ -9,7 +9,7 @@ dependencies = [
     "uvicorn",
     "pydantic",
     "python-dotenv",
-    "requests",
+    "httpx>=0.27.0",
     "cachetools",
     "fastapi",
 ]
@@ -18,6 +18,9 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-asyncio",
+]
+browser = [
+    "playwright>=1.40.0",
 ]
 
 [build-system]

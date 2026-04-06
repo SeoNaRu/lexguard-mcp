@@ -3,7 +3,6 @@ MCP Prompts 엔드포인트 테스트
 
 prompts/list, prompts/get의 응답 구조와 내용을 검증.
 """
-import pytest
 from src.routes.mcp_routes import _build_prompts_list, _get_prompt
 
 

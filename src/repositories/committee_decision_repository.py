@@ -1,7 +1,8 @@
 """
 Committee Decision Repository - 위원회 결정문 검색 및 조회 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 from typing import Optional
 from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_URL, search_cache, failure_cache
@@ -26,7 +27,7 @@ COMMITTEE_TARGET_MAP = {
 class CommitteeDecisionRepository(BaseLawRepository):
     """위원회 결정문 검색 및 조회 관련 기능을 담당하는 Repository"""
 
-    def search_committee_decision(
+    async def search_committee_decision(
         self,
         committee_type: str,
         query: Optional[str] = None,
@@ -73,7 +74,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
 
             # 응답이 비어있는지 확인
             if not response.text or not response.text.strip():
@@ -133,14 +134,14 @@ class CommitteeDecisionRepository(BaseLawRepository):
             search_cache[cache_key] = result
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_result = {
                 "error": "API 호출 타임아웃",
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_result = {
                 "error": f"API 요청 실패: {str(e)}",
                 "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
@@ -154,7 +155,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
-    def get_committee_decision(
+    async def get_committee_decision(
         self,
         committee_type: str,
         decision_id: str,
@@ -189,7 +190,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -217,7 +218,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             search_cache[cache_key] = result
             return result
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_result = {
                 "error": "API 호출 타임아웃",
                 "committee_type": committee_type,
@@ -226,7 +227,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             }
             failure_cache[cache_key] = error_result
             return error_result
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_result = {
                 "error": f"API 요청 실패: {str(e)}",
                 "committee_type": committee_type,

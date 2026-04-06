@@ -3,7 +3,29 @@
 apis 폴더의 response_fields를 기반으로 구조화
 """
 import json
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import httpx
+
+
+def sanitize_for_mcp_json(obj: Any) -> Any:
+    """
+    Repository 등에서 httpx.Response.url(httpx.URL)이 그대로 들어오면
+    json.dumps가 실패하므로 MCP 직렬화 직전에 문자열로 정리한다.
+    """
+    if isinstance(obj, httpx.URL):
+        return str(obj)
+    mod = getattr(type(obj), "__module__", "") or ""
+    name = getattr(type(obj), "__name__", "") or ""
+    if name == "URL" and ("httpx" in mod or mod == "yarl"):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: sanitize_for_mcp_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_mcp_json(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(sanitize_for_mcp_json(v) for v in obj)
+    return obj
 
 
 def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
@@ -436,13 +458,31 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
                 citations.append(str(title))
         citations = list(dict.fromkeys(citations))[:5]
 
+        def _mcp_bool(val: Any, default: bool = False) -> bool:
+            """Cursor outputSchema는 JSON boolean만 허용(None·정수·문자열 불가)."""
+            if val is True or val is False:
+                return val
+            if isinstance(val, str):
+                return val.strip().lower() in ("true", "1", "yes")
+            if isinstance(val, (int, float)):
+                return val != 0
+            return default
+
+        raw_auto = result.get("auto_search")
+        # 레거시: 위치 인자 착오로 int(예: max_clauses)가 들어오던 경우 검색 의도로 간주
+        auto_search_out = (
+            raw_auto if raw_auto is True or raw_auto is False else True
+        )
+
         return {
-            "success": result.get("success", True),
-            "success_transport": result.get("success_transport", True),
-            "success_search": result.get("success_search", result.get("success", True)),
-            "auto_search": result.get("auto_search"),
-            "analysis_success": result.get("analysis_success"),
-            "has_legal_basis": result.get("has_legal_basis"),
+            "success": _mcp_bool(result.get("success"), True),
+            "success_transport": _mcp_bool(result.get("success_transport"), True),
+            "success_search": _mcp_bool(
+                result.get("success_search", result.get("success", True)), True
+            ),
+            "auto_search": auto_search_out,
+            "analysis_success": _mcp_bool(result.get("analysis_success"), False),
+            "has_legal_basis": _mcp_bool(result.get("has_legal_basis"), False),
             "missing_reason": result.get("missing_reason"),
             "document_analysis": result.get("document_analysis"),
             "answer": {"risk_findings": trimmed_risks},
@@ -472,6 +512,8 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
 
     # 메타데이터 추가 (Phase 3 개선)
     formatted = add_metadata(formatted, tool_name)
+
+    formatted = sanitize_for_mcp_json(formatted)
 
     # JSON 문자열로 변환
     formatted_json = json.dumps(formatted, ensure_ascii=False)

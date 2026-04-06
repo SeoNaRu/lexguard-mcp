@@ -2,7 +2,8 @@
 범용 API 호출 리포지토리
 api_crawler의 메타데이터를 기반으로 모든 API를 호출할 수 있는 공통 리포지토리
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 import logging
 from typing import Dict, Optional, Any, List
@@ -18,7 +19,7 @@ class GenericAPIRepository(BaseLawRepository):
     def __init__(self):
         self.metadata_loader = get_metadata_loader()
 
-    def call_api(
+    async def call_api(
         self,
         api_id: int,
         params: Optional[Dict[str, Any]] = None,
@@ -95,7 +96,7 @@ class GenericAPIRepository(BaseLawRepository):
 
         try:
             # API 호출
-            response = requests.get(request_url, params=params, timeout=30)
+            response = await aget(request_url, params=params, timeout=30)
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
@@ -137,7 +138,7 @@ class GenericAPIRepository(BaseLawRepository):
                     "data": response.text
                 }
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = f"API 호출 타임아웃: {api_name}"
             logger.error(error_msg)
             return {
@@ -147,7 +148,7 @@ class GenericAPIRepository(BaseLawRepository):
                 "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
 
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 호출 중 오류 발생: {str(e)}"
             logger.error(f"{error_msg} | url={request_url}")
             return {

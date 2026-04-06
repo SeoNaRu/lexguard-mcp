@@ -1,7 +1,8 @@
 """
 Law Detail Repository - 법령 조회 기능
 """
-import requests
+import httpx
+from ..utils.http_client import aget
 import json
 from typing import Optional
 from datetime import datetime
@@ -11,7 +12,7 @@ from .base import BaseLawRepository, logger, LAW_API_BASE_URL, LAW_API_SEARCH_UR
 class LawDetailRepository(BaseLawRepository):
     """법령 조회 관련 기능을 담당하는 Repository"""
 
-    def get_law_detail(self, law_name: str, arguments: Optional[dict] = None) -> dict:
+    async def get_law_detail(self, law_name: str, arguments: Optional[dict] = None) -> dict:
         """
         법령 상세 정보를 조회합니다.
 
@@ -48,7 +49,7 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             # 법령명 검색은 lawSearch.do 사용
-            search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
+            search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=10)
 
             invalid_response = self.validate_drf_response(search_response)
             if invalid_response:
@@ -141,7 +142,7 @@ class LawDetailRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
+            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=10)
 
             invalid_response = self.validate_drf_response(detail_response)
             if invalid_response:
@@ -190,13 +191,13 @@ class LawDetailRepository(BaseLawRepository):
                 "note": "전체 내용은 API URL에서 확인하세요."
                 }
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             return {
                 "error": "API 호출 타임아웃",
                 "law_name": law_name,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             return {
                 "error": f"API 요청 실패: {str(e)}",
                 "law_name": law_name
@@ -207,7 +208,7 @@ class LawDetailRepository(BaseLawRepository):
                 "law_name": law_name
             }
 
-    def get_law_articles(self, law_id: Optional[str] = None, law_name: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
+    async def get_law_articles(self, law_id: Optional[str] = None, law_name: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
         """
         특정 법령의 조문 전체를 조회합니다.
 
@@ -237,7 +238,7 @@ class LawDetailRepository(BaseLawRepository):
                     return api_key_error
 
                 # 법령명 검색은 lawSearch.do 사용
-                search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
+                search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=10)
 
                 invalid_response = self.validate_drf_response(search_response)
                 if invalid_response:
@@ -306,13 +307,13 @@ class LawDetailRepository(BaseLawRepository):
                         "law_name": law_name,
                         "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요."
                     }
-            except requests.exceptions.Timeout:
+            except httpx.TimeoutException:
                 return {
                     "error": "법령 검색 타임아웃",
                     "law_name": law_name,
                     "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
                 }
-            except requests.exceptions.RequestException as e:
+            except httpx.RequestError as e:
                 return {
                     "error": f"법령 검색 실패: {str(e)}",
                     "law_name": law_name,
@@ -340,7 +341,7 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             # API 호출
-            response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -435,7 +436,7 @@ class LawDetailRepository(BaseLawRepository):
                     "note": "API 응답 형식이 예상과 다를 수 있습니다."
                 }
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             return {
@@ -443,7 +444,7 @@ class LawDetailRepository(BaseLawRepository):
                 "law_id": law_id,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             return {
@@ -460,7 +461,7 @@ class LawDetailRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
-    def get_single_article(self, law_id: str, article_number: str, hang: Optional[str] = None,
+    async def get_single_article(self, law_id: str, article_number: str, hang: Optional[str] = None,
                           ho: Optional[str] = None, mok: Optional[str] = None,
                           arguments: Optional[dict] = None) -> dict:
         """
@@ -508,7 +509,7 @@ class LawDetailRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            detail_response = requests.get(LAW_API_BASE_URL, params=detail_params, timeout=10)
+            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=10)
 
             invalid_detail = self.validate_drf_response(detail_response)
             if invalid_detail:
@@ -576,7 +577,7 @@ class LawDetailRepository(BaseLawRepository):
             logger.debug("Calling eflawjosub API | params=%s", {k: v for k, v in params.items() if k != "OC"})
 
             # 3단계: 단일 조문 조회
-            response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -606,9 +607,9 @@ class LawDetailRepository(BaseLawRepository):
                                    data.get("title"))
 
                     # 중첩된 구조에서 찾기
-                    if not article_content:
-                        sub_data = data.get("조문정보") or data.get("articleInfo") or data.get("조문")
-                        if isinstance(sub_data, dict):
+                if not article_content:
+                    sub_data = data.get("조문정보") or data.get("articleInfo") or data.get("조문")
+                    if isinstance(sub_data, dict):
                             article_content = (sub_data.get("조문내용") or
                                              sub_data.get("articleContent") or
                                              sub_data.get("내용") or
@@ -616,6 +617,20 @@ class LawDetailRepository(BaseLawRepository):
                             article_title = (sub_data.get("조문제목") or
                                            sub_data.get("articleTitle") or
                                            sub_data.get("제목"))
+
+                fallback_mode = None
+                fallback_source = None
+                if not (article_content and str(article_content).strip()):
+                    from ..utils.eflawjosub_fallback import atry_recover_article_text
+                    recovered, src_url, fb_mode = await atry_recover_article_text(LAW_API_BASE_URL, params)
+                    if recovered:
+                        article_content = recovered
+                        fallback_mode = fb_mode
+                        fallback_source = src_url
+                        logger.info(
+                            "eflawjosub empty JSON; fallback ok | mode=%s law_id=%s jo=%s",
+                            fb_mode, law_id, jo_number,
+                        )
 
                 result = {
                     "law_id": law_id,
@@ -628,7 +643,14 @@ class LawDetailRepository(BaseLawRepository):
                     "api_url": response.url
                 }
 
-                if not article_content:
+                if fallback_mode and fallback_mode != "none":
+                    result["fallback"] = {
+                        "mode": fallback_mode,
+                        "source_url": fallback_source,
+                        "note": "eflawjosub JSON이 비어 있어 HTML 또는 Playwright 폴백으로 본문을 보완했습니다. 운영 환경에서는 약관·리소스 사용을 확인하세요.",
+                    }
+
+                if not (article_content and str(article_content).strip()):
                     result["note"] = "조문 내용이 비어있거나 찾을 수 없습니다. API 응답을 확인하세요."
                     result["raw_data"] = str(data)[:500]  # 디버깅용
 
@@ -645,7 +667,7 @@ class LawDetailRepository(BaseLawRepository):
                     "api_url": response.url
                 }
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
             return {
@@ -654,7 +676,7 @@ class LawDetailRepository(BaseLawRepository):
                 "article_number": article_number,
                 "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
             }
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
             logger.error(error_msg)
             return {
@@ -673,7 +695,7 @@ class LawDetailRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
-    def get_law(self, law_id: Optional[str] = None, law_name: Optional[str] = None,
+    async def get_law(self, law_id: Optional[str] = None, law_name: Optional[str] = None,
                 mode: str = "detail", article_number: Optional[str] = None,
                 hang: Optional[str] = None, ho: Optional[str] = None,
                 mok: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
@@ -710,29 +732,29 @@ class LawDetailRepository(BaseLawRepository):
             if not law_name:
                 # law_id만 있으면 먼저 법령명을 찾아야 함
                 # 간단하게 get_law_articles를 호출하여 법령명 추출
-                articles_result = self.get_law_articles(law_id, None, arguments)
+                articles_result = await self.get_law_articles(law_id, None, arguments)
                 if "error" in articles_result:
                     return articles_result
                 # articles_result에서 법령명 추출 시도
                 law_name_from_result = articles_result.get("law_name") or articles_result.get("법령명")
                 if law_name_from_result:
-                    return self.get_law_detail(law_name_from_result, arguments)
+                    return await self.get_law_detail(law_name_from_result, arguments)
                 else:
                     return {
                         "error": "법령명을 찾을 수 없습니다. law_name을 제공해주세요.",
                         "recovery_guide": "법령명을 입력해주세요. 예: law_name='형법', '민법', '개인정보보호법'"
                     }
-            return self.get_law_detail(law_name, arguments)
+            return await self.get_law_detail(law_name, arguments)
 
         elif mode == "articles":
             # 전체 조문 조회
-            return self.get_law_articles(law_id, law_name, arguments)
+            return await self.get_law_articles(law_id, law_name, arguments)
 
         elif mode == "single":
             # 단일 조문 조회
             if not law_id:
                 # law_name만 있으면 먼저 law_id를 찾아야 함
-                detail_result = self.get_law_detail(law_name, arguments)
+                detail_result = await self.get_law_detail(law_name, arguments)
                 if "error" in detail_result:
                     return detail_result
                 # detail_result에서 law_id 추출 시도
@@ -753,7 +775,7 @@ class LawDetailRepository(BaseLawRepository):
                     "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'"
                 }
 
-            return self.get_single_article(law_id, article_number, hang, ho, mok, arguments)
+            return await self.get_single_article(law_id, article_number, hang, ho, mok, arguments)
 
         else:
             error_msg = f"유효하지 않은 mode: {mode}. 'detail', 'articles', 'single' 중 하나를 선택하세요."

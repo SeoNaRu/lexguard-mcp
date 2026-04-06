@@ -1,7 +1,6 @@
 """
 Special Administrative Appeal Service - 특별행정심판 관련 비즈니스 로직
 """
-import asyncio
 from typing import Optional
 from ..repositories.special_administrative_appeal_repository import SpecialAdministrativeAppealRepository
 from ..models import SearchSpecialAdministrativeAppealRequest, GetSpecialAdministrativeAppealRequest
@@ -22,8 +21,7 @@ class SpecialAdministrativeAppealService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.search_special_administrative_appeal,
+            return await self.repository.search_special_administrative_appeal(
                 req.tribunal_type,
                 req.query,
                 req.page,
@@ -45,8 +43,7 @@ class SpecialAdministrativeAppealService:
         try:
             if arguments is None:
                 arguments = {}
-            return await asyncio.to_thread(
-                self.repository.get_special_administrative_appeal,
+            return await self.repository.get_special_administrative_appeal(
                 req.tribunal_type,
                 req.appeal_id,
                 arguments
@@ -56,4 +53,3 @@ class SpecialAdministrativeAppealService:
                 "error": f"특별행정심판 조회 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-

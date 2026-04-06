@@ -6,6 +6,7 @@ from typing import Any
 
 import os
 import logging
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
@@ -29,9 +30,14 @@ def get_limiter() -> Limiter:
     if _limiter is None:
         _limiter = Limiter(
             key_func=get_remote_address,
-            default_limits=["60/minute"],
-            # starlette Config가 .env 파일을 다시 읽지 않도록 storage_uri 명시
+            # 전역 기본 제한 없음: Cursor MCP 등이 초기화·폴링으로 짧은 시간 다발 요청을 보냄.
+            # /mcp 등 필요한 라우트만 @limit 으로 제한한다.
+            default_limits=[],
             storage_uri="memory://",
+            # slowapi는 기본으로 프로젝트 루트 .env를 Starlette Config로 읽는데,
+            # Windows(cp949)에서 UTF-8 .env면 UnicodeDecodeError가 난다.
+            # RATELIMIT_* 등은 위 load_dotenv()로 이미 os.environ에 있으므로 ASCII 스텁만 넘긴다.
+            config_filename=str(Path(__file__).resolve().parent / "slowapi_stub.env"),
         )
     return _limiter
 
@@ -57,9 +63,9 @@ def get_api() -> FastAPI:
         logger = logging.getLogger("lexguard-mcp")
         logger.info("LexGuard MCP 서버 시작")
         yield
-        # 비동기 HTTP 클라이언트 정리
-        from ..utils.http_client import close_async_client
+        from ..utils.http_client import close_async_client, close_sync_client
         await close_async_client()
+        close_sync_client()
         logger.info("LexGuard MCP 서버 종료")
 
     api = FastAPI(lifespan=lifespan)

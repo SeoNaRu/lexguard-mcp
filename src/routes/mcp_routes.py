@@ -1,10 +1,11 @@
 """
-MCP Routes - MCP Streamable HTTP 엔드포인트 (3개 핵심 툴만)
+MCP Routes - MCP Streamable HTTP 엔드포인트
 Controller 패턴: 요청을 받아 Service를 호출
 """
 import json
 import asyncio
 import copy
+import os
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -19,6 +20,9 @@ from ..config.settings import get_limiter
 import logging
 
 logger = logging.getLogger("lexguard-mcp")
+
+# Cursor MCP는 initialize / tools/list / 세션 등으로 분당 요청이 많다. 기본 60/min은 429 유발.
+_MCP_RATE_LIMIT = (os.environ.get("LEXGUARD_MCP_RATE_LIMIT") or "600/minute").strip() or "600/minute"
 
 try:
     _SERVER_VERSION = _pkg_version("lexguard-mcp")
@@ -35,9 +39,11 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
     from ..repositories.law_detail import LawDetailRepository
     from ..repositories.precedent_repository import PrecedentRepository
     from ..repositories.law_interpretation_repository import LawInterpretationRepository
+    from ..repositories.administrative_appeal_repository import AdministrativeAppealRepository
     _law_detail_repo = LawDetailRepository()
     _precedent_repo = PrecedentRepository()
     _interpretation_repo = LawInterpretationRepository()
+    _appeal_repo = AdministrativeAppealRepository()
 
     # 모든 요청 로깅 미들웨어 (디버깅용) - Health Check 요청 제외
     @api.middleware("http")
@@ -113,12 +119,12 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
         )
 
     @api.post("/mcp")
-    @get_limiter().limit("60/minute")
+    @get_limiter().limit(_MCP_RATE_LIMIT)
     async def mcp_streamable_http(request: Request):
         """
-        MCP Streamable HTTP 엔드포인트 (3개 핵심 툴만)
+        MCP Streamable HTTP 엔드포인트 (통합·전용 툴)
         JSON-RPC 2.0 메시지를 받아서 SSE로 스트리밍 응답
-        Rate limit: 60 req/min per IP
+        Rate limit: LEXGUARD_MCP_RATE_LIMIT (기본 600/min, IP당)
         """
         request.headers.get("Accept", "")
         request.headers.get("Content-Type", "")
@@ -187,7 +193,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                     logger.debug("MCP: notifications/initialized")
                     return
 
-                # tools/list 처리 (3개 툴만)
+                # tools/list 처리
                 elif method == "tools/list":
                     tools_list = [
                         {
@@ -350,6 +356,251 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             }
                         },
                         {
+                            "name": "precedent_lookup_tool",
+                            "priority": 1,
+                            "category": "precedent",
+                            "description": """판례만 검색합니다. 사건번호가 있으면 case_number, 없으면 keyword로 검색하세요. 통합 legal_qa_tool보다 판례에 집중할 때 사용합니다.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다. 추가 사실관계 확인을 요청하세요.
+
+금지: 이모지, 조문 전체 인용, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "keyword": {
+                                        "type": "string",
+                                        "description": "판례 검색 키워드 (사건번호가 없을 때)"
+                                    },
+                                    "case_number": {
+                                        "type": "string",
+                                        "description": "사건번호 (예: 2023다12345, 2021도4321). 있으면 우선 사용"
+                                    },
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                        "description": "페이지당 건수"
+                                    },
+                                    "court": {
+                                        "type": "string",
+                                        "description": "법원 필터(코드). 생략 시 전체"
+                                    },
+                                    "date_from": {"type": "string", "description": "선고일 시작 YYYYMMDD"},
+                                    "date_to": {"type": "string", "description": "선고일 종료 YYYYMMDD"}
+                                },
+                                "allOf": [
+                                    {
+                                        "anyOf": [
+                                            {"required": ["keyword"]},
+                                            {"required": ["case_number"]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string"},
+                                    "total": {"type": "integer"},
+                                    "precedents": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"}
+                                }
+                            }
+                        },
+                        {
+                            "name": "interpretation_tool",
+                            "priority": 1,
+                            "category": "interpretation",
+                            "description": """법령해석(행정기관 해석례 등)만 검색합니다. 해석·유권해석 실마리가 필요할 때 legal_qa_tool 대신 사용합니다.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "법령해석 검색어"
+                                    },
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50
+                                    },
+                                    "agency": {
+                                        "type": "string",
+                                        "description": "부처명 필터 (예: 고용노동부, 국세청). 지원되는 명칭만 적용"
+                                    }
+                                },
+                                "required": ["query"]
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string"},
+                                    "total": {"type": "integer"},
+                                    "interpretations": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"}
+                                }
+                            }
+                        },
+                        {
+                            "name": "administrative_appeal_tool",
+                            "priority": 1,
+                            "category": "administrative_appeal",
+                            "description": """행정심판 재결만 검색합니다. 행정심판·재결례 실마리가 필요할 때 legal_qa_tool 대신 사용합니다.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "행정심판 재결 검색어"
+                                    },
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50
+                                    },
+                                    "date_from": {"type": "string", "description": "재결일 시작 YYYYMMDD"},
+                                    "date_to": {"type": "string", "description": "재결일 종료 YYYYMMDD"}
+                                },
+                                "required": ["query"]
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string"},
+                                    "total": {"type": "integer"},
+                                    "appeals": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"}
+                                }
+                            }
+                        },
+                        {
+                            "name": "constitutional_decision_tool",
+                            "priority": 1,
+                            "category": "constitutional",
+                            "description": """헌법재판소 결정만 검색합니다. 위헌·헌법소원 등 헌재 실마리가 필요할 때 legal_qa_tool 대신 사용합니다.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string", "description": "헌재결정 검색어"},
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                    "date_from": {"type": "string", "description": "YYYYMMDD"},
+                                    "date_to": {"type": "string", "description": "YYYYMMDD"},
+                                },
+                                "required": ["query"],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string"},
+                                    "total": {"type": "integer"},
+                                    "decisions": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"},
+                                },
+                            },
+                        },
+                        {
+                            "name": "committee_decision_tool",
+                            "priority": 1,
+                            "category": "committee",
+                            "description": """독립위원회 등 결정문만 검색합니다. committee_type은 API가 지원하는 정확한 명칭이어야 합니다 (예: 개인정보보호위원회, 금융위원회, 노동위원회 등).
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "committee_type": {
+                                        "type": "string",
+                                        "description": "위원회 명칭 (저장소 COMMITTEE_TARGET_MAP 키와 일치)",
+                                    },
+                                    "query": {"type": "string", "description": "결정문 검색어"},
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                },
+                                "required": ["committee_type", "query"],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "total": {"type": "integer"},
+                                    "decisions": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"},
+                                },
+                            },
+                        },
+                        {
+                            "name": "special_administrative_appeal_tool",
+                            "priority": 1,
+                            "category": "special_appeal",
+                            "description": """특별행정심판원 재결만 검색합니다. tribunal_type은 조세심판원·해양안전심판원 등 저장소가 지원하는 정확한 명칭이어야 합니다.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "tribunal_type": {
+                                        "type": "string",
+                                        "description": "심판원 명칭 (TRIBUNAL_TARGET_MAP 키와 일치)",
+                                    },
+                                    "query": {"type": "string", "description": "재결 검색어"},
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 10,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                },
+                                "required": ["tribunal_type", "query"],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "total": {"type": "integer"},
+                                    "appeals": {"type": "array"},
+                                    "error": {"type": "string"},
+                                    "error_code": {"type": "string"},
+                                },
+                            },
+                        },
+                        {
                             "name": "health",
                             "priority": 2,
                             "category": "utility",
@@ -497,7 +748,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         logger.info("MCP: prompts/get response | name=%s", prompt_name)
                         yield f"data: {response_json}\n\n"
 
-                # tools/call 처리 (3개 툴만)
+                # tools/call 처리
                 elif method == "tools/call":
                     tool_name = params.get("name")
                     arguments = params.get("arguments", {})
@@ -521,17 +772,26 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
 
                         elif tool_name == "document_issue_tool":
                             document_text = arguments.get("document_text")
-                            auto_search = arguments.get("auto_search", True)
-                            max_clauses = arguments.get("max_clauses", 3)
-                            max_results = arguments.get("max_results_per_type", 3)
+                            _raw_auto = arguments.get("auto_search", True)
+                            if _raw_auto is True or _raw_auto is False:
+                                auto_search = _raw_auto
+                            elif isinstance(_raw_auto, str):
+                                auto_search = _raw_auto.strip().lower() in (
+                                    "true", "1", "yes",
+                                )
+                            else:
+                                auto_search = bool(_raw_auto)
+                            max_clauses = int(arguments.get("max_clauses", 3))
+                            max_results = int(arguments.get("max_results_per_type", 3))
                             logger.debug("Calling document_issue_tool | doc_len=%d auto_search=%s max_clauses=%d max_results=%d",
                                        len(document_text) if document_text else 0,
                                        auto_search, max_clauses, max_results)
                             result = await situation_guidance_service.document_issue_analysis(
                                 document_text,
-                                auto_search,
-                                max_clauses,
-                                max_results
+                                arguments=arguments,
+                                auto_search=auto_search,
+                                max_clauses=max_clauses,
+                                max_results_per_type=max_results,
                             )
 
                         elif tool_name == "law_article_tool":
@@ -545,8 +805,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 "Calling law_article_tool | law=%s article=%s hang=%s ho=%s mok=%s",
                                 law_name, article_number, hang, ho, mok,
                             )
-                            result = await asyncio.to_thread(
-                                _law_detail_repo.get_law,
+                            result = await _law_detail_repo.get_law(
                                 None,
                                 law_name,
                                 mode,
@@ -555,6 +814,65 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 ho,
                                 mok,
                                 arguments,
+                            )
+
+                        elif tool_name == "precedent_lookup_tool":
+                            result = await smart_search_service.precedent_lookup(
+                                keyword=arguments.get("keyword"),
+                                case_number=arguments.get("case_number"),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                court=arguments.get("court"),
+                                date_from=arguments.get("date_from"),
+                                date_to=arguments.get("date_to"),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "interpretation_tool":
+                            result = await smart_search_service.interpretation_lookup(
+                                query=arguments.get("query", ""),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                agency=arguments.get("agency"),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "administrative_appeal_tool":
+                            result = await smart_search_service.administrative_appeal_lookup(
+                                query=arguments.get("query", ""),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                date_from=arguments.get("date_from"),
+                                date_to=arguments.get("date_to"),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "constitutional_decision_tool":
+                            result = await smart_search_service.constitutional_decision_lookup(
+                                query=arguments.get("query", ""),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                date_from=arguments.get("date_from"),
+                                date_to=arguments.get("date_to"),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "committee_decision_tool":
+                            result = await smart_search_service.committee_decision_lookup(
+                                committee_type=arguments.get("committee_type", ""),
+                                query=arguments.get("query", ""),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "special_administrative_appeal_tool":
+                            result = await smart_search_service.special_administrative_appeal_lookup(
+                                tribunal_type=arguments.get("tribunal_type", ""),
+                                query=arguments.get("query", ""),
+                                page=int(arguments.get("page", 1)),
+                                per_page=int(arguments.get("per_page", 10)),
+                                arguments=arguments,
                             )
 
                         else:
@@ -578,11 +896,13 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 return obj
 
                         cleaned_result = clean_for_json(result)
+                        from ..utils.response_formatter import format_mcp_response, sanitize_for_mcp_json
+
+                        cleaned_result = sanitize_for_mcp_json(cleaned_result)
                         final_result = copy.deepcopy(cleaned_result)
-                        final_result = shrink_response_bytes(final_result, request_id)
+                        final_result = shrink_response_bytes(final_result)
 
                         # MCP 표준 형식으로 변환
-                        from ..utils.response_formatter import format_mcp_response
                         mcp_formatted = format_mcp_response(final_result, tool_name)
 
                         response = {
