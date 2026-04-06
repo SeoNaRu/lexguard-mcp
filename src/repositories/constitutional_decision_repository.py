@@ -9,7 +9,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_UR
 
 class ConstitutionalDecisionRepository(BaseLawRepository):
     """헌재결정 검색 및 조회 관련 기능을 담당하는 Repository"""
-    
+
     def search_constitutional_decision(
         self,
         query: Optional[str] = None,
@@ -21,19 +21,19 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
     ) -> dict:
         """헌재결정을 검색합니다."""
         logger.debug("search_constitutional_decision called | query=%r page=%d per_page=%d", query, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         cache_key = ("constitutional_decision", query or "", page, per_page, date_from or "", date_to or "")
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "detc",
@@ -41,28 +41,28 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
-            
+
             if date_from and date_to:
                 params["detcYd"] = f"{date_from}~{date_to}"
             elif date_from:
                 params["detcYd"] = f"{date_from}~{date_from}"
             elif date_to:
                 params["detcYd"] = f"{date_to}~{date_to}"
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -72,7 +72,7 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "query": query,
                 "page": page,
@@ -81,7 +81,7 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                 "decisions": [],
                 "api_url": response.url
             }
-            
+
             if isinstance(data, dict):
                 if "DetcSearch" in data:
                     detc_search = data["DetcSearch"]
@@ -108,19 +108,19 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                     except (TypeError, ValueError):
                         result["total"] = 0
                     decisions = data.get("detc", [])
-                
+
                 if not isinstance(decisions, list):
                     decisions = [decisions] if decisions else []
-                
+
                 result["decisions"] = decisions[:per_page]
-            
+
             # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
             if result["total"] and not result["decisions"]:
                 result["note"] = "API 응답에서 totalCnt는 있으나 헌재결정 목록(detc)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",
@@ -141,7 +141,7 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                 "error": f"예상치 못한 오류: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     def get_constitutional_decision(
         self,
         decision_id: str,
@@ -149,32 +149,32 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
     ) -> dict:
         """헌재결정 상세 정보를 조회합니다."""
         logger.debug("get_constitutional_decision called | decision_id=%r", decision_id)
-        
+
         cache_key = ("constitutional_decision_detail", decision_id)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "detc",
                 "type": "JSON",
                 "ID": decision_id
             }
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -184,16 +184,16 @@ class ConstitutionalDecisionRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "decision_id": decision_id,
                 "decision": data,
                 "api_url": response.url
             }
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",

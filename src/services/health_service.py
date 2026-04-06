@@ -6,18 +6,18 @@ import os
 
 class HealthService:
     """헬스 체크 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     @staticmethod
     async def check_health() -> dict:
         """헬스 체크 - 환경 변수 및 API 키 상태 확인"""
         api_key = os.environ.get("LAW_API_KEY", "")
-        
+
         has_api_key = bool(api_key)
         api_key_length = len(api_key) if api_key else 0
         api_key_preview = api_key[:8] + "..." if api_key and len(api_key) > 8 else (api_key if api_key else "")
-        
+
         env_file_exists = os.path.exists(".env")
-        
+
         env_vars_status = {
             "LAW_API_KEY": {
                 "exists": "LAW_API_KEY" in os.environ,
@@ -34,10 +34,10 @@ class HealthService:
                 "value": os.environ.get("PORT", "8099 (default)")
             }
         }
-        
+
         # API 준비 상태 확인
         api_ready = has_api_key  # API 키가 있으면 준비됨
-        
+
         # Health Check는 항상 HTTP 200을 반환해야 함 (Render가 스핀다운 방지)
         # status가 "ok"가 아니어도 200을 반환하여 서버가 살아있음을 알림
         return {

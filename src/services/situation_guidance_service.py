@@ -3,7 +3,6 @@ Situation-Based Legal Guidance Service
 사용자의 상황을 분석하여 관련 법령, 판례, 해석, 심판례를 종합적으로 찾아주는 서비스
 """
 import re
-import asyncio
 from typing import Optional, Dict, List, Tuple
 from ..repositories.law_repository import LawRepository
 from ..repositories.law_detail import LawDetailRepository
@@ -26,7 +25,7 @@ class SituationGuidanceService:
     4. 행정심판/위원회 결정 사례 찾기
     5. 단계별 가이드 제공
     """
-    
+
     # 법적 영역별 키워드 매핑
     LEGAL_DOMAIN_KEYWORDS = {
         "개인정보": {
@@ -87,7 +86,7 @@ class SituationGuidanceService:
             "keywords": ["교통", "사고", "면허", "과속", "음주운전"]
         }
     }
-    
+
     def __init__(self):
         self.law_search_repo = LawRepository()
         self.law_detail_repo = LawDetailRepository()
@@ -99,48 +98,48 @@ class SituationGuidanceService:
         self.special_appeal_repo = SpecialAdministrativeAppealRepository()
         self.ordinance_repo = LocalOrdinanceRepository()
         self.rule_repo = AdministrativeRuleRepository()
-    
+
     def detect_legal_domain(self, situation: str) -> List[Tuple[str, float]]:
         """
         사용자 상황에서 법적 영역을 감지
-        
+
         Returns:
             [(domain, confidence), ...] - 신뢰도 순으로 정렬
         """
         situation_lower = situation.lower()
         scores = {}
-        
+
         for domain, config in self.LEGAL_DOMAIN_KEYWORDS.items():
             score = 0.0
-            
+
             # 법령명 매칭
             for law in config["laws"]:
                 if law in situation:
                     score += 3.0
-            
+
             # 기관명 매칭
             for agency in config["agencies"]:
                 if agency in situation:
                     score += 2.0
-            
+
             # 키워드 매칭
             for keyword in config["keywords"]:
                 if keyword in situation_lower:
                     score += 1.0
-            
+
             if score > 0:
                 scores[domain] = score
-        
+
         # 신뢰도 순으로 정렬
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
+
         if sorted_scores:
             max_score = sorted_scores[0][1]
             normalized = [(domain, min(score / max_score, 1.0)) for domain, score in sorted_scores]
             return normalized
-        
+
         return []
-    
+
     def extract_key_terms(self, situation: str) -> Dict:
         """
         상황에서 핵심 용어 추출
@@ -152,12 +151,12 @@ class SituationGuidanceService:
             "dates": [],
             "amounts": []
         }
-        
+
         # 법령명 추출
         law_pattern = r"([가-힣]+법)"
         laws = re.findall(law_pattern, situation)
         terms["laws"] = list(set(laws))
-        
+
         # 기관명 추출
         agency_keywords = [
             "위원회", "부", "청", "처", "원", "심판원"
@@ -167,26 +166,26 @@ class SituationGuidanceService:
             agencies = re.findall(pattern, situation)
             terms["agencies"].extend(agencies)
         terms["agencies"] = list(set(terms["agencies"]))
-        
+
         # 날짜 추출
         date_pattern = r"(\d{4})[년\.]?\s*(\d{1,2})[월\.]?\s*(\d{1,2})[일]?"
         dates = re.findall(date_pattern, situation)
         terms["dates"] = dates
-        
+
         # 금액 추출
         amount_pattern = r"(\d+)[만천억]?원"
         amounts = re.findall(amount_pattern, situation)
         terms["amounts"] = amounts
-        
+
         return terms
-    
+
     def normalize_query_for_search(self, situation: str, domains: List[str], key_terms: Dict) -> str:
         """
         긴 문장을 검색용 키워드로 정규화
         """
         # 도메인별 대표 키워드 (상황 기반 가중치 반영)
         domain_keywords = []
-        situation_lower = situation.lower()
+        situation.lower()
         for domain in domains[:2]:
             config = self.LEGAL_DOMAIN_KEYWORDS.get(domain, {})
             keywords = config.get("keywords", [])
@@ -207,17 +206,17 @@ class SituationGuidanceService:
                     domain_keywords.append(k)
             # 도메인별 최대 6개만 사용
             domain_keywords = domain_keywords[:6]
-        
+
         # 문장 내 핵심 키워드 추출
         text = situation
         # 조사/어미 제거
         for qw in ["인가", "인지", "인가요", "인지요", "알려줘", "찾아줘", "확인", "가능", "해줘"]:
             text = text.replace(qw, "")
-        
+
         keywords = re.findall(r'[가-힣]{2,}', text)
         keywords = [k for k in keywords if k not in ["이", "그", "저", "및", "관련", "문제", "확인"]]
         keywords = list(dict.fromkeys(keywords))  # 순서 유지 중복 제거
-        
+
         merged = []
         # 법령명은 우선 포함하되, 키워드도 함께 유지
         for law in key_terms.get("laws", [])[:2]:
@@ -229,13 +228,13 @@ class SituationGuidanceService:
         for k in keywords:
             if k not in merged:
                 merged.append(k)
-        
+
         # 최대 8개로 제한
         return " ".join(merged[:8]) if merged else situation[:50]
     def _infer_document_type(self, situation: str) -> str:
         """
         문서 타입 추론: 노동/용역, 임대차, 약관, 기타
-        
+
         우선순위:
         1. 노동/용역 계약 (labor)
         2. 임대차 계약 (lease)
@@ -248,24 +247,24 @@ class SituationGuidanceService:
             ("업무", 1), ("지시", 2), ("출퇴근", 3), ("근로", 4), ("임금", 3),
             ("사용종속", 4), ("지휘감독", 4), ("위장도급", 5), ("4대보험", 3)
         ]
-        
+
         # 임대차 계약 시그널
         lease_signals = [
             ("임대인", 5), ("임차인", 5), ("보증금", 4), ("전세", 5),
             ("임대차", 5), ("월세", 4), ("임차료", 4), ("명도", 4)
         ]
-        
+
         # 약관 시그널
         terms_signals = [
             ("회원", 2), ("이용약관", 5), ("서비스 제공", 2), ("청약철회", 3),
             ("환불", 2), ("면책", 2), ("약관", 1)
         ]
-        
+
         # 점수 계산
         labor_score = sum(weight for keyword, weight in labor_signals if keyword in situation)
         lease_score = sum(weight for keyword, weight in lease_signals if keyword in situation)
         terms_score = sum(weight for keyword, weight in terms_signals if keyword in situation)
-        
+
         # 명확한 배제 조건
         if lease_score > 10:
             # 임대차가 명확하면 노동 점수를 낮춤
@@ -273,7 +272,7 @@ class SituationGuidanceService:
         if labor_score > 10:
             # 노동이 명확하면 임대차 점수를 낮춤
             lease_score = max(0, lease_score - 5)
-        
+
         # 최고 점수 선택
         scores = {
             "labor": labor_score,
@@ -281,15 +280,15 @@ class SituationGuidanceService:
             "terms": terms_score,
             "other": 0
         }
-        
+
         doc_type = max(scores, key=scores.get)
-        
+
         # 최소 임계값 (점수가 너무 낮으면 other)
         if scores[doc_type] < 3:
             return "other"
-        
+
         return doc_type
-    
+
     def build_document_analysis(self, situation: str) -> Optional[Dict]:
         """
         문서 입력 감지 및 조항별 이슈/근거 힌트 분석
@@ -300,7 +299,7 @@ class SituationGuidanceService:
 
         # ===== 1. 문서 타입 추론 (최우선) =====
         doc_type = self._infer_document_type(situation)
-        
+
         issues = []
         clauses = []
 
@@ -408,20 +407,20 @@ class SituationGuidanceService:
                         hints.extend(["민법 임대차 해지 요건", "주택임대차보호법 해지"])
                     else:
                         hints.extend(["약관법 계약 해지", "소비자 계약 해지 요건"])
-                        
+
                 elif tag == "보증금 반환":
                     if doc_type == "lease":
                         hints.extend(["주택임대차보호법 보증금 반환", "임대차 보증금 반환 판례"])
                     else:
                         # 보증금은 주로 임대차이지만 다른 경우도 존재
                         hints.extend(["계약 보증금 반환", "민법 보증금"])
-                        
+
                 elif tag == "특약 효력":
                     if doc_type == "lease":
                         hints.extend(["임대차 계약서 특약 효력", "주택임대차보호법 특약"])
                     else:
                         hints.extend(["약관법 불공정약관", "계약 특약 효력"])
-                        
+
                 elif tag == "계약 기간/갱신":
                     if doc_type == "labor":
                         hints.extend(["용역계약 기간", "근로기준법 기간제", "계약 갱신"])
@@ -429,22 +428,22 @@ class SituationGuidanceService:
                         hints.extend(["임대차 계약 갱신 요건", "주택임대차보호법 갱신요구권"])
                     else:
                         hints.extend(["약관 계약 기간", "계약 갱신 조건"])
-                        
+
                 elif tag == "환불 제한":
                     hints.extend(["약관법 환불 제한", "전자상거래 청약철회 제한", "소비자기본법 환불"])
-                    
+
                 elif tag == "책임 제한":
                     if doc_type == "labor":
                         hints.extend(["용역계약 손해배상 예정액", "근로기준법 손해배상", "약관법 손해배상"])
                     else:
                         hints.extend(["약관법 손해배상 책임 제한", "면책조항 약관법", "고의과실 면책 무효"])
-                        
+
                 elif tag == "약관 변경":
                     hints.extend(["약관 변경 사전고지", "사업자 일방 변경 약관법"])
-                    
+
                 elif tag == "관할 불리":
                     hints.extend(["전속관할 약관 무효", "소비자 관할 약관 불리"])
-                    
+
             if hints:
                 clause_basis_hints.append({
                     "clause": item.get("clause"),
@@ -499,7 +498,7 @@ class SituationGuidanceService:
             "terms": "서비스 이용약관",
             "other": "계약서"
         }.get(doc_type, "계약서")
-        
+
         return {
             "detected": True,
             "document_type": doc_type_display,
@@ -516,7 +515,7 @@ class SituationGuidanceService:
                 "근거 결과를 법적 근거 요약 블록에 반영"
             ]
         }
-    
+
     async def comprehensive_search(
         self,
         situation: str,
@@ -526,26 +525,26 @@ class SituationGuidanceService:
         """
         사용자 상황을 종합적으로 분석하여 관련 법적 정보를 모두 찾기
         내부적으로 smart_search_tool을 호출하여 실제 법적 근거를 포함합니다.
-        
+
         Args:
             situation: 사용자의 법적 상황 설명
             max_results_per_type: 타입당 최대 결과 수
             arguments: 추가 인자
-            
+
         Returns:
             종합 검색 결과 및 가이드 (has_legal_basis, sources_count, missing_reason 포함)
         """
         # 1. 법적 영역 감지
         domains = self.detect_legal_domain(situation)
         detected_domains = [domain for domain, conf in domains if conf > 0.3]
-        
+
         # 2. 핵심 용어 추출
         key_terms = self.extract_key_terms(situation)
-        
+
         # 3. smart_search_tool 호출하여 실제 법적 근거 검색
         from ..services.smart_search_service import SmartSearchService
         smart_search_service = SmartSearchService()
-        
+
         # 상황에서 검색 타입 자동 결정
         search_types = []
         if detected_domains:
@@ -559,7 +558,7 @@ class SituationGuidanceService:
                     search_types.extend(["law", "interpretation", "administrative_appeal"])
                 else:
                     search_types.extend(["precedent", "law", "interpretation"])
-        
+
         # 중복 제거 (순서 보장)
         seen = set()
         dedup = []
@@ -568,10 +567,10 @@ class SituationGuidanceService:
                 seen.add(t)
                 dedup.append(t)
         search_types = dedup[:3]  # 최대 3개
-        
+
         # 검색 쿼리 정규화 (긴 문장 방지)
         normalized_query = self.normalize_query_for_search(situation, detected_domains, key_terms)
-        
+
         # smart_search 호출
         smart_result = await smart_search_service.smart_search(
             normalized_query,
@@ -579,14 +578,14 @@ class SituationGuidanceService:
             max_results_per_type,
             arguments
         )
-        
+
         # smart_search 결과에서 데이터 추출
         results = smart_result.get("results", {})
         law_results = results.get("law", {})
         precedent_results = results.get("precedent", {})
         interpretation_results = results.get("interpretation", {})
         appeal_results = results.get("administrative_appeal", {})
-        
+
         # 에러만 있는 결과는 근거로 취급하지 않음
         def has_law_data(payload: dict) -> bool:
             if not isinstance(payload, dict):
@@ -598,33 +597,33 @@ class SituationGuidanceService:
             if payload.get("law_name"):
                 return True
             return False
-        
+
         def has_precedent_data(payload: dict) -> bool:
             if not isinstance(payload, dict):
                 return False
             if "error" in payload:
                 return False
             return bool(payload.get("precedents"))
-        
+
         def has_interpretation_data(payload: dict) -> bool:
             if not isinstance(payload, dict):
                 return False
             if "error" in payload:
                 return False
             return bool(payload.get("interpretations"))
-        
+
         def has_appeal_data(payload: dict) -> bool:
             if not isinstance(payload, dict):
                 return False
             if "error" in payload:
                 return False
             return bool(payload.get("appeals"))
-        
+
         law_results_clean = law_results if has_law_data(law_results) else {}
         precedent_results_clean = precedent_results if has_precedent_data(precedent_results) else {}
         interpretation_results_clean = interpretation_results if has_interpretation_data(interpretation_results) else {}
         appeal_results_clean = appeal_results if has_appeal_data(appeal_results) else {}
-        
+
         # 에러 정보는 별도로 보존 (error/api_error/text/html 대응)
         def collect_error(payload: dict) -> Optional[dict]:
             if not isinstance(payload, dict):
@@ -635,7 +634,7 @@ class SituationGuidanceService:
             if isinstance(content_type, str) and content_type.lower().startswith("text/html"):
                 return payload
             return None
-        
+
         errors = {}
         law_error = collect_error(law_results)
         if law_error:
@@ -649,7 +648,7 @@ class SituationGuidanceService:
         appeal_error = collect_error(appeal_results)
         if appeal_error:
             errors["administrative_appeal"] = appeal_error
-        
+
         # sources_count 계산
         sources_count = {
             "law": len(law_results_clean.get("laws", [])) if isinstance(law_results_clean, dict) and "laws" in law_results_clean else (1 if law_results_clean and "law_name" in law_results_clean else 0),
@@ -657,11 +656,11 @@ class SituationGuidanceService:
             "interpretation": len(interpretation_results_clean.get("interpretations", [])) if isinstance(interpretation_results_clean, dict) and "interpretations" in interpretation_results_clean else 0,
             "administrative_appeal": len(appeal_results_clean.get("appeals", [])) if isinstance(appeal_results_clean, dict) and "appeals" in appeal_results_clean else 0
         }
-        
+
         # has_legal_basis 판단
         total_sources = sum(sources_count.values())
         has_legal_basis = total_sources > 0
-        
+
         # missing_reason 판단
         missing_reason = None
         if not has_legal_basis:
@@ -705,7 +704,7 @@ class SituationGuidanceService:
                     missing_reason = "API_ERROR_AUTH"
                 else:
                     missing_reason = "NO_MATCH"
-        
+
         # 법적 근거 요약
         legal_basis_summary = {
             "has_legal_basis": has_legal_basis,
@@ -713,10 +712,10 @@ class SituationGuidanceService:
             "counts": sources_count,
             "missing_reason": missing_reason
         }
-        
+
         # 문서 입력 감지 및 분석 (계약서/약관 등)
         document_analysis = self.build_document_analysis(situation)
-        
+
         # legal_basis_block_text 생성 (상단 요약용)
         citations_titles = []
         for c in smart_result.get("citations", []) if isinstance(smart_result, dict) else []:
@@ -744,7 +743,7 @@ class SituationGuidanceService:
                 f"근거를 찾지 못했습니다({missing_reason}). "
                 f"대체 근거={', '.join(fallback_titles) if fallback_titles else '없음'}"
             )
-        
+
         # 가이드 생성
         guidance = self.generate_guidance(
             situation,
@@ -756,10 +755,10 @@ class SituationGuidanceService:
             missing_reason,
             normalized_query
         )
-        
+
         success_transport = True
         success_search = has_legal_basis
-        
+
         return {
             "success_transport": success_transport,
             "success_search": success_search,
@@ -794,7 +793,7 @@ class SituationGuidanceService:
                 interpretation_results_clean
             )
         }
-    
+
     async def document_issue_analysis(
         self,
         document_text: str,
@@ -814,7 +813,7 @@ class SituationGuidanceService:
             "missing_reason": "NO_SEARCH"
         }
         risk_findings = []
-        
+
         def count_sources(payload: Optional[dict]) -> int:
             if not isinstance(payload, dict):
                 return 0
@@ -837,7 +836,7 @@ class SituationGuidanceService:
                 if isinstance(citations, list) and citations:
                     return len(citations)
             return law_count + precedent_count + interpretation_count
-        
+
         def collect_precedents(payload: Optional[dict]) -> List[str]:
             if not isinstance(payload, dict):
                 return []
@@ -850,20 +849,20 @@ class SituationGuidanceService:
                     if name:
                         names.append(name)
             return names[:5]
-        
+
         def collect_citations(payload: Optional[dict]) -> List[dict]:
             if not isinstance(payload, dict):
                 return []
             citations = payload.get("citations", [])
             return citations[:5] if isinstance(citations, list) else []
-        
+
         # 조항별 자동 검색 (옵션)
         if not auto_search:
             evidence_summary["missing_reason"] = "NO_SEARCH"
         elif auto_search and analysis and analysis.get("clause_basis_hints"):
             from ..services.smart_search_service import SmartSearchService
             smart_search_service = SmartSearchService()
-            
+
             for item in analysis.get("clause_basis_hints", [])[:max_clauses]:
                 clause = item.get("clause")
                 queries = item.get("suggested_queries", [])[:]
@@ -875,11 +874,11 @@ class SituationGuidanceService:
                 queries = queries[:2]
                 if not queries:
                     continue
-                
+
                 clause_citations = []
                 clause_precedents = []
                 clause_sources = 0
-                
+
                 for query in queries:
                     result = await smart_search_service.smart_search(
                         query,
@@ -895,7 +894,7 @@ class SituationGuidanceService:
                     clause_sources += count_sources(result)
                     clause_citations.extend(collect_citations(result))
                     clause_precedents.extend(collect_precedents(result))
-                
+
                 clause_has_legal_basis = clause_sources > 0 or len(clause_citations) > 0
                 risk_level = "high" if clause_has_legal_basis else "medium"
                 why = None
@@ -905,7 +904,7 @@ class SituationGuidanceService:
                         why = first.get("article") or first.get("article_number") or first.get("name")
                 if not why:
                     why = queries[0] if queries else None
-                
+
                 risk_findings.append({
                     "clause": clause,
                     "risk_level": risk_level,
@@ -913,7 +912,7 @@ class SituationGuidanceService:
                     "precedents": list(dict.fromkeys(clause_precedents))[:5],
                     "citations": clause_citations[:5]
                 })
-            
+
             # 요약 집계
             evidence_summary["searched_clauses"] = len({r.get("clause") for r in evidence_results})
             evidence_summary["has_legal_basis"] = any(
@@ -957,12 +956,12 @@ class SituationGuidanceService:
             evidence_summary["missing_reason"] = "NO_HINTS"
         elif not analysis:
             evidence_summary["missing_reason"] = "NO_DOCUMENT"
-        
+
         total_citations = []
         for item in evidence_results:
             total_citations.extend(collect_citations(item.get("result")))
         total_citations = total_citations[:10]
-        
+
         legal_basis_summary = {
             "has_legal_basis": evidence_summary["has_legal_basis"],
             "types": ["law", "precedent", "interpretation"] if evidence_summary["has_legal_basis"] else [],
@@ -1014,7 +1013,7 @@ class SituationGuidanceService:
                 "suggested_queries": analysis.get("suggested_queries", [])[:6],
                 "note": "추천 검색어로 법령/판례 검색을 재시도하세요."
             }
-        
+
         success_transport = True
         success_search = evidence_summary["has_legal_basis"] if auto_search else False
         success = success_transport if not auto_search else (success_transport and success_search)
@@ -1044,7 +1043,7 @@ class SituationGuidanceService:
                 "when_api_error": "explain_api_error_and_request_retry"
             }
         }
-    
+
     def generate_guidance(
         self,
         situation: str,
@@ -1060,7 +1059,7 @@ class SituationGuidanceService:
         사용자에게 단계별 가이드 제공
         """
         steps = []
-        
+
         # 0단계: API 에러 안내 (근거 조회 실패 시 최우선)
         if missing_reason == "API_ERROR":
             steps.append({
@@ -1069,7 +1068,7 @@ class SituationGuidanceService:
                 "description": "국가법령정보센터에서 HTML 응답을 반환하여 근거를 조회하지 못했습니다.",
                 "action": f"재시도 검색어 제안: {normalized_query}" if normalized_query else "검색어를 짧은 키워드로 줄여 다시 시도하세요."
             })
-        
+
         # 1단계: 관련 법령 확인
         if law_results:
             law_names = []
@@ -1090,7 +1089,7 @@ class SituationGuidanceService:
                     "description": f"다음 법령들이 관련될 수 있습니다: {', '.join(law_names)}",
                     "action": "각 법령의 조문을 확인하여 본인의 상황에 적용되는지 검토하세요."
                 })
-        
+
         # 2단계: 유사 판례 확인
         if precedent_results:
             precedent_count = 0
@@ -1106,7 +1105,7 @@ class SituationGuidanceService:
                     "description": f"{precedent_count}개의 유사 판례를 찾았습니다.",
                     "action": "유사한 사건이 어떻게 판결되었는지 확인하여 참고하세요."
                 })
-        
+
         # 3단계: 기관 해석 확인
         if interpretation_results:
             agencies = []
@@ -1125,7 +1124,7 @@ class SituationGuidanceService:
                     "description": f"다음 기관들의 공식 해석을 확인하세요: {', '.join(agencies)}",
                     "action": "기관의 공식 해석이 본인의 상황에 어떻게 적용되는지 검토하세요."
                 })
-        
+
         # 4단계: 행정심판/소청 가능성 (근거 있을 때만 후순위로)
         has_any_evidence = bool(law_results or precedent_results or interpretation_results)
         if has_any_evidence and domains:
@@ -1138,7 +1137,7 @@ class SituationGuidanceService:
                     "description": f"관련 기관({', '.join(agencies[:2])})에 행정심판이나 소청을 제기할 수 있습니다.",
                     "action": "유사한 행정심판 사례를 참고하여 절차를 확인하세요."
                 })
-        
+
         # 5단계: 전문가 상담 권장
         steps.append({
             "step": len(steps) + 1,
@@ -1146,13 +1145,13 @@ class SituationGuidanceService:
             "description": "복잡한 법적 문제는 변호사나 법률 전문가의 상담을 받는 것이 좋습니다.",
             "action": "본인의 상황을 정확히 파악하기 위해 전문가와 상담하세요."
         })
-        
+
         return {
             "steps": steps,
             "total_steps": len(steps),
             "estimated_time": f"{len(steps) * 30}분"
         }
-    
+
     def generate_summary(
         self,
         domains: List[str],
@@ -1164,10 +1163,10 @@ class SituationGuidanceService:
         검색 결과 요약 생성
         """
         summary_parts = []
-        
+
         if domains:
             summary_parts.append(f"법적 영역: {', '.join(domains)}")
-        
+
         if law_results:
             law_count = 0
             if isinstance(law_results, dict):
@@ -1176,7 +1175,7 @@ class SituationGuidanceService:
                 elif law_results.get("law_name"):
                     law_count = 1
             summary_parts.append(f"관련 법령 {law_count}개 발견")
-        
+
         if precedent_results:
             total_precedents = 0
             if isinstance(precedent_results, dict):
@@ -1185,15 +1184,15 @@ class SituationGuidanceService:
                 elif precedent_results.get("total"):
                     total_precedents = int(precedent_results.get("total", 0) or 0)
             summary_parts.append(f"유사 판례 {total_precedents}개 발견")
-        
+
         if interpretation_results:
             interpretation_count = 0
             if isinstance(interpretation_results, dict) and isinstance(interpretation_results.get("interpretations"), list):
                 interpretation_count = len(interpretation_results.get("interpretations"))
             summary_parts.append(f"기관 해석 {interpretation_count}개 발견")
-        
+
         if not summary_parts:
             return "관련 법적 정보를 찾지 못했습니다. 더 구체적인 상황을 설명해주세요."
-        
+
         return " | ".join(summary_parts)
 

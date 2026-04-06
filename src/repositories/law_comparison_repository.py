@@ -9,7 +9,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_UR
 
 class LawComparisonRepository(BaseLawRepository):
     """법령 비교 및 연혁 조회 관련 기능을 담당하는 Repository"""
-    
+
     def compare_laws(
         self,
         law_name: str,
@@ -18,14 +18,14 @@ class LawComparisonRepository(BaseLawRepository):
     ) -> dict:
         """법령을 비교합니다 (신구법 비교, 연혁, 3단 비교)."""
         logger.debug("compare_laws called | law_name=%r compare_type=%r", law_name, compare_type)
-        
+
         cache_key = ("law_comparison", law_name, compare_type)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             # 먼저 법령명으로 법령 ID 찾기
             search_params = {
@@ -35,57 +35,57 @@ class LawComparisonRepository(BaseLawRepository):
                 "page": 1,
                 "display": 10  # 더 많은 결과에서 정확한 매칭을 위해
             }
-            
+
             _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             search_response = requests.get(LAW_API_SEARCH_URL, params=search_params, timeout=10)
-            
+
             invalid_search = self.validate_drf_response(search_response)
             if invalid_search:
                 return invalid_search
             search_response.raise_for_status()
-            
+
             law_id = None
             normalized_query = self.normalize_search_query(law_name)
-            
+
             try:
                 search_data = search_response.json()
                 if isinstance(search_data, dict):
                     laws = search_data.get("LawSearch", {}).get("law", []) or search_data.get("law", [])
                     if not isinstance(laws, list):
                         laws = [laws] if laws else []
-                    
+
                     # 정확히 일치하는 법령명 찾기
                     for law_item in laws:
                         if isinstance(law_item, dict):
-                            item_name = (law_item.get("법령명한글") or 
-                                       law_item.get("lawNm") or 
+                            item_name = (law_item.get("법령명한글") or
+                                       law_item.get("lawNm") or
                                        law_item.get("법령명") or "")
                             if normalized_query == self.normalize_search_query(item_name):
-                                law_id = (law_item.get("법령일련번호") or 
+                                law_id = (law_item.get("법령일련번호") or
                                          law_item.get("일련번호") or
                                          law_item.get("lawSeq") or
                                          law_item.get("id"))
                                 break
-                    
+
                     # 정확히 일치하지 않으면 첫 번째 결과 사용
                     if not law_id and laws and isinstance(laws[0], dict):
-                        law_id = (laws[0].get("법령일련번호") or 
+                        law_id = (laws[0].get("법령일련번호") or
                                  laws[0].get("일련번호") or
                                  laws[0].get("lawSeq") or
                                  laws[0].get("id"))
             except json.JSONDecodeError:
                 pass
-            
+
             if not law_id:
                 return {
                     "error": "법령 ID를 찾을 수 없습니다.",
                     "law_name": law_name,
                     "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요."
                 }
-            
+
             # 비교 타입에 따라 다른 API 호출 (API 문서 기준)
             if compare_type == "신구법":
                 target = "oldAndNew"  # API 문서: target=oldAndNew
@@ -99,24 +99,24 @@ class LawComparisonRepository(BaseLawRepository):
                     "supported_types": ["신구법", "연혁", "3단비교"],
                     "recovery_guide": "비교 유형을 '신구법', '연혁', '3단비교' 중 하나로 선택해주세요."
                 }
-            
+
             params = {
                 "target": target,
                 "type": "JSON",
                 "MST": law_id
             }
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -127,7 +127,7 @@ class LawComparisonRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "law_name": law_name,
                 "law_id": law_id,
@@ -135,10 +135,10 @@ class LawComparisonRepository(BaseLawRepository):
                 "comparison": data,
                 "api_url": response.url
             }
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",

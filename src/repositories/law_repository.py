@@ -9,7 +9,7 @@ from .law_detail import LawDetailRepository
 class LawRepository(LawSearchRepository, LawDetailRepository):
     """
     법령 데이터 접근을 담당하는 통합 Repository
-    
+
     검색 및 조회 기능을 모두 제공합니다.
     - 검색 기능: LawSearchRepository에서 상속
     - 조회 기능: LawDetailRepository에서 상속

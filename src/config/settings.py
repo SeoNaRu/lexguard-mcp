@@ -6,7 +6,7 @@ from typing import Any
 
 import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
 from dotenv import load_dotenv
@@ -61,7 +61,7 @@ def get_api() -> FastAPI:
         from ..utils.http_client import close_async_client
         await close_async_client()
         logger.info("LexGuard MCP 서버 종료")
-    
+
     api = FastAPI(lifespan=lifespan)
 
     # Rate Limiter 등록

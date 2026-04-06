@@ -9,7 +9,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, f
 
 class AdministrativeRuleRepository(BaseLawRepository):
     """행정규칙 검색 관련 기능을 담당하는 Repository"""
-    
+
     def search_administrative_rule(
         self,
         query: Optional[str] = None,
@@ -19,21 +19,21 @@ class AdministrativeRuleRepository(BaseLawRepository):
         arguments: Optional[dict] = None
     ) -> dict:
         """행정규칙을 검색합니다."""
-        logger.debug("search_administrative_rule called | query=%r agency=%r page=%d per_page=%d", 
+        logger.debug("search_administrative_rule called | query=%r agency=%r page=%d per_page=%d",
                     query, agency, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         cache_key = ("administrative_rule", query or "", agency or "", page, per_page)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "admrul",
@@ -41,10 +41,10 @@ class AdministrativeRuleRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
-            
+
             if agency:
                 # 부처명을 기관코드로 변환 (간단한 매핑)
                 agency_code_map = {
@@ -55,18 +55,18 @@ class AdministrativeRuleRepository(BaseLawRepository):
                 }
                 if agency in agency_code_map:
                     params["orgCd"] = agency_code_map[agency]
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -77,7 +77,7 @@ class AdministrativeRuleRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "query": query,
                 "agency": agency,
@@ -87,7 +87,7 @@ class AdministrativeRuleRepository(BaseLawRepository):
                 "rules": [],
                 "api_url": response.url
             }
-            
+
             if isinstance(data, dict):
                 if "AdmrulSearch" in data:
                     admrul_search = data["AdmrulSearch"]
@@ -114,19 +114,19 @@ class AdministrativeRuleRepository(BaseLawRepository):
                     except (TypeError, ValueError):
                         result["total"] = 0
                     rules = data.get("admrul", [])
-                
+
                 if not isinstance(rules, list):
                     rules = [rules] if rules else []
-                
+
                 result["rules"] = rules[:per_page]
-            
+
             # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
             if result["total"] and not result["rules"]:
                 result["note"] = "API 응답에서 totalCnt는 있으나 행정규칙 목록(admrul)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",

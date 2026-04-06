@@ -2,8 +2,7 @@
 Domain Classifier - 법률 이슈 분류기
 사용자 질문/상황을 법률 도메인으로 분류
 """
-from typing import List, Dict, Tuple, Optional
-import re
+from typing import List, Tuple
 
 
 # 법률 도메인 정의
@@ -54,10 +53,10 @@ LEGAL_DOMAINS = {
 
 class DomainClassifier:
     """법률 도메인 분류기"""
-    
+
     def __init__(self):
         self.domains = LEGAL_DOMAINS
-    
+
     def classify(
         self,
         query: str,
@@ -65,35 +64,35 @@ class DomainClassifier:
     ) -> List[Tuple[str, float]]:
         """
         질문을 법률 도메인으로 분류
-        
+
         Args:
             query: 사용자 질문
             max_domains: 최대 반환 도메인 수
-            
+
         Returns:
             (도메인명, 점수) 튜플 리스트 (점수 높은 순)
         """
         query_lower = query.lower()
         scores = {}
-        
+
         for domain_name, domain_config in self.domains.items():
             score = 0.0
-            
+
             # 키워드 매칭
             keywords = domain_config.get("keywords", [])
             for keyword in keywords:
                 if keyword.lower() in query_lower:
                     score += 1.0
-            
+
             # 동의어 매칭 (가중치 낮게)
             synonyms = domain_config.get("synonyms", [])
             for synonym in synonyms:
                 if synonym.lower() in query_lower:
                     score += 0.5
-            
+
             if score > 0:
                 scores[domain_name] = score
-        
+
         # 점수 정규화 (0.0 ~ 1.0)
         if scores:
             max_score = max(scores.values())
@@ -103,63 +102,63 @@ class DomainClassifier:
             }
         else:
             normalized_scores = {}
-        
+
         # 점수 높은 순으로 정렬
         sorted_domains = sorted(
             normalized_scores.items(),
             key=lambda x: x[1],
             reverse=True
         )
-        
+
         return sorted_domains[:max_domains]
-    
+
     def get_domain_keywords(
         self,
         domain: str
     ) -> List[str]:
         """
         특정 도메인의 키워드 리스트 반환
-        
+
         Args:
             domain: 도메인명
-            
+
         Returns:
             키워드 리스트
         """
         domain_config = self.domains.get(domain)
         if not domain_config:
             return []
-        
+
         return domain_config.get("keywords", [])
-    
+
     def get_must_include_for_domain(
         self,
         domain: str
     ) -> List[str]:
         """
         특정 도메인에 대한 must_include 키워드 추천
-        
+
         Args:
             domain: 도메인명
-            
+
         Returns:
             must_include 키워드 리스트
         """
         domain_config = self.domains.get(domain)
         if not domain_config:
             return []
-        
+
         keywords = domain_config.get("keywords", [])
-        
+
         # 법리 키워드 우선 (법령명, 핵심 개념)
         legal_keywords = [
             kw for kw in keywords
             if any(legal_term in kw for legal_term in ["법", "관계", "권", "의무", "책임"])
         ]
-        
+
         # 법리 키워드가 있으면 그것을 우선, 없으면 일반 키워드
         return legal_keywords[:2] if legal_keywords else keywords[:2]
-    
+
     def classify_with_confidence(
         self,
         query: str,
@@ -167,11 +166,11 @@ class DomainClassifier:
     ) -> List[str]:
         """
         신뢰도가 높은 도메인만 반환
-        
+
         Args:
             query: 사용자 질문
             min_confidence: 최소 신뢰도 (0.0 ~ 1.0)
-            
+
         Returns:
             도메인명 리스트
         """

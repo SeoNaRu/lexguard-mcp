@@ -9,7 +9,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_UR
 
 class AdministrativeAppealRepository(BaseLawRepository):
     """행정심판 검색 및 조회 관련 기능을 담당하는 Repository"""
-    
+
     def search_administrative_appeal(
         self,
         query: Optional[str] = None,
@@ -21,19 +21,19 @@ class AdministrativeAppealRepository(BaseLawRepository):
     ) -> dict:
         """행정심판을 검색합니다."""
         logger.debug("search_administrative_appeal called | query=%r page=%d per_page=%d", query, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         cache_key = ("administrative_appeal", query or "", page, per_page, date_from or "", date_to or "")
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "decc",
@@ -41,28 +41,28 @@ class AdministrativeAppealRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
-            
+
             if date_from and date_to:
                 params["deccYd"] = f"{date_from}~{date_to}"
             elif date_from:
                 params["deccYd"] = f"{date_from}~{date_from}"
             elif date_to:
                 params["deccYd"] = f"{date_to}~{date_to}"
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -72,7 +72,7 @@ class AdministrativeAppealRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "query": query,
                 "page": page,
@@ -81,7 +81,7 @@ class AdministrativeAppealRepository(BaseLawRepository):
                 "appeals": [],
                 "api_url": response.url
             }
-            
+
             if isinstance(data, dict):
                 if "DeccSearch" in data:
                     decc_search = data["DeccSearch"]
@@ -96,15 +96,15 @@ class AdministrativeAppealRepository(BaseLawRepository):
                 else:
                     result["total"] = data.get("totalCnt", 0)
                     appeals = data.get("decc", [])
-                
+
                 if not isinstance(appeals, list):
                     appeals = [appeals] if appeals else []
-                
+
                 result["appeals"] = appeals[:per_page]
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",
@@ -125,7 +125,7 @@ class AdministrativeAppealRepository(BaseLawRepository):
                 "error": f"예상치 못한 오류: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     def get_administrative_appeal(
         self,
         appeal_id: str,
@@ -133,32 +133,32 @@ class AdministrativeAppealRepository(BaseLawRepository):
     ) -> dict:
         """행정심판 상세 정보를 조회합니다."""
         logger.debug("get_administrative_appeal called | appeal_id=%r", appeal_id)
-        
+
         cache_key = ("administrative_appeal_detail", appeal_id)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "decc",
                 "type": "JSON",
                 "ID": appeal_id
             }
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -167,16 +167,16 @@ class AdministrativeAppealRepository(BaseLawRepository):
                     "appeal_id": appeal_id,
                     "api_url": response.url
                 }
-            
+
             result = {
                 "appeal_id": appeal_id,
                 "appeal": data,
                 "api_url": response.url
             }
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",

@@ -9,10 +9,10 @@ from ..models import CompareLawsRequest
 
 class LawComparisonService:
     """법령 비교 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     def __init__(self):
         self.repository = LawComparisonRepository()
-    
+
     async def compare_laws(
         self,
         req: CompareLawsRequest,

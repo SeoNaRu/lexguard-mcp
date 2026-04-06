@@ -149,7 +149,7 @@ class CompareLawsRequest(BaseModel):
     """법령 비교 요청 모델"""
     law_name: str = Field(..., description="법령명 (예: '형법', '민법')")
     compare_type: Literal["신구법", "연혁", "3단비교"] = Field(
-        "신구법", 
+        "신구법",
         description="비교 유형: '신구법'(신구법 비교), '연혁'(법령 연혁), '3단비교'(3단 비교)"
     )
 

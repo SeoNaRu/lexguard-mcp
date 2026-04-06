@@ -9,10 +9,10 @@ from ..models import SearchCommitteeDecisionRequest, GetCommitteeDecisionRequest
 
 class CommitteeDecisionService:
     """위원회 결정문 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     def __init__(self):
         self.repository = CommitteeDecisionRepository()
-    
+
     async def search_committee_decision(
         self,
         req: SearchCommitteeDecisionRequest,
@@ -35,7 +35,7 @@ class CommitteeDecisionService:
                 "error": f"위원회 결정문 검색 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     async def get_committee_decision(
         self,
         req: GetCommitteeDecisionRequest,

@@ -3,22 +3,22 @@
 apis 폴더의 response_fields를 기반으로 구조화
 """
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 
 def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
     """
     응답에 메타데이터 추가 (Phase 3 개선)
-    
+
     Args:
         formatted: 포맷팅된 응답
         tool_name: 툴 이름
-    
+
     Returns:
         메타데이터가 추가된 응답
     """
     meta = {}
-    
+
     # clarification_needed 응답 처리
     if formatted.get("clarification_needed"):
         meta["response_type"] = "clarification_needed"
@@ -26,7 +26,7 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         meta["parsing_hint"] = "results.possible_intents 배열에 가능한 의도 후보가 있습니다. results.suggestion을 참고하여 사용자에게 질문하세요."
         formatted["_meta"] = meta
         return formatted
-    
+
     # 툴별 응답 타입 결정
     response_type_map = {
         "search_law_tool": "law_list",
@@ -50,9 +50,9 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "situation_guidance_tool": "situation_guidance",
         "document_issue_tool": "document_issue"
     }
-    
+
     meta["response_type"] = response_type_map.get(tool_name, "unknown")
-    
+
     # 주요 필드 목록 추출
     fields = []
     if formatted.get("success"):
@@ -67,9 +67,9 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
     else:
         # 에러 응답의 주요 필드
         fields = ["error", "recovery_guide"]
-    
+
     meta["fields"] = fields[:10]  # 최대 10개 필드만
-    
+
     # 파싱 힌트 생성
     parsing_hints = {
         "law_list": "results.laws 배열에 법령 목록이 있습니다.",
@@ -94,22 +94,22 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "document_issue": "results.document_analysis에 조항별 이슈와 근거 조회 힌트가 있습니다.",
         "clarification_needed": "results.possible_intents 배열에 가능한 의도 후보가 있습니다. results.suggestion을 참고하여 사용자에게 질문하세요."
     }
-    
+
     meta["parsing_hint"] = parsing_hints.get(meta["response_type"], "응답 구조를 확인하세요.")
-    
+
     # 특수 케이스 처리
     if tool_name == "get_law_tool":
         if formatted.get("article"):
             meta["parsing_hint"] = "results.article.content에 조문 내용이 있습니다."
         elif formatted.get("articles"):
             meta["parsing_hint"] = "results.articles 배열에 조문 목록이 있습니다."
-    
+
     if tool_name == "smart_search_tool":
         if formatted.get("results"):
             result_types = list(formatted.get("results", {}).keys())
             if result_types:
                 meta["parsing_hint"] = f"results.results 객체에 {', '.join(result_types)} 타입의 검색 결과가 있습니다."
-    
+
     formatted["_meta"] = meta
     return formatted
 
@@ -117,11 +117,11 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
 def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
     """
     검색 결과를 구조화된 객체로 포맷팅
-    
+
     Args:
         result: Repository에서 반환한 원본 결과
         tool_name: 툴 이름 (응답 구조 결정용)
-    
+
     Returns:
         구조화된 응답 객체
     """
@@ -133,7 +133,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "note": result.get("note"),
             "api_url": result.get("api_url")
         }
-    
+
     # 툴별 구조화
     if tool_name == "search_law_tool":
         return {
@@ -145,7 +145,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "laws": result.get("laws", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_law_tool":
         return {
             "success": True,
@@ -157,7 +157,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "article": result.get("article"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_precedent_tool":
         return {
             "success": True,
@@ -168,7 +168,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "precedents": result.get("precedents", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_precedent_tool":
         return {
             "success": True,
@@ -177,7 +177,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "precedent": result.get("precedent"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_law_interpretation_tool":
         return {
             "success": True,
@@ -188,7 +188,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "interpretations": result.get("interpretations", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_law_interpretation_tool":
         return {
             "success": True,
@@ -196,7 +196,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "interpretation": result.get("interpretation"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_administrative_appeal_tool":
         return {
             "success": True,
@@ -207,7 +207,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "appeals": result.get("appeals", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_administrative_appeal_tool":
         return {
             "success": True,
@@ -215,7 +215,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "appeal": result.get("appeal"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_committee_decision_tool":
         return {
             "success": True,
@@ -227,7 +227,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "decisions": result.get("decisions", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_committee_decision_tool":
         return {
             "success": True,
@@ -236,7 +236,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "decision": result.get("decision"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_constitutional_decision_tool":
         return {
             "success": True,
@@ -247,7 +247,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "decisions": result.get("decisions", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_constitutional_decision_tool":
         return {
             "success": True,
@@ -255,7 +255,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "decision": result.get("decision"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_special_administrative_appeal_tool":
         return {
             "success": True,
@@ -267,7 +267,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "appeals": result.get("appeals", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "get_special_administrative_appeal_tool":
         return {
             "success": True,
@@ -276,7 +276,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "appeal": result.get("appeal"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "compare_laws_tool":
         return {
             "success": True,
@@ -285,7 +285,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "comparison": result.get("comparison"),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_local_ordinance_tool":
         return {
             "success": True,
@@ -297,7 +297,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "ordinances": result.get("ordinances", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "search_administrative_rule_tool":
         return {
             "success": True,
@@ -309,7 +309,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "rules": result.get("rules", []),
             "api_url": result.get("api_url")
         }
-    
+
     elif tool_name == "smart_search_tool":
         # clarification_needed 응답 처리 (Phase 3 개선)
         if result.get("clarification_needed"):
@@ -320,7 +320,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
                 "possible_intents": result.get("possible_intents", []),
                 "suggestion": result.get("suggestion", "")
             }
-        
+
         legal_basis_block = {
             "summary": result.get("legal_basis_summary"),
             "citations": result.get("citations", []),
@@ -357,7 +357,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
         if "note" in result:
             formatted["note"] = result["note"]
         return formatted
-    
+
     elif tool_name == "situation_guidance_tool":
         legal_basis_block = {
             "summary": result.get("legal_basis_summary"),
@@ -390,7 +390,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "guidance": result.get("guidance", []),
             "summary": result.get("summary")
         }
-    
+
     elif tool_name == "document_issue_tool":
         def _citation_title(item: Any) -> Optional[str]:
             if isinstance(item, dict):
@@ -451,7 +451,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "retry_plan": result.get("retry_plan"),
             "response_policy": result.get("response_policy")
         }
-    
+
     # 기본: 원본 반환 (구조가 유동적인 경우)
     return result
 
@@ -459,25 +459,25 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
 def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
     """
     MCP 응답 포맷으로 변환 (content 배열 포함)
-    
+
     Args:
         result: Repository에서 반환한 원본 결과
         tool_name: 툴 이름
-    
+
     Returns:
         MCP 표준 포맷: {"content": [{"type": "text", "text": "..."}], "isError": bool}
     """
     # 구조화된 응답 생성
     formatted = format_search_response(result, tool_name)
-    
+
     # 메타데이터 추가 (Phase 3 개선)
     formatted = add_metadata(formatted, tool_name)
-    
+
     # JSON 문자열로 변환
     formatted_json = json.dumps(formatted, ensure_ascii=False)
 
     contents = []
-    
+
     # A 타입 형식 리마인더 추가 (legal_qa_tool, document_issue_tool에만)
     if tool_name in ["legal_qa_tool", "document_issue_tool"]:
         if tool_name == "legal_qa_tool":
@@ -526,12 +526,12 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
 
 필수: 조항별로 불릿(-) 사용, 문제점과 이유를 함께 설명
 금지: 이모지, 타이틀, 심각도 표시, 조문 전체 인용, 단정적 조언"""
-        
+
         contents.append({
             "type": "text",
             "text": template_reminder
         })
-    
+
     if tool_name == "document_issue_tool":
         auto_search = formatted.get("auto_search")
         success_search = formatted.get("success_search")
@@ -553,10 +553,10 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
         "type": "text",
         "text": formatted_json
     })
-    
+
     # 에러 여부 확인
     is_error = not formatted.get("success", True) or "error" in formatted
-    
+
     return {
         "content": contents,
         "structuredContent": formatted,

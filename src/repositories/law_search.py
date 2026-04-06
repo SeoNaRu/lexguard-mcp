@@ -6,48 +6,48 @@ import json
 import xml.etree.ElementTree as ET
 import re
 from typing import Optional
-from .base import BaseLawRepository, logger, LAW_API_BASE_URL, LAW_API_SEARCH_URL, search_cache, failure_cache
+from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, failure_cache
 
 
 class LawSearchRepository(BaseLawRepository):
     """법령 검색 관련 기능을 담당하는 Repository"""
-    
+
     def search_law(self, query: Optional[str] = None, page: int = 1, per_page: int = 10, arguments: Optional[dict] = None) -> dict:
         """
         법령을 검색합니다 (통합: 검색 + 목록 조회).
-        
+
         Args:
             query: 검색어 (법령명 또는 키워드, None이면 전체 목록 반환)
             page: 페이지 번호 (기본값: 1)
             per_page: 페이지당 결과 수 (기본값: 10, 최대: 100)
             arguments: 추가 인자 (API 키 등)
-            
+
         Returns:
             검색 결과 딕셔너리 또는 {"error": "error message"}
         """
         logger.debug("search_law called | query=%r page=%d per_page=%d", query, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         # query가 None이거나 비어있으면 전체 목록 조회 (list_law_names와 동일)
         if not query or not query.strip():
             logger.debug("query is empty, using list_law_names logic")
             return self.list_law_names(page, per_page, None, arguments)
-        
+
         normalized_query = self.normalize_search_query(query)
         cache_key = (normalized_query.lower(), page, per_page)
-        
+
         if cache_key in search_cache:
             logger.debug("Cache hit for search | query=%r", query)
             return search_cache[cache_key]
-        
+
         if cache_key in failure_cache:
             logger.debug("Failure cache hit, skipping | query=%r", query)
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "law",
@@ -56,11 +56,11 @@ class LawSearchRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page  # lawSearch.do는 display 파라미터 사용
             }
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             # 검색은 lawSearch.do 사용
             # 1차 시도: JSON
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
@@ -70,34 +70,35 @@ class LawSearchRepository(BaseLawRepository):
             response.raise_for_status()
 
             json_decode_failed = False
-            
+
             # JSON 파싱 시도
             data = None
             try:
                 data = response.json()
             except json.JSONDecodeError:
                 json_decode_failed = True
-            
+
             # JSON 실패 또는 HTML 에러 시 XML로 재시도
             if json_decode_failed:
+                is_html_error = self._has_html_body(response.text or "")
                 logger.warning("JSON request failed, trying XML fallback")
 
                 # XML로 재시도
                 xml_params = params.copy()
                 xml_params["type"] = "XML"
-                
+
                 try:
                     xml_response = requests.get(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
-                    
+
                     invalid_xml = self.validate_drf_response(xml_response)
                     if invalid_xml:
                         return invalid_xml
                     xml_response.raise_for_status()
-                    
+
                     # XML 파싱
                     try:
                         root = ET.fromstring(xml_response.text)
-                        
+
                         result = {
                             "query": normalized_query,
                             "page": page,
@@ -107,17 +108,17 @@ class LawSearchRepository(BaseLawRepository):
                             "api_url": xml_response.url,
                             "format": "XML"  # XML로 가져왔음을 표시
                         }
-                        
+
                         # totalCnt 추출
                         total_elem = root.find('.//totalCnt')
                         if total_elem is not None and total_elem.text:
                             result["total"] = int(total_elem.text)
-                        
+
                         # 법령 추출
                         law_elems = root.findall('.//법령')
                         if not law_elems:
                             law_elems = root.findall('.//law')
-                        
+
                         for law_elem in law_elems[:per_page]:
                             law_dict = {}
                             # 법령명
@@ -128,7 +129,7 @@ class LawSearchRepository(BaseLawRepository):
                                 name_elem = law_elem.find('lawNm')
                             if name_elem is not None and name_elem.text:
                                 law_dict["법령명한글"] = name_elem.text.strip()
-                            
+
                             # 법령일련번호
                             id_elem = law_elem.find('법령일련번호')
                             if id_elem is None:
@@ -137,19 +138,19 @@ class LawSearchRepository(BaseLawRepository):
                                 id_elem = law_elem.find('lawSeq')
                             if id_elem is not None and id_elem.text:
                                 law_dict["법령일련번호"] = id_elem.text.strip()
-                            
+
                             if law_dict:
                                 result["laws"].append(law_dict)
-                        
+
                         if result["total"] == 0:
                             result["message"] = "검색 결과가 없습니다. 법령명을 정확히 입력해주세요."
                             logger.debug("No matching laws found for query: %s", normalized_query)
-                        
+
                         search_cache[cache_key] = result
                         logger.debug("API call successful for search (XML fallback) | query=%r total=%d", query, result["total"])
-                        
+
                         return result
-                        
+
                     except ET.ParseError as e:
                         logger.warning("XML parsing failed: %s", str(e))
                         # XML 파싱 실패 시 정규식으로 재시도
@@ -168,13 +169,13 @@ class LawSearchRepository(BaseLawRepository):
                             law_names = re.findall(r'<법령명><!\[CDATA\[(.*?)\]\]></법령명>', xml_response.text)
                             if not law_names:
                                 law_names = re.findall(r'<법령명>(.*?)</법령명>', xml_response.text)
-                            
+
                             for name in law_names[:per_page]:
                                 result["laws"].append({"법령명한글": name.strip()})
-                            
+
                             search_cache[cache_key] = result
                             return result
-                        
+
                         # XML 파싱도 실패
                         error_msg = f"XML 파싱 실패: {str(e)}"
                         logger.error("XML parsing failed | url=%s | error=%s", xml_response.url, str(e))
@@ -185,7 +186,7 @@ class LawSearchRepository(BaseLawRepository):
                             "raw_response": xml_response.text[:500],
                             "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                         }
-                        
+
                 except requests.exceptions.RequestException as e:
                     logger.error("XML fallback request failed: %s", str(e))
                     # XML 재시도도 실패하면 원래 JSON 에러 반환
@@ -193,7 +194,7 @@ class LawSearchRepository(BaseLawRepository):
                         error_msg = "API가 HTML 에러 페이지를 반환했습니다. JSON과 XML 모두 실패했습니다."
                     else:
                         error_msg = f"API 응답이 유효한 JSON 형식이 아니고, XML 재시도도 실패했습니다: {str(e)}"
-                    
+
                     return {
                         "error": error_msg,
                         "query": normalized_query,
@@ -201,9 +202,9 @@ class LawSearchRepository(BaseLawRepository):
                         "raw_response": response.text[:500],
                         "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                     }
-            
+
             # JSON 파싱 성공
-            
+
             result = {
                 "query": normalized_query,
                 "page": page,
@@ -212,7 +213,7 @@ class LawSearchRepository(BaseLawRepository):
                 "laws": [],
                 "api_url": response.url
             }
-            
+
             # JSON 구조 파싱 (여러 가능한 구조 시도)
             if isinstance(data, dict):
                 # LawSearch 래퍼가 있는 경우
@@ -231,22 +232,22 @@ class LawSearchRepository(BaseLawRepository):
                 else:
                     result["total"] = data.get("totalCnt", 0)
                     laws = data.get("law", [])
-                
+
                 if not isinstance(laws, list):
                     laws = [laws] if laws else []
-                
+
                 result["laws"] = laws[:per_page]
-            
+
             # "일치하는 법령이 없습니다" 메시지 확인
             if result["total"] == 0:
                 result["message"] = "검색 결과가 없습니다. 법령명을 정확히 입력해주세요."
                 logger.debug("No matching laws found for query: %s", normalized_query)
-            
+
             search_cache[cache_key] = result
             logger.debug("API call successful for search | query=%r total=%d", query, result["total"])
-            
+
             return result
-            
+
         except requests.exceptions.Timeout:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)
@@ -271,37 +272,37 @@ class LawSearchRepository(BaseLawRepository):
                 "error": error_msg,
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     def list_law_names(self, page: int = 1, per_page: int = 50, query: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
         """
         법령명 목록을 조회합니다.
-        
+
         Args:
             page: 페이지 번호 (기본값: 1)
             per_page: 페이지당 결과 수 (기본값: 50, 최대: 100)
             query: 검색어 (선택사항, 법령명으로 필터링)
             arguments: 추가 인자 (API 키 등)
-            
+
         Returns:
             법령명 목록 딕셔너리 또는 {"error": "error message"}
         """
         logger.debug("list_law_names called | page=%d per_page=%d query=%r", page, per_page, query)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         cache_key = ("law_names", page, per_page, query or "")
-        
+
         if cache_key in search_cache:
             logger.debug("Cache hit for law names list")
             return search_cache[cache_key]
-        
+
         if cache_key in failure_cache:
             logger.debug("Failure cache hit, skipping")
             return failure_cache[cache_key]
-        
+
         try:
             # lawSearch.do는 JSON을 지원하지 않으므로 XML 사용
             params = {
@@ -312,23 +313,23 @@ class LawSearchRepository(BaseLawRepository):
                 "page": page,
                 "sort": "lasc"
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
             else:
                 params["query"] = "*"
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=30)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             # XML 파싱
             result = {
                 "page": page,
@@ -338,7 +339,7 @@ class LawSearchRepository(BaseLawRepository):
                 "law_names": [],
                 "api_url": response.url
             }
-            
+
             # XML 응답에 에러 메시지가 있는지 확인
             error_keywords = ["잘못되었습니다", "오류", "error", "에러"]
             if any(keyword in response.text for keyword in error_keywords):
@@ -357,10 +358,10 @@ class LawSearchRepository(BaseLawRepository):
                         "api_url": response.url,
                         "recovery_guide": "API 서버에서 오류가 발생했습니다. 검색어를 확인하거나 잠시 후 다시 시도하세요."
                     }
-            
+
             try:
                 root = ET.fromstring(response.text)
-                
+
                 # totalCnt 추출 (여러 위치 확인)
                 total_elem = root.find('.//totalCnt')
                 if total_elem is not None and total_elem.text:
@@ -370,13 +371,13 @@ class LawSearchRepository(BaseLawRepository):
                     law_count = len(root.findall('.//법령')) or len(root.findall('.//law'))
                     if law_count > 0:
                         result["total"] = law_count
-                
+
                 # 법령명 추출 (실제 XML 구조에 맞게 수정, 최적화)
                 # 1. <법령> 태그 찾기 (한글 태그) - 필요한 개수만큼만 처리
                 law_elems = root.findall('.//법령')
                 if not law_elems:
                     law_elems = root.findall('.//law')
-                
+
                 # 필요한 개수만큼만 처리 (성능 최적화)
                 for law_elem in law_elems[:per_page]:
                     law_name = None
@@ -387,7 +388,7 @@ class LawSearchRepository(BaseLawRepository):
                         law_name = name_elem.text
                         if law_name:
                             law_name = law_name.strip()
-                    
+
                     # 법령명을 찾지 못한 경우 다른 태그 시도
                     if not law_name:
                         for tag_name in ['법령명한글', 'lawNm']:
@@ -395,13 +396,13 @@ class LawSearchRepository(BaseLawRepository):
                             if name_elem is not None and name_elem.text:
                                 law_name = name_elem.text.strip()
                                 break
-                    
+
                     if law_name:
                         result["law_names"].append(law_name)
                         # 필요한 개수만큼만 수집
                         if len(result["law_names"]) >= per_page:
                             break
-                
+
             except ET.ParseError as e:
                 logger.warning("XML 파싱 실패, 정규식으로 재시도: %s", str(e))
                 # XML 파싱 실패 시 정규식으로 재시도
@@ -413,7 +414,7 @@ class LawSearchRepository(BaseLawRepository):
                     law_count = len(re.findall(r'<법령>', response.text)) or len(re.findall(r'<law>', response.text))
                     if law_count > 0:
                         result["total"] = law_count
-                
+
                 # 법령명 정규식으로 추출 (실제 구조에 맞게)
                 # CDATA 섹션 포함 법령명 추출
                 law_names = re.findall(r'<법령명><!\[CDATA\[(.*?)\]\]></법령명>', response.text)
@@ -425,16 +426,16 @@ class LawSearchRepository(BaseLawRepository):
                     law_names = re.findall(r'<법령명한글>(.*?)</법령명한글>', response.text)
                 if not law_names:
                     law_names = re.findall(r'<lawNm>(.*?)</lawNm>', response.text)
-                
+
                 result["law_names"] = law_names[:per_page] if law_names else []
-            
+
             result["law_names"] = result["law_names"][:per_page]
-            
+
             search_cache[cache_key] = result
             logger.debug("API call successful for law names list | total=%d", result["total"])
-            
+
             return result
-            
+
         except requests.exceptions.Timeout:
             error_msg = "API 호출 타임아웃"
             logger.error(error_msg)

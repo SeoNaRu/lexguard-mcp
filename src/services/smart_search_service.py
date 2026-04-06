@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
-from .api_router import APIRouter, DomainType, APICategory
+from .api_router import APIRouter, APICategory
 from ..utils.reranker import get_reranker
 from ..repositories.law_repository import LawRepository
 from ..repositories.law_detail import LawDetailRepository
@@ -25,14 +25,14 @@ logger = logging.getLogger("lexguard-mcp")
 class SmartSearchService:
     """
     사용자 질문을 분석하여 적절한 법적 정보 소스를 자동으로 선택하는 서비스
-    
+
     LLM이 사용자 질문을 받으면:
     1. 질문 의도 분석 (법령, 판례, 법령해석, 행정심판 등)
     2. 적절한 검색 타입 선택
     3. 파라미터 자동 추출
     4. 통합 검색 실행
     """
-    
+
     def __init__(self):
         self.law_search_repo = LawRepository()
         self.law_detail_repo = LawDetailRepository()
@@ -45,10 +45,10 @@ class SmartSearchService:
         self.ordinance_repo = LocalOrdinanceRepository()
         self.rule_repo = AdministrativeRuleRepository()
         self.comparison_repo = LawComparisonRepository()
-        
+
         # 완벽한 API 라우터 (172개 API 관리)
         self.api_router = APIRouter()
-        
+
         # 의도 분류 키워드 (세분화됨)
         self.intent_keywords = {
             "law": {
@@ -117,7 +117,7 @@ class SmartSearchService:
                 "patterns": [r"신구법", r"연혁", r"비교"]
             }
         }
-    
+
     # 헌법재판소 결정번호 패턴 (최우선 감지)
     _CONST_CASE_RE = re.compile(r"\d{4}헌[마바가나다라]\d+")
     # 일반 법원 사건번호 패턴
@@ -126,7 +126,7 @@ class SmartSearchService:
     def analyze_intent(self, query: str) -> List[Tuple[str, float]]:
         """
         사용자 질문의 의도를 분석하여 검색 타입과 신뢰도를 반환
-        
+
         Returns:
             [(search_type, confidence), ...] - 신뢰도 순으로 정렬
         """
@@ -138,31 +138,31 @@ class SmartSearchService:
 
         query_lower = query.lower()
         scores = {}
-        
+
         for search_type, config in self.intent_keywords.items():
             score = 0.0
-            
+
             # 키워드 매칭
             for keyword in config["keywords"]:
                 if keyword in query_lower:
                     score += 1.0
-            
+
             # 패턴 매칭
             for pattern in config.get("patterns", []):
                 if re.search(pattern, query, re.IGNORECASE):
                     score += 2.0  # 패턴 매칭이 더 높은 가중치
-            
+
             if score > 0:
                 scores[search_type] = score
-        
+
         # 신뢰도 순으로 정렬
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
+
         # 신뢰도를 0-1 범위로 정규화
         if sorted_scores:
             max_score = sorted_scores[0][1]
             normalized = [(st, min(score / max_score, 1.0)) for st, score in sorted_scores]
-            
+
             # 여러 의도 동시 감지: 신뢰도 0.5 이상인 모든 의도 반환
             # 예: "형법 제250조와 관련 판례" → ["law", "precedent"]
             high_confidence = [(st, conf) for st, conf in normalized if conf >= 0.5]
@@ -175,26 +175,25 @@ class SmartSearchService:
             else:
                 # 신뢰도가 낮으면 최상위 1개만 반환
                 return normalized[:1]
-        
+
         # 기본값: 법령 검색
         return [("law", 0.5)]
-    
+
     def parse_time_condition(self, query: str) -> Optional[Dict[str, str]]:
         """
         질문에서 시간 조건을 파싱하여 date_from, date_to 반환
-        
+
         Examples:
             "최근 5년 판례" → {"date_from": "20210115", "date_to": "20260115"}
             "2023년 이후 판례" → {"date_from": "20230101", "date_to": "20260115"}
             "2020년부터 2023년까지" → {"date_from": "20200101", "date_to": "20231231"}
             "예전 판례와 요즘 판례" → {"date_from": "20210115", "date_to": "20260115"}
-        
+
         Returns:
             {"date_from": "YYYYMMDD", "date_to": "YYYYMMDD"} or None
         """
         today = datetime.now()
-        time_filter = None
-        
+
         # 패턴 1: "최근 N년"
         match = re.search(r"최근\s*(\d+)\s*년", query)
         if match:
@@ -202,7 +201,7 @@ class SmartSearchService:
             date_from = (today - timedelta(days=years*365)).strftime("%Y%m%d")
             date_to = today.strftime("%Y%m%d")
             return {"date_from": date_from, "date_to": date_to}
-        
+
         # 패턴 2: "YYYY년 이후"
         match = re.search(r"(\d{4})\s*년\s*이후", query)
         if match:
@@ -210,7 +209,7 @@ class SmartSearchService:
             date_from = f"{year}0101"
             date_to = today.strftime("%Y%m%d")
             return {"date_from": date_from, "date_to": date_to}
-        
+
         # 패턴 3: "YYYY년부터 YYYY년까지"
         match = re.search(r"(\d{4})\s*년\s*부터\s*(\d{4})\s*년\s*까지", query)
         if match:
@@ -219,35 +218,34 @@ class SmartSearchService:
             date_from = f"{year_from}0101"
             date_to = f"{year_to}1231"
             return {"date_from": date_from, "date_to": date_to}
-        
+
         # 패턴 4: "예전/과거" vs "요즘/최근" (기본 5년)
         if re.search(r"예전.*요즘|과거.*최근|예전.*최근", query):
             date_from = (today - timedelta(days=5*365)).strftime("%Y%m%d")
             date_to = today.strftime("%Y%m%d")
             return {"date_from": date_from, "date_to": date_to}
-        
+
         # 패턴 5: "최신", "요즘" (3년)
         if re.search(r"최신|요즘|근래", query):
             date_from = (today - timedelta(days=3*365)).strftime("%Y%m%d")
             date_to = today.strftime("%Y%m%d")
             return {"date_from": date_from, "date_to": date_to}
-        
+
         return None
-    
+
     def plan_queries(self, query: str, intent: str) -> List[str]:
         """
         Intent별로 다단계 검색 쿼리 생성
-        
+
         Args:
             query: 원본 질문
             intent: analyze_intent에서 분류된 intent
-            
+
         Returns:
             검색 쿼리 리스트 (넓게 → 좁게)
         """
         # 노동-근로자성/위장도급
         if intent == "labor_worker_status":
-            base_keywords = ["근로자성", "사용종속관계", "프리랜서"]
             if "프리랜서" in query or "용역" in query:
                 return [
                     "근로자성 판단 기준",
@@ -261,7 +259,7 @@ class SmartSearchService:
                     "사용종속관계 판례",
                     "지휘감독 근로자성"
                 ]
-        
+
         # 노동-해고/해지
         elif intent == "labor_termination":
             return [
@@ -270,7 +268,7 @@ class SmartSearchService:
                 "해고 절차 위반",
                 "계약해지 손해배상"
             ]
-        
+
         # 노동-임금/퇴직금
         elif intent == "labor_wage":
             if "퇴직금" in query:
@@ -291,10 +289,10 @@ class SmartSearchService:
                     "통상임금",
                     "임금 전액지급 원칙"
                 ]
-        
+
         # 기본값: 원본 query
         return [query]
-    
+
     async def _fetch_category_v2(
         self,
         api_category: "APICategory",
@@ -437,26 +435,26 @@ class SmartSearchService:
             "elapsed_seconds": elapsed,
             "pipeline_version": "v2_parallel",
         }
-    
+
     def extract_parameters(self, query: str, search_type: str) -> Dict:
         """
         질문에서 검색 파라미터를 자동 추출
-        
+
         Args:
             query: 사용자 질문
             search_type: 검색 타입
-            
+
         Returns:
             추출된 파라미터 딕셔너리
         """
         params = {"query": query}
-        
+
         # 법령명 추출 (예: "형법", "민법", "개인정보보호법")
         law_name_pattern = r"([가-힣]+법)"
         law_matches = re.findall(law_name_pattern, query)
         if law_matches:
             params["law_name"] = law_matches[0]
-        
+
         # 조문 번호 추출 (예: "제250조", "250조")
         article_pattern = r"제?\s*(\d+)\s*조"
         article_matches = re.findall(article_pattern, query)
@@ -464,7 +462,7 @@ class SmartSearchService:
             # 정규화 유틸리티 사용
             from ..utils.parameter_normalizer import normalize_article_number
             params["article_number"] = normalize_article_number(article_matches[0])
-        
+
         # 항(項) 번호 추출 (예: "제1항", "1항", "첫 번째 항")
         hang_patterns = [
             r"제?\s*(\d+)\s*항",  # "제1항", "1항"
@@ -477,7 +475,7 @@ class SmartSearchService:
                 from ..utils.parameter_normalizer import normalize_hang
                 params["hang"] = normalize_hang(hang_matches[0])
                 break
-        
+
         # 호(號) 번호 추출 (예: "제2호", "2호", "둘째 호")
         ho_patterns = [
             r"제?\s*(\d+)\s*호",  # "제2호", "2호"
@@ -490,14 +488,14 @@ class SmartSearchService:
                 from ..utils.parameter_normalizer import normalize_ho
                 params["ho"] = normalize_ho(ho_matches[0])
                 break
-        
+
         # 목(目) 문자 추출 (예: "가목", "나목", "다목")
         mok_pattern = r"([가-힣])\s*목"
         mok_matches = re.findall(mok_pattern, query)
         if mok_matches:
             from ..utils.parameter_normalizer import normalize_mok
             params["mok"] = normalize_mok(mok_matches[0] + "목")
-        
+
         # 비교 타입 추출 (법령 비교용)
         if search_type == "comparison":
             if "연혁" in query or "변경사항" in query or "개정" in query:
@@ -506,14 +504,14 @@ class SmartSearchService:
                 params["compare_type"] = "3단비교"
             else:
                 params["compare_type"] = "신구법"  # 기본값
-        
+
         # 날짜 추출 (예: "2023년", "2023.01.01")
         date_pattern = r"(\d{4})[년\.]?\s*(\d{1,2})[월\.]?\s*(\d{1,2})[일]?"
         date_matches = re.findall(date_pattern, query)
         if date_matches:
             year, month, day = date_matches[0]
             params["date"] = f"{year}{month.zfill(2)}{day.zfill(2)}" if day else f"{year}{month.zfill(2)}01"
-        
+
         # 기관명 추출 (위원회, 특별행정심판원, 부처)
         # 위원회 (11개)
         committee_patterns = {
@@ -529,7 +527,7 @@ class SmartSearchService:
             "증권선물위원회": "증권선물위원회",
             "국가인권위원회": "국가인권위원회",
         }
-        
+
         # 특별행정심판원 (4개)
         tribunal_patterns = {
             "조세심판원": "조세심판원",
@@ -537,7 +535,7 @@ class SmartSearchService:
             "국민권익위원회": "국민권익위원회",
             "인사혁신처 소청심사위원회": "인사혁신처 소청심사위원회",
         }
-        
+
         # 부처 (39개) - 법령해석/행정규칙 검색용
         agency_patterns = {
             "기획재정부": "기획재정부",
@@ -580,28 +578,28 @@ class SmartSearchService:
             "조달청": "조달청",
             "국가유산청": "국가유산청",
         }
-        
+
         # 위원회 매칭
         if search_type == "committee":
             for agency_name, agency_key in committee_patterns.items():
                 if agency_name in query:
                     params["committee_type"] = agency_key
                     break
-        
+
         # 특별행정심판원 매칭
         elif search_type == "special_appeal":
             for agency_name, agency_key in tribunal_patterns.items():
                 if agency_name in query:
                     params["tribunal_type"] = agency_key
                     break
-        
+
         # 부처 매칭 (법령해석/행정규칙 검색용)
         elif search_type in ["interpretation", "rule"]:
             for agency_name, agency_key in agency_patterns.items():
                 if agency_name in query:
                     params["agency"] = agency_key
                     break
-        
+
         # 지방자치단체 매칭 (자치법규 검색용)
         elif search_type == "ordinance":
             # 주요 지방자치단체명 패턴
@@ -624,14 +622,14 @@ class SmartSearchService:
                 "경남": "경상남도",
                 "제주": "제주특별자치도",
             }
-            
+
             for pattern, full_name in local_gov_patterns.items():
                 if pattern in query:
                     params["local_government"] = full_name
                     break
-        
+
         return params
-    
+
     async def _fetch_search_type(
         self,
         search_type: str,
@@ -808,22 +806,22 @@ class SmartSearchService:
     ) -> Dict:
         """
         사용자 질문을 분석하여 적절한 검색을 자동으로 수행
-        
+
         Args:
             query: 사용자 질문
             search_types: 강제로 검색할 타입 목록 (None이면 자동 분석)
             max_results_per_type: 타입당 최대 결과 수
             arguments: 추가 인자 (API 키 등)
-            
+
         Returns:
             통합 검색 결과
         """
         import asyncio
-        
+
         # 의도 분석
         clarification_needed = False
         possible_intents = []
-        
+
         # 매우 모호한 질문인지 먼저 확인 (의도 분석 전에)
         query_stripped = query.strip()
         very_ambiguous_keywords = ["법", "법률", "정보", "찾아줘", "알려줘", "확인", "검색", "알려주세요", "찾아주세요"]
@@ -831,7 +829,7 @@ class SmartSearchService:
             len(query_stripped) <= 3 or
             query_stripped in very_ambiguous_keywords
         )
-        
+
         if very_ambiguous:
             clarification_needed = True
             possible_intents = [
@@ -841,13 +839,13 @@ class SmartSearchService:
                 {"type": "administrative_appeal", "description": "행정심판 검색", "example": "행정심판 사례"},
                 {"type": "constitutional", "description": "헌재결정 검색", "example": "위헌 결정례"}
             ]
-        
+
         if search_types is None and not clarification_needed:
             intent_results = self.analyze_intent(query)
             # 여러 의도 동시 감지: 신뢰도 0.3 이상인 모든 의도 포함
             # 예: "형법 제250조와 관련 판례" → ["law", "precedent"]
             search_types = [st for st, conf in intent_results if conf > 0.3]
-            
+
             # 모호한 질문 처리: 의도가 명확하지 않으면 법령 검색 기본값
             if not search_types:
                 # 매우 모호한 질문인 경우 clarification 필요
@@ -858,7 +856,7 @@ class SmartSearchService:
                     len(query_stripped) <= 3 or
                     query_stripped in very_ambiguous_keywords
                 )
-                
+
                 if very_ambiguous:
                     clarification_needed = True
                     # 가능한 의도 후보 생성
@@ -877,7 +875,7 @@ class SmartSearchService:
                         search_types = ["law"]
                     else:
                         search_types = ["law"]  # 기본값
-        
+
         # clarification이 필요한 경우 조기 반환 (search_types 설정 전에)
         if clarification_needed:
             return {
@@ -887,14 +885,14 @@ class SmartSearchService:
                 "possible_intents": possible_intents,
                 "suggestion": "더 구체적인 질문을 해주시면 정확한 정보를 찾아드릴 수 있습니다. 예: '형법 제250조', '손해배상 판례', '개인정보보호법 해석' 등"
             }
-        
+
         # search_types가 없으면 기본값 설정
         if not search_types:
             search_types = ["law"]  # 기본값
-        
+
         # 시간 조건 파싱 (공통)
         time_condition = self.parse_time_condition(query)
-        
+
         # 파라미터 추출
         all_params = {}
         for st in search_types:
@@ -903,7 +901,7 @@ class SmartSearchService:
             if time_condition and st in ["precedent", "constitutional", "administrative_appeal", "committee", "special_appeal"]:
                 params.update(time_condition)
             all_params[st] = params
-        
+
         # 쿼리 전처리: 긴 문장에서 핵심 키워드만 추출 (API 에러 방지)
         def extract_keywords(text: str) -> str:
             """긴 문장에서 핵심 키워드만 추출"""
@@ -913,7 +911,7 @@ class SmartSearchService:
             cleaned = text
             for qw in question_words:
                 cleaned = cleaned.replace(qw, "")
-            
+
             # 핵심 키워드 추출 (2-4글자 명사 위주)
             import re
             # 한글 명사 패턴 (2글자 이상)
@@ -922,10 +920,10 @@ class SmartSearchService:
             keywords = sorted(set(keywords), key=len, reverse=True)
             # 상위 3-5개만 선택
             return " ".join(keywords[:5])
-        
+
         # 키워드 추출
         keyword_query = extract_keywords(query)
-        
+
         # 병렬 검색 실행 (asyncio.gather)
         gather_tasks = [
             self._fetch_search_type(
@@ -941,34 +939,34 @@ class SmartSearchService:
         raw_type_results = await asyncio.gather(*gather_tasks)
         results = {st: res for st, res in raw_type_results if res is not None}
 
-
-        failed_types = []
+        successful_types: List[str] = []
+        failed_types: List[str] = []
         partial_success = False
-        
+
         for search_type, result in results.items():
             # result가 딕셔너리인지 확인
             if not isinstance(result, dict):
                 continue
-                
+
             # 에러가 없는 경우
             if "error" not in result:
                 successful_types.append(search_type)
             else:
                 # 에러가 있지만 부분 결과가 있는지 확인
                 has_partial_data = False
-                
+
                 # 다양한 결과 필드 확인
                 data_fields = [
                     "laws", "precedents", "interpretations", "appeals", "decisions",
                     "law_name", "law_id", "detail", "precedent", "interpretation",
                     "total", "count", "items", "data"
                 ]
-                
+
                 for field in data_fields:
                     if field in result and result[field]:
                         has_partial_data = True
                         break
-                
+
                 # 리스트나 딕셔너리 타입의 결과 확인
                 if not has_partial_data:
                     for key, value in result.items():
@@ -979,13 +977,13 @@ class SmartSearchService:
                             elif value and not isinstance(value, str):
                                 has_partial_data = True
                                 break
-                
+
                 if has_partial_data:
                     partial_success = True
                     successful_types.append(search_type)
                 else:
                     failed_types.append(search_type)
-        
+
         # sources_count 계산
         sources_count = {
             "law": 0,
@@ -998,7 +996,7 @@ class SmartSearchService:
             "ordinance": 0,
             "rule": 0
         }
-        
+
         for search_type, result in results.items():
             if isinstance(result, dict):
                 if search_type == "law":
@@ -1022,11 +1020,11 @@ class SmartSearchService:
                     sources_count["ordinance"] = len(result.get("ordinances", []))
                 elif search_type == "rule" and "rules" in result:
                     sources_count["rule"] = len(result.get("rules", []))
-        
+
         # has_legal_basis 판단
         total_sources = sum(sources_count.values())
         has_legal_basis = total_sources > 0
-        
+
         # missing_reason 판단
         missing_reason = None
         if not has_legal_basis:
@@ -1069,7 +1067,7 @@ class SmartSearchService:
                     missing_reason = "API_ERROR_AUTH"
                 else:
                     missing_reason = "NO_MATCH"
-        
+
         # API 에러 시 기본 법적 근거(정적) 제공
         fallback_legal_basis = None
         if missing_reason == "API_ERROR":
@@ -1105,7 +1103,7 @@ class SmartSearchService:
                     "items": fallback_items,
                     "note": "API 오류로 실시간 근거를 조회하지 못해 일반적 법적 근거를 제공합니다. 실제 적용 전 확인이 필요합니다."
                 }
-        
+
         # 에러 정보 보존
         errors = {}
         for search_type, result in results.items():
@@ -1146,7 +1144,7 @@ class SmartSearchService:
                             "date": interp.get("issue_date"),
                             "source": "정부 부처"
                         })
-        
+
         # one_line_answer 생성 (근거 있을 때만)
         one_line_answer = None
         if has_legal_basis:
@@ -1162,11 +1160,11 @@ class SmartSearchService:
                 if "precedents" in prec_result and prec_result["precedents"]:
                     prec = prec_result["precedents"][0]
                     one_line_answer = f"{prec.get('case_number', '')} 사건: {prec.get('case_name', '')[:100]}..."
-        
+
         # next_questions 생성 (사실관계 질문 5개)
         # smart_search는 domain 정보를 직접 모르므로, query 키워드 기반으로 간단 추론
         next_questions = []
-        query_lower = query.lower()
+        query.lower()
         if any(k in query for k in ["근로", "해고", "퇴직", "임금", "노동"]):
             # 노동/근로 관련
             next_questions = [
@@ -1203,14 +1201,14 @@ class SmartSearchService:
                 "관련 기관에 신고하셨나요?",
                 "피해 규모는 어느 정도인가요?"
             ]
-        
+
         legal_basis_summary = {
             "has_legal_basis": has_legal_basis,
             "types": [k for k, v in sources_count.items() if v > 0],
             "counts": sources_count,
             "missing_reason": missing_reason
         }
-        
+
         # legal_basis_block_text 생성 (상단 요약용)
         citations_titles = []
         for c in citations[:5]:
@@ -1236,7 +1234,7 @@ class SmartSearchService:
                 f"근거를 찾지 못했습니다({missing_reason}). "
                 f"대체 근거={', '.join(fallback_titles) if fallback_titles else '없음'}"
             )
-        
+
         response = {
             "success": True,
             "has_legal_basis": has_legal_basis,
@@ -1263,7 +1261,7 @@ class SmartSearchService:
                 "when_api_error": "explain_api_error_and_request_retry"
             }
         }
-        
+
         # 안내 메시지 추가
         if partial_success or (successful_types and failed_types):
             if failed_types:
@@ -1274,6 +1272,6 @@ class SmartSearchService:
             response["note"] = f"모든 검색 타입({', '.join(successful_types)})에서 성공적으로 결과를 찾았습니다."
         elif not successful_types and failed_types:
             response["note"] = f"모든 검색 타입({', '.join(failed_types)})에서 오류가 발생했습니다."
-        
+
         return response
 

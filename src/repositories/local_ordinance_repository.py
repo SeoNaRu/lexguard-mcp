@@ -9,7 +9,7 @@ from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, f
 
 class LocalOrdinanceRepository(BaseLawRepository):
     """자치법규 검색 관련 기능을 담당하는 Repository"""
-    
+
     def search_local_ordinance(
         self,
         query: Optional[str] = None,
@@ -19,21 +19,21 @@ class LocalOrdinanceRepository(BaseLawRepository):
         arguments: Optional[dict] = None
     ) -> dict:
         """자치법규를 검색합니다."""
-        logger.debug("search_local_ordinance called | query=%r local_government=%r page=%d per_page=%d", 
+        logger.debug("search_local_ordinance called | query=%r local_government=%r page=%d per_page=%d",
                     query, local_government, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         cache_key = ("local_ordinance", query or "", local_government or "", page, per_page)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": "ordin",  # API 문서: target=ordin
@@ -41,19 +41,19 @@ class LocalOrdinanceRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
-            
+
             if local_government:
                 params["orgNm"] = local_government
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            
+
             if not response.text or not response.text.strip():
                 return {
                     "error": "API가 빈 응답을 반환했습니다. API 키가 필요하거나 권한이 없을 수 있습니다.",
@@ -62,12 +62,12 @@ class LocalOrdinanceRepository(BaseLawRepository):
                     "api_url": response.url,
                     "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
                 }
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -79,7 +79,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요.",
                     "raw_response": response.text[:200] if response.text else "Empty response"
                 }
-            
+
             result = {
                 "query": query,
                 "local_government": local_government,
@@ -89,7 +89,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
                 "ordinances": [],
                 "api_url": response.url
             }
-            
+
             if isinstance(data, dict):
                 # 자치법규는 OrdinSearch 래퍼 사용
                 if "OrdinSearch" in data:
@@ -117,19 +117,19 @@ class LocalOrdinanceRepository(BaseLawRepository):
                     except (TypeError, ValueError):
                         result["total"] = 0
                     ordinances = data.get("ordin", [])
-                
+
                 if not isinstance(ordinances, list):
                     ordinances = [ordinances] if ordinances else []
-                
+
                 result["ordinances"] = ordinances[:per_page]
-            
+
             # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
             if result["total"] and not result["ordinances"]:
                 result["note"] = "API 응답에서 totalCnt는 있으나 자치법규 목록(ordin)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",

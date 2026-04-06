@@ -38,36 +38,36 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
     _law_detail_repo = LawDetailRepository()
     _precedent_repo = PrecedentRepository()
     _interpretation_repo = LawInterpretationRepository()
-    
+
     # 모든 요청 로깅 미들웨어 (디버깅용) - Health Check 요청 제외
     @api.middleware("http")
     async def log_all_requests(request: Request, call_next):
         is_health_check = (
-            request.url.path == "/health" or 
+            request.url.path == "/health" or
             request.headers.get("render-health-check") == "1"
         )
-        
+
         if not is_health_check:
             logger.info("=" * 80)
             logger.info(f"ALL REQUEST: {request.method} {request.url}")
             logger.info(f"Client: {request.client}")
             logger.info(f"Path: {request.url.path}")
             logger.info(f"Headers: {dict(request.headers)}")
-        
+
         try:
             response = await call_next(request)
-            
+
             if not is_health_check:
                 logger.info(f"Response Status: {response.status_code}")
                 logger.info("=" * 80)
-            
+
             return response
         except Exception as e:
             logger.exception(f"Request error: {e}")
             if not is_health_check:
                 logger.info("=" * 80)
             raise
-    
+
     @api.options("/mcp")
     async def mcp_options(request: Request):
         """CORS preflight 요청 처리"""
@@ -82,18 +82,18 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                 "Access-Control-Max-Age": "86400"
             }
         )
-    
+
     @api.get("/mcp")
     async def mcp_get_sse_stream(request: Request):
         """MCP Streamable HTTP GET 엔드포인트"""
         accept_header = request.headers.get("Accept", "")
         logger.debug("MCP GET | accept=%s client=%s", accept_header, request.client)
-        
+
         if accept_header and "text/event-stream" not in accept_header and "*/*" not in accept_header:
             from fastapi import HTTPException
             logger.warning("MCP GET: Unsupported Accept header: %s", accept_header)
             raise HTTPException(status_code=405, detail="Method Not Allowed: SSE stream not supported")
-        
+
         async def server_to_client_stream():
             yield f"data: {json.dumps({'type': 'stream_opened'})}\n\n"
             try:
@@ -101,7 +101,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                     await asyncio.sleep(1)
             except asyncio.CancelledError:
                 logger.debug("SSE stream closed by client")
-        
+
         return StreamingResponse(
             server_to_client_stream(),
             media_type="text/event-stream",
@@ -111,7 +111,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                 "X-Accel-Buffering": "no"
             }
         )
-    
+
     @api.post("/mcp")
     @get_limiter().limit("60/minute")
     async def mcp_streamable_http(request: Request):
@@ -120,8 +120,8 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
         JSON-RPC 2.0 메시지를 받아서 SSE로 스트리밍 응답
         Rate limit: 60 req/min per IP
         """
-        accept_header = request.headers.get("Accept", "")
-        content_type_header = request.headers.get("Content-Type", "")
+        request.headers.get("Accept", "")
+        request.headers.get("Content-Type", "")
         session_id_header = request.headers.get("Mcp-Session-Id", "")
         origin_header = request.headers.get("Origin", "")
         # 요청 본문을 먼저 읽어서 캐시 (한 번만 읽을 수 있으므로)
@@ -136,30 +136,30 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
             logger.error("❌ Failed to read request body in POST handler: %s", e)
             cached_body = b""
             cached_body_text = ""
-        
+
         logger.debug(
             "MCP POST | body=%d bytes session=%s origin=%s",
             len(cached_body), session_id_header or "-", origin_header or "-",
         )
-        
+
         async def generate():
             logger.debug("SSE generate started")
-            
+
             body_bytes = cached_body
             body_text = cached_body_text
-            
+
             if not body_bytes:
                 logger.warning("⚠️ Empty request body")
                 return
-            
+
             try:
                 logger.info("📝 Processing MCP request: %s", body_text[:200] if body_text else "empty")
-                
+
                 data = json.loads(body_text)
                 request_id = data.get("id")
                 method = data.get("method")
                 params = data.get("params", {})
-                
+
                 # initialize 처리
                 if method == "initialize":
                     response = {
@@ -181,12 +181,12 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                     response_json = json.dumps(response, ensure_ascii=False)
                     logger.info("MCP: initialize | version=%s", _SERVER_VERSION)
                     yield f"data: {response_json}\n\n"
-                
+
                 # notifications/initialized 처리
                 elif method == "notifications/initialized":
                     logger.debug("MCP: notifications/initialized")
                     return
-                
+
                 # tools/list 처리 (3개 툴만)
                 elif method == "tools/list":
                     tools_list = [
@@ -372,7 +372,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             }
                         }
                     ]
-                    
+
                     # MCP 표준 필드만 노출
                     mcp_tools = []
                     for tool in tools_list:
@@ -391,7 +391,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         if annotations:
                             filtered["annotations"] = annotations
                         mcp_tools.append(filtered)
-                    
+
                     response = {
                         "jsonrpc": "2.0",
                         "id": request_id,
@@ -404,7 +404,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                len(response_json),
                                len(mcp_tools))
                     yield f"data: {response_json}\n\n"
-                
+
                 # resources/list 처리
                 elif method == "resources/list":
                     resources_data = build_resources_list()
@@ -501,14 +501,14 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                 elif method == "tools/call":
                     tool_name = params.get("name")
                     arguments = params.get("arguments", {})
-                    
+
                     logger.info("MCP tool call | tool=%s arguments=%s", tool_name, arguments)
-                    
+
                     result = None
                     try:
                         if tool_name == "health":
                             result = await health_service.check_health()
-                        
+
                         elif tool_name == "legal_qa_tool":
                             query = arguments.get("query")
                             max_results = arguments.get("max_results_per_type", 3)
@@ -518,7 +518,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 query,
                                 max_results
                             )
-                        
+
                         elif tool_name == "document_issue_tool":
                             document_text = arguments.get("document_text")
                             auto_search = arguments.get("auto_search", True)
@@ -559,11 +559,11 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
 
                         else:
                             result = {"error": f"Unknown tool: {tool_name}"}
-                    
+
                     except Exception as e:
                         logger.error("Tool call error | tool=%s error=%s", tool_name, str(e), exc_info=True)
                         result = {"error": str(e)}
-                    
+
                     # Response 생성 및 전송
                     if result:
                         # JSON 직렬화를 위해 데이터 정리
@@ -576,15 +576,15 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 return "".join(ch for ch in obj if ord(ch) not in range(0x00, 0x09) and ord(ch) not in range(0x0B, 0x0D) and ord(ch) not in range(0x0E, 0x20))
                             else:
                                 return obj
-                        
+
                         cleaned_result = clean_for_json(result)
                         final_result = copy.deepcopy(cleaned_result)
                         final_result = shrink_response_bytes(final_result, request_id)
-                        
+
                         # MCP 표준 형식으로 변환
                         from ..utils.response_formatter import format_mcp_response
                         mcp_formatted = format_mcp_response(final_result, tool_name)
-                        
+
                         response = {
                             "jsonrpc": "2.0",
                             "id": request_id,
@@ -607,7 +607,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             }
                         }
                         yield f"data: {json.dumps(error_response, ensure_ascii=False)}\n\n"
-                
+
                 else:
                     error_response = {
                         "jsonrpc": "2.0",
@@ -618,7 +618,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                         }
                     }
                     yield f"data: {json.dumps(error_response, ensure_ascii=False)}\n\n"
-            
+
             except json.JSONDecodeError as e:
                 logger.error("Invalid JSON in request body: %s", e, exc_info=True)
                 error_response = {
@@ -641,12 +641,12 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                     }
                 }
                 yield f"data: {json.dumps(error_response, ensure_ascii=False)}\n\n"
-        
+
         logger.info("MCP POST RESPONSE (SSE)")
         logger.info("  Status: 200")
         logger.info("  Content-Type: text/event-stream")
         logger.info("=" * 80)
-        
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream"

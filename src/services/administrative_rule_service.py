@@ -9,10 +9,10 @@ from ..models import SearchAdministrativeRuleRequest
 
 class AdministrativeRuleService:
     """행정규칙 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     def __init__(self):
         self.repository = AdministrativeRuleRepository()
-    
+
     async def search_administrative_rule(
         self,
         req: SearchAdministrativeRuleRequest,

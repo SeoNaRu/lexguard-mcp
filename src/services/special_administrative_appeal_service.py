@@ -9,10 +9,10 @@ from ..models import SearchSpecialAdministrativeAppealRequest, GetSpecialAdminis
 
 class SpecialAdministrativeAppealService:
     """특별행정심판 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     def __init__(self):
         self.repository = SpecialAdministrativeAppealRepository()
-    
+
     async def search_special_administrative_appeal(
         self,
         req: SearchSpecialAdministrativeAppealRequest,
@@ -35,7 +35,7 @@ class SpecialAdministrativeAppealService:
                 "error": f"특별행정심판 검색 중 오류 발생: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     async def get_special_administrative_appeal(
         self,
         req: GetSpecialAdministrativeAppealRequest,

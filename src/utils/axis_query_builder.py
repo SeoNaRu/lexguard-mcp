@@ -2,7 +2,7 @@
 Axis Query Builder - 법리축/사실축 분리 쿼리 생성
 법리 키워드와 사실 키워드를 분리하여 단계적 검색 전략 수립
 """
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from ..utils.query_planner import LEGAL_CORE_KEYWORDS, extract_keywords
 
 
@@ -33,11 +33,11 @@ FACT_AXIS_PATTERNS = [
 
 class AxisQueryBuilder:
     """법리축/사실축 분리 쿼리 빌더"""
-    
+
     def __init__(self):
         self.legal_axis_keywords = LEGAL_AXIS_KEYWORDS
         self.fact_axis_patterns = FACT_AXIS_PATTERNS
-    
+
     def build_axis_queries(
         self,
         query: str,
@@ -45,11 +45,11 @@ class AxisQueryBuilder:
     ) -> Dict:
         """
         법리축/사실축 분리 쿼리 세트 생성
-        
+
         Args:
             query: 원본 쿼리
             issue_type: 쟁점 유형
-            
+
         Returns:
             쿼리 전략 딕셔너리:
             - legal_axis: 법리축 키워드 리스트
@@ -58,20 +58,20 @@ class AxisQueryBuilder:
         """
         # 법리축 키워드 추출
         legal_axis = self._extract_legal_axis(query, issue_type)
-        
+
         # 사실축 키워드 추출
         fact_axis = self._extract_fact_axis(query)
-        
+
         # 쿼리 전략 생성
         query_plan = self._build_query_plan(legal_axis, fact_axis, query)
-        
+
         return {
             "legal_axis": legal_axis,
             "fact_axis": fact_axis,
             "query_plan": query_plan,
             "original_query": query
         }
-    
+
     def _extract_legal_axis(
         self,
         query: str,
@@ -80,25 +80,25 @@ class AxisQueryBuilder:
         """법리축 키워드 추출"""
         legal_keywords = []
         query_lower = query.lower()
-        
+
         # issue_type 기반 법리 키워드
         if issue_type:
             issue_keywords = self.legal_axis_keywords.get(issue_type, [])
             for kw in issue_keywords:
                 if kw.lower() in query_lower or kw in query:
                     legal_keywords.append(kw)
-        
+
         # 법리 핵심 키워드 매칭
         for keyword in LEGAL_CORE_KEYWORDS:
             if keyword in query_lower:
                 legal_keywords.append(keyword)
-        
+
         # 법령명 추출
         import re
         law_pattern = r'([가-힣]+법)'
         law_matches = re.findall(law_pattern, query)
         legal_keywords.extend(law_matches)
-        
+
         # 조문 추출
         article_pattern = r'제?\s*(\d+)\s*조'
         article_matches = re.findall(article_pattern, query)
@@ -106,35 +106,35 @@ class AxisQueryBuilder:
             # 법령명과 조문 결합
             for law in law_matches:
                 legal_keywords.append(f"{law} 제{article_matches[0]}조")
-        
+
         # 중복 제거 및 정렬
         legal_keywords = list(dict.fromkeys(legal_keywords))
-        
+
         return legal_keywords[:5]  # 최대 5개
-    
+
     def _extract_fact_axis(self, query: str) -> List[str]:
         """사실축 키워드 추출"""
         fact_keywords = []
         query_lower = query.lower()
-        
+
         # 사실 패턴 매칭
         for pattern in self.fact_axis_patterns:
             if pattern in query_lower:
                 fact_keywords.append(pattern)
-        
+
         # 일반 키워드 추출 (법리 키워드 제외)
         all_keywords = extract_keywords(query)
         legal_keywords_set = set(LEGAL_CORE_KEYWORDS)
-        
+
         for kw in all_keywords:
             if kw not in legal_keywords_set and len(kw) >= 2:
                 fact_keywords.append(kw)
-        
+
         # 중복 제거
         fact_keywords = list(dict.fromkeys(fact_keywords))
-        
+
         return fact_keywords[:5]  # 최대 5개
-    
+
     def _build_query_plan(
         self,
         legal_axis: List[str],
@@ -143,7 +143,7 @@ class AxisQueryBuilder:
     ) -> List[Dict]:
         """단계별 쿼리 전략 생성"""
         query_plan = []
-        
+
         # 1차: 법리축만 (넓게)
         if legal_axis:
             query_plan.append({
@@ -153,7 +153,7 @@ class AxisQueryBuilder:
                 "priority": 1,
                 "description": "법리축 키워드만으로 넓게 검색"
             })
-        
+
         # 2차: 법리축 AND 사실축 (정밀)
         if legal_axis and fact_axis:
             # 법리축 상위 2개 + 사실축 상위 2개
@@ -165,7 +165,7 @@ class AxisQueryBuilder:
                 "priority": 2,
                 "description": "법리축과 사실축 결합하여 정밀 검색"
             })
-        
+
         # 3차: 사실축만 (법리축이 너무 좁을 때)
         if fact_axis and not legal_axis:
             query_plan.append({
@@ -175,7 +175,7 @@ class AxisQueryBuilder:
                 "priority": 3,
                 "description": "사실축 키워드만으로 검색"
             })
-        
+
         # 4차: 원본 쿼리 (fallback)
         query_plan.append({
             "step": 4,
@@ -184,9 +184,9 @@ class AxisQueryBuilder:
             "priority": 4,
             "description": "원본 쿼리로 검색"
         })
-        
+
         return query_plan
-    
+
     def refine_query_by_axis(
         self,
         legal_axis: List[str],
@@ -195,32 +195,32 @@ class AxisQueryBuilder:
     ) -> List[str]:
         """
         누락된 측면에 따라 쿼리 정제
-        
+
         Args:
             legal_axis: 법리축 키워드
             fact_axis: 사실축 키워드
             missing_aspects: 누락된 측면 리스트
-            
+
         Returns:
             정제된 쿼리 리스트
         """
         refined_queries = []
-        
+
         if "legal_axis_missing" in missing_aspects:
             # 법리축 강화
             if legal_axis:
                 refined_queries.append(" ".join(legal_axis))
-        
+
         if "fact_axis_missing" in missing_aspects:
             # 사실축 강화
             if fact_axis:
                 refined_queries.append(" ".join(fact_axis))
-        
+
         if "legal_axis_partial" in missing_aspects or "fact_axis_partial" in missing_aspects:
             # 법리축 + 사실축 결합
             if legal_axis and fact_axis:
                 refined_queries.append(" ".join(legal_axis[:2] + fact_axis[:2]))
-        
+
         return refined_queries
 
 

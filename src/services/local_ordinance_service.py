@@ -9,10 +9,10 @@ from ..models import SearchLocalOrdinanceRequest
 
 class LocalOrdinanceService:
     """자치법규 관련 비즈니스 로직을 처리하는 Service"""
-    
+
     def __init__(self):
         self.repository = LocalOrdinanceRepository()
-    
+
     async def search_local_ordinance(
         self,
         req: SearchLocalOrdinanceRequest,

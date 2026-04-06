@@ -32,7 +32,7 @@ def sync_get(
 ) -> httpx.Response:
     """
     동기 GET 요청 (requests.get() drop-in 대체).
-    
+
     기존 Repository 코드에서 `requests.get()` → `sync_get()` 으로
     교체만 하면 동일하게 동작합니다.
     """

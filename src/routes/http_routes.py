@@ -34,7 +34,7 @@ def temporary_env(overrides: dict):
 
 def register_http_routes(api: FastAPI, law_service: LawService, health_service: HealthService):
     """HTTP 엔드포인트 등록"""
-    
+
     @api.get("/")
     @api.head("/")
     async def root():
@@ -49,17 +49,17 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
             },
             "message": "한국 법령 MCP 서버가 정상적으로 실행 중입니다."
         }
-    
+
     @api.get("/health")
     async def health_check_get():
         """HTTP GET endpoint: Health check"""
         return await health_service.check_health()
-    
+
     @api.post("/health")
     async def health_check_post():
         """HTTP POST endpoint: Health check"""
         return await health_service.check_health()
-    
+
     @api.get("/check-ip")
     async def check_server_ip():
         """서버의 실제 발신 IP 확인 (법령정보센터 등록용)"""
@@ -78,7 +78,7 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                 "error": str(e),
                 "message": "IP 확인 실패"
             }
-    
+
     @api.get("/tools")
     async def get_tools_http():
         """HTTP endpoint: Get list of available tools"""
@@ -131,12 +131,12 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                     }
                 }
             ]
-            
+
             return tools_list
         except Exception as e:
             logger.exception("Error getting tools list: %s", str(e))
             return []
-    
+
     @api.post("/tools/{tool_name}")
     async def call_tool_http(tool_name: str, request_data: dict):
         """HTTP endpoint: Call tool"""
@@ -145,15 +145,15 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
         except ClientDisconnect:
             logger.info("Client disconnected during tool call (normal for cancelled requests)")
             return {"error": "Client disconnected", "recovery_guide": "요청이 취소되었습니다."}
-        
+
         env = request_data.get("env", {}) if isinstance(request_data, dict) else {}
-        
+
         def convert_float_to_int(data: dict, keys: list):
             """Convert float values to int for specified keys"""
             for key in keys:
                 if key in data and isinstance(data[key], float):
                     data[key] = int(data[key])
-        
+
         try:
             creds = {}
             law_keys = ["LAW_API_KEY"]
@@ -161,21 +161,21 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                 for key in law_keys:
                     if key in env:
                         creds[key] = env[key]
-            
+
             if creds:
                 masked = dict(creds)
                 for key in masked:
                     if masked[key]:
                         masked[key] = masked[key][:6] + "***"
                 logger.debug("Applying temp env | %s", masked)
-            
+
             async def run_with_env(coro_func):
                 with temporary_env(creds):
                     return await coro_func
-            
+
             if tool_name == "health":
                 return await health_service.check_health()
-            
+
             if tool_name == "search_law_tool":
                 query = request_data.get("query")
                 if not query:
@@ -190,7 +190,7 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                 return await run_with_env(
                     law_service.search_law(req, arguments=request_data)
                 )
-            
+
             if tool_name == "list_law_names_tool":
                 page = request_data.get("page", 1)
                 per_page = request_data.get("per_page", 50)
@@ -200,7 +200,7 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                 return await run_with_env(
                     law_service.list_law_names(req, arguments=request_data)
                 )
-            
+
             if tool_name == "get_law_detail_tool":
                 law_name = request_data.get("law_name")
                 if not law_name:
@@ -212,7 +212,7 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                 return await run_with_env(
                     law_service.get_law_detail(req, arguments=request_data)
                 )
-            
+
             return {
                 "error": "도구를 찾을 수 없습니다",
                 "recovery_guide": "요청한 도구가 존재하지 않습니다. 사용 가능한 도구 목록을 확인하세요."

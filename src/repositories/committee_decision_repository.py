@@ -25,7 +25,7 @@ COMMITTEE_TARGET_MAP = {
 
 class CommitteeDecisionRepository(BaseLawRepository):
     """위원회 결정문 검색 및 조회 관련 기능을 담당하는 Repository"""
-    
+
     def search_committee_decision(
         self,
         committee_type: str,
@@ -35,14 +35,14 @@ class CommitteeDecisionRepository(BaseLawRepository):
         arguments: Optional[dict] = None
     ) -> dict:
         """위원회 결정문을 검색합니다."""
-        logger.debug("search_committee_decision called | committee_type=%r query=%r page=%d per_page=%d", 
+        logger.debug("search_committee_decision called | committee_type=%r query=%r page=%d per_page=%d",
                     committee_type, query, page, per_page)
-        
+
         if per_page < 1:
             per_page = 1
         if per_page > 100:
             per_page = 100
-        
+
         target = COMMITTEE_TARGET_MAP.get(committee_type)
         if not target:
             return {
@@ -50,14 +50,14 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "supported_committees": list(COMMITTEE_TARGET_MAP.keys()),
                 "recovery_guide": f"지원하는 위원회 종류를 사용해주세요: {', '.join(COMMITTEE_TARGET_MAP.keys())}"
             }
-        
+
         cache_key = ("committee_decision", committee_type, query or "", page, per_page)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": target,
@@ -65,16 +65,16 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "page": page,
                 "display": per_page
             }
-            
+
             if query:
                 params["query"] = self.normalize_search_query(query)
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_SEARCH_URL, params=params, timeout=10)
-            
+
             # 응답이 비어있는지 확인
             if not response.text or not response.text.strip():
                 return {
@@ -85,12 +85,12 @@ class CommitteeDecisionRepository(BaseLawRepository):
                     "recovery_guide": "API 키가 필요합니다. 사용자에게 API 키를 요청하거나, API 키를 환경변수(LAW_API_KEY)로 설정하세요.",
                     "note": "국가법령정보센터 OPEN API 사용을 위해서는 https://open.law.go.kr 에서 회원가입 및 API 활용 신청이 필요합니다."
                 }
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -102,7 +102,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
                     "raw_response": response.text[:200] if response.text else "Empty response",
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "committee_type": committee_type,
                 "query": query,
@@ -112,7 +112,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "decisions": [],
                 "api_url": response.url
             }
-            
+
             # JSON 구조 파싱 (위원회별로 다를 수 있음)
             if isinstance(data, dict):
                 # 다양한 가능한 키 시도
@@ -120,7 +120,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
                     if key in data:
                         result["total"] = data.get(key, 0)
                         break
-                
+
                 # 결정문 배열 찾기
                 for key in ["dec", "decision", "decisions", "data"]:
                     if key in data:
@@ -129,10 +129,10 @@ class CommitteeDecisionRepository(BaseLawRepository):
                             decisions = [decisions] if decisions else []
                         result["decisions"] = decisions[:per_page]
                         break
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",
@@ -153,7 +153,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "error": f"예상치 못한 오류: {str(e)}",
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
-    
+
     def get_committee_decision(
         self,
         committee_type: str,
@@ -162,7 +162,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
     ) -> dict:
         """위원회 결정문 상세 정보를 조회합니다."""
         logger.debug("get_committee_decision called | committee_type=%r decision_id=%r", committee_type, decision_id)
-        
+
         target = COMMITTEE_TARGET_MAP.get(committee_type)
         if not target:
             return {
@@ -170,32 +170,32 @@ class CommitteeDecisionRepository(BaseLawRepository):
                 "supported_committees": list(COMMITTEE_TARGET_MAP.keys()),
                 "recovery_guide": f"지원하는 위원회 종류를 사용해주세요: {', '.join(COMMITTEE_TARGET_MAP.keys())}"
             }
-        
+
         cache_key = ("committee_decision_detail", committee_type, decision_id)
-        
+
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
-        
+
         try:
             params = {
                 "target": target,
                 "type": "JSON",
                 "ID": decision_id
             }
-            
+
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
             if api_key_error:
                 return api_key_error
-            
+
             response = requests.get(LAW_API_BASE_URL, params=params, timeout=10)
-            
+
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
             response.raise_for_status()
-            
+
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
@@ -206,17 +206,17 @@ class CommitteeDecisionRepository(BaseLawRepository):
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
                 }
-            
+
             result = {
                 "committee_type": committee_type,
                 "decision_id": decision_id,
                 "decision": data,
                 "api_url": response.url
             }
-            
+
             search_cache[cache_key] = result
             return result
-            
+
         except requests.exceptions.Timeout:
             error_result = {
                 "error": "API 호출 타임아웃",
