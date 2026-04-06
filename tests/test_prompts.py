@@ -10,6 +10,7 @@ EXPECTED_PROMPT_NAMES = {
     "legal_basis_answer",
     "precedent_summary",
     "contract_risk_check",
+    "labor_contract_review",
     "legal_qa",
 }
 
@@ -25,7 +26,7 @@ class TestPromptsList:
 
     def test_correct_count(self):
         result = _build_prompts_list()
-        assert len(result) == 4
+        assert len(result) == len(EXPECTED_PROMPT_NAMES)
 
     def test_all_expected_names_present(self):
         result = _build_prompts_list()
@@ -173,6 +174,7 @@ class TestPromptsGet:
             "legal_basis_answer": {"question": "테스트 질문"},
             "precedent_summary": {"topic": "손해배상"},
             "contract_risk_check": {"contract_text": "제1조 계약"},
+            "labor_contract_review": {"contract_text": "제1조 시험"},
             "legal_qa": {"situation": "테스트 상황"},
         }
         disclaimer_keywords = ["법적 판단을 대신하지 않", "법적 자문을 대신하지 않"]

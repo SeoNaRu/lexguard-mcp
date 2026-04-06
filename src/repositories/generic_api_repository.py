@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Optional, Any, List
 from ..tools.api_metadata_loader import get_metadata_loader
-from .base import BaseLawRepository
+from .base import BaseLawRepository, DRF_REQUEST_TIMEOUT_LONG_SEC
 
 logger = logging.getLogger("lexguard-mcp")
 
@@ -96,7 +96,7 @@ class GenericAPIRepository(BaseLawRepository):
 
         try:
             # API 호출
-            response = await aget(request_url, params=params, timeout=30)
+            response = await aget(request_url, params=params, timeout=DRF_REQUEST_TIMEOUT_LONG_SEC)
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response

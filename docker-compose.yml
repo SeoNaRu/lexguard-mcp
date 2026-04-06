@@ -3,8 +3,8 @@ services:
   lexguard-mcp:
     build: .
     ports:
-      - "8099:8099"
+      - "9099:9099"
     environment:
-      PORT: "8099"
+      PORT: "9099"
       LAW_API_KEY: ${LAW_API_KEY:-}
       LAWGOKR_OC: ${LAWGOKR_OC:-}

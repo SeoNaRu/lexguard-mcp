@@ -499,7 +499,7 @@ class SituationGuidanceService:
             "other": "계약서"
         }.get(doc_type, "계약서")
 
-        return {
+        doc_block = {
             "detected": True,
             "document_type": doc_type_display,
             "document_type_code": doc_type,  # labor/lease/terms/other
@@ -515,6 +515,10 @@ class SituationGuidanceService:
                 "근거 결과를 법적 근거 요약 블록에 반영"
             ]
         }
+        if doc_type == "labor":
+            from ..utils.document_issue_prompts import LABOR_ANCHOR_STATUTES_REFERENCE
+            doc_block["anchor_statutes_reference"] = list(LABOR_ANCHOR_STATUTES_REFERENCE)
+        return doc_block
 
     async def comprehensive_search(
         self,
@@ -1017,6 +1021,22 @@ class SituationGuidanceService:
         success_transport = True
         success_search = evidence_summary["has_legal_basis"] if auto_search else False
         success = success_transport if not auto_search else (success_transport and success_search)
+        doc_code = None
+        if isinstance(analysis, dict):
+            doc_code = analysis.get("document_type_code")
+        answer_format = "labor_dense_v1" if doc_code == "labor" else "generic_dense_v1"
+        response_policy = {
+            "must_include": ["document_analysis", "legal_basis_block_text", "legal_basis_block", "retry_plan"],
+            "preferred_order": ["legal_basis_block_text", "document_analysis"],
+            "if_has_legal_basis_false": "no_conclusions",
+            "when_api_error": "explain_api_error_and_request_retry",
+            "answer_format": answer_format,
+            "instruction": (
+                "근로·용역: COMMON_CONTRACT_REVIEW_INSTRUCTION + LABOR_CONTRACT_REVIEW_ADDON."
+                if doc_code == "labor"
+                else "COMMON_CONTRACT_REVIEW_INSTRUCTION + GENERIC_CONTRACT_REVIEW_ADDON(비 labor)."
+            ),
+        }
         return {
             "success_transport": success_transport,
             "success_search": success_search,
@@ -1036,12 +1056,7 @@ class SituationGuidanceService:
             "legal_basis_block": legal_basis_block,
             "legal_basis_block_text": legal_basis_block_text,
             "retry_plan": retry_plan,
-            "response_policy": {
-                "must_include": ["document_analysis", "legal_basis_block_text", "legal_basis_block", "retry_plan"],
-                "preferred_order": ["legal_basis_block_text", "document_analysis"],
-                "if_has_legal_basis_false": "no_conclusions",
-                "when_api_error": "explain_api_error_and_request_retry"
-            }
+            "response_policy": response_policy
         }
 
     def generate_guidance(

@@ -26,6 +26,10 @@ failure_cache = TTLCache(maxsize=200, ttl=300)  # 실패 요청 5분 캐시
 LAW_API_BASE_URL = "https://www.law.go.kr/DRF/lawService.do"
 LAW_API_SEARCH_URL = "https://www.law.go.kr/DRF/lawSearch.do"  # 법령 검색용
 
+# DRF HTTP 요청 타임아웃(초) — aget(..., timeout=...) 에서 공통 사용
+DRF_REQUEST_TIMEOUT_SEC = 10
+DRF_REQUEST_TIMEOUT_LONG_SEC = 30
+
 
 class BaseLawRepository:
     """법령 Repository의 기본 클래스 - 공통 유틸리티 메서드"""

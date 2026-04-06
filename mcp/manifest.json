@@ -11,13 +11,14 @@
   "tools": [
     { "name": "legal_qa_tool", "description": "통합 법률 QA" },
     { "name": "law_article_tool", "description": "법령 조문 정밀 조회" },
-    { "name": "document_issue_tool", "description": "계약서·약관 분석" },
+    { "name": "document_issue_tool", "description": "계약서·약관 분석, 조항별 법령·판례 실마리. 공통 검토 지시 + 유형별 addon(근로·용역 시 labor); 조문은 확인 시만." },
     { "name": "health", "description": "서버·API 키 상태 확인" }
   ],
   "prompts": [
     { "name": "legal_basis_answer", "description": "법령 근거·판례 요지 포함 답변 유도" },
     { "name": "precedent_summary", "description": "판례 사실·쟁점·판단요지 요약" },
     { "name": "contract_risk_check", "description": "계약서 위험 조항 점검" },
+    { "name": "labor_contract_review", "description": "근로계약서 조항별 조문·위험도·수정방향 검토" },
     { "name": "legal_qa", "description": "상황 설명 기반 법률 실마리" }
   ],
   "resources": {

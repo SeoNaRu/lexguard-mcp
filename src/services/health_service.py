@@ -3,6 +3,8 @@ Health Service - 헬스 체크 비즈니스 로직
 """
 import os
 
+from src.repositories.base import BaseLawRepository
+
 
 class HealthService:
     """헬스 체크 관련 비즈니스 로직을 처리하는 Service"""
@@ -14,7 +16,7 @@ class HealthService:
 
         has_api_key = bool(api_key)
         api_key_length = len(api_key) if api_key else 0
-        api_key_preview = api_key[:8] + "..." if api_key and len(api_key) > 8 else (api_key if api_key else "")
+        api_key_preview = BaseLawRepository.mask_api_key(api_key) if has_api_key else ""
 
         env_file_exists = os.path.exists(".env")
 
@@ -31,7 +33,7 @@ class HealthService:
             },
             "PORT": {
                 "exists": "PORT" in os.environ,
-                "value": os.environ.get("PORT", "8099 (default)")
+                "value": os.environ.get("PORT", "9099 (default)")
             }
         }
 

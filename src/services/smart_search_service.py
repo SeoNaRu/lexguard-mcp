@@ -431,6 +431,48 @@ class SmartSearchService:
             self._apply_rerank_lists(qq, result)
         return result
 
+    async def local_ordinance_lookup(
+        self,
+        query: Optional[str] = None,
+        local_government: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """자치법규(조례 등)만 검색."""
+        q = (query or "").strip() or None
+        lg = (local_government or "").strip() or None
+        if not q and not lg:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어 또는 지자체명 중 하나 이상이 필요합니다.",
+                "recovery_guide": "조례 키워드 query 또는 local_government(예: 서울시)를 입력하세요.",
+            }
+        return await self.ordinance_repo.search_local_ordinance(
+            q, lg, page, per_page, arguments,
+        )
+
+    async def administrative_rule_lookup(
+        self,
+        query: Optional[str] = None,
+        agency: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """행정규칙만 검색."""
+        q = (query or "").strip() or None
+        ag = (agency or "").strip() or None
+        if not q and not ag:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어 또는 부처명 중 하나 이상이 필요합니다.",
+                "recovery_guide": "행정규칙 키워드 query 또는 agency(예: 고용노동부)를 입력하세요.",
+            }
+        return await self.rule_repo.search_administrative_rule(
+            q, ag, page, per_page, arguments,
+        )
+
     async def administrative_appeal_lookup(
         self,
         query: str,

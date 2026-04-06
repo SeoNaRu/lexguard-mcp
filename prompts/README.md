@@ -9,4 +9,5 @@
 | legal_basis_answer.md | `legal_basis_answer` |
 | precedent_summary.md | `precedent_summary` |
 | contract_risk_check.md | `contract_risk_check` |
+| labor_contract_review.md | `labor_contract_review` |
 | legal_qa.md | `legal_qa` |

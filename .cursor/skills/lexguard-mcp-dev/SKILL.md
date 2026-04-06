@@ -102,6 +102,10 @@ class FooRepository(BaseLawRepository):
 필수: 판단 유보 문장, 추가 정보 요청
 ```
 
+## document_issue_tool — 공통 B 타입 + 유형별 addon
+
+모든 계약·약관은 `COMMON_CONTRACT_REVIEW_INSTRUCTION`(조항 6라벨·총평 5라벨·공통 검토 포인트)을 따른다. `document_type_code == "labor"`이면 `LABOR_CONTRACT_REVIEW_ADDON`이 추가로 붙으며, 합성 결과는 `LABOR_CONTRACT_REVIEW_INSTRUCTION`(= COMMON + labor addon)과 동일하다. 그 외 유형은 공통 + `GENERIC_CONTRACT_REVIEW_ADDON`(`get_document_issue_review_instruction`). 향후 `SERVICE_CONTRACT_REVIEW_ADDON` 등은 `document_type_code` 분기로 연결할 수 있다. `document_issue_tool`의 전체 설명은 `DOCUMENT_ISSUE_TOOL_DESCRIPTION_TEXT`, `mcp/manifest.json` 한 줄 요약은 `DOCUMENT_ISSUE_TOOL_MANIFEST_ONE_LINE`(테스트로 동기화 검증). 수정 시 `response_formatter.format_mcp_response`와 `mcp_routes`(프롬프트/get)를 함께 본다.
+
 ## 테스트 작성
 
 ```bash

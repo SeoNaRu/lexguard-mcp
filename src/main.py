@@ -36,7 +36,8 @@ if __name__ == "__main__":
     import logging
     import atexit
 
-    port = int(os.environ.get('PORT', 8099))
+    # 기본 9099: Windows는 일부 TCP 구간(8042–8141 등)을 예약해 8099 바인딩이 실패할 수 있음
+    port = int(os.environ.get("PORT", 9099))
 
     print("한국 법령 MCP 서버 시작 중...", file=sys.stderr)
     print("서버: lexguard-mcp-service", file=sys.stderr)

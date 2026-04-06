@@ -44,3 +44,17 @@ async def test_special_appeal_lookup_invalid_tribunal():
         query="테스트",
     )
     assert r.get("error_code") == "INVALID_TRIBUNAL"
+
+
+@pytest.mark.asyncio
+async def test_local_ordinance_lookup_requires_query_or_region():
+    svc = SmartSearchService()
+    r = await svc.local_ordinance_lookup(query=None, local_government=None)
+    assert r.get("error_code") == "INVALID_INPUT"
+
+
+@pytest.mark.asyncio
+async def test_administrative_rule_lookup_requires_query_or_agency():
+    svc = SmartSearchService()
+    r = await svc.administrative_rule_lookup(query=None, agency=None)
+    assert r.get("error_code") == "INVALID_INPUT"

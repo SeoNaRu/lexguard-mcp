@@ -5,7 +5,15 @@ import httpx
 from ..utils.http_client import aget
 import json
 from typing import Optional, List, Dict
-from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_URL, search_cache, failure_cache
+from .base import (
+    BaseLawRepository,
+    logger,
+    LAW_API_SEARCH_URL,
+    LAW_API_BASE_URL,
+    search_cache,
+    failure_cache,
+    DRF_REQUEST_TIMEOUT_SEC,
+)
 from ..utils.query_planner import extract_keywords, build_query_set, expand_date_range_stepwise
 from ..utils.result_normalizer import normalize_search_response
 from ..utils.retry_policy import RetryPolicy, ResultQuality
@@ -87,7 +95,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -225,7 +233,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -709,7 +717,7 @@ class PrecedentRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:

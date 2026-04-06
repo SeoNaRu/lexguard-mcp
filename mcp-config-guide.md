@@ -107,7 +107,9 @@
 관련 판례를 사실관계 / 쟁점 / 판단요지로 나눠 요약해주세요.
 ```
 
-### 📌 Prompt 3 — 계약서 위험조항 점검
+### 📌 Prompt 3 — 계약서 위험조항 점검 (`contract_risk_check`)
+
+범용 계약·약관용입니다. **근로계약·용역 전용** 검토는 `labor_contract_review` 또는 `document_issue_tool`을 쓰세요.
 
 ```
 아래 계약서에서 법적으로 문제될 수 있는 조항을 항목별로 정리해주세요.
@@ -147,7 +149,7 @@ python -m src.main
 
 ```bash
 docker build -t lexguard-mcp .
-docker run -p 8099:8099 lexguard-mcp
+docker run -p 9099:9099 lexguard-mcp
 ```
 
 ---

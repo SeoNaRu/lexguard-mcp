@@ -5,7 +5,15 @@ import httpx
 from ..utils.http_client import aget
 import json
 from typing import Optional
-from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, LAW_API_BASE_URL, search_cache, failure_cache
+from .base import (
+    BaseLawRepository,
+    logger,
+    LAW_API_SEARCH_URL,
+    LAW_API_BASE_URL,
+    search_cache,
+    failure_cache,
+    DRF_REQUEST_TIMEOUT_SEC,
+)
 
 
 # 위원회 타입별 target 매핑 (API 문서 기준)
@@ -74,7 +82,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             # 응답이 비어있는지 확인
             if not response.text or not response.text.strip():
@@ -190,7 +198,7 @@ class CommitteeDecisionRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:

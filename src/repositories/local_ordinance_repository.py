@@ -5,7 +5,14 @@ import httpx
 from ..utils.http_client import aget
 import json
 from typing import Optional
-from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, failure_cache
+from .base import (
+    BaseLawRepository,
+    logger,
+    LAW_API_SEARCH_URL,
+    search_cache,
+    failure_cache,
+    DRF_REQUEST_TIMEOUT_SEC,
+)
 
 
 class LocalOrdinanceRepository(BaseLawRepository):
@@ -53,7 +60,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             if not response.text or not response.text.strip():
                 return {

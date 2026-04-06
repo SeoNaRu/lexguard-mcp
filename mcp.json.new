@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "lexguard-mcp": {
-      "url": "http://127.0.0.1:8099/mcp"
+      "url": "http://127.0.0.1:9099/mcp"
     }
   }
 }

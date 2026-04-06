@@ -3,7 +3,7 @@ Axis Query Builder - 법리축/사실축 분리 쿼리 생성
 법리 키워드와 사실 키워드를 분리하여 단계적 검색 전략 수립
 """
 from typing import List, Dict, Optional
-from ..utils.query_planner import LEGAL_CORE_KEYWORDS, extract_keywords
+from .query_planner import LEGAL_CORE_KEYWORDS, extract_keywords
 
 
 # 법리축 키워드 사전

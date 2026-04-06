@@ -7,7 +7,15 @@ import json
 import xml.etree.ElementTree as ET
 import re
 from typing import Optional
-from .base import BaseLawRepository, logger, LAW_API_SEARCH_URL, search_cache, failure_cache
+from .base import (
+    BaseLawRepository,
+    logger,
+    LAW_API_SEARCH_URL,
+    search_cache,
+    failure_cache,
+    DRF_REQUEST_TIMEOUT_SEC,
+    DRF_REQUEST_TIMEOUT_LONG_SEC,
+)
 
 
 class LawSearchRepository(BaseLawRepository):
@@ -64,7 +72,7 @@ class LawSearchRepository(BaseLawRepository):
 
             # 검색은 lawSearch.do 사용
             # 1차 시도: JSON
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=10)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
                 return invalid_response
@@ -89,7 +97,7 @@ class LawSearchRepository(BaseLawRepository):
                 xml_params["type"] = "XML"
 
                 try:
-                    xml_response = await aget(LAW_API_SEARCH_URL, params=xml_params, timeout=10)
+                    xml_response = await aget(LAW_API_SEARCH_URL, params=xml_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
                     invalid_xml = self.validate_drf_response(xml_response)
                     if invalid_xml:
@@ -324,7 +332,7 @@ class LawSearchRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=30)
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_LONG_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:

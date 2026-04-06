@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from .document_issue_prompts import get_document_issue_review_instruction
+
 
 def sanitize_for_mcp_json(obj: Any) -> Any:
     """
@@ -474,6 +476,11 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             raw_auto if raw_auto is True or raw_auto is False else True
         )
 
+        da = result.get("document_analysis")
+        doc_type_code = None
+        if isinstance(da, dict):
+            doc_type_code = da.get("document_type_code")
+
         return {
             "success": _mcp_bool(result.get("success"), True),
             "success_transport": _mcp_bool(result.get("success_transport"), True),
@@ -484,6 +491,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "analysis_success": _mcp_bool(result.get("analysis_success"), False),
             "has_legal_basis": _mcp_bool(result.get("has_legal_basis"), False),
             "missing_reason": result.get("missing_reason"),
+            "document_type_code": doc_type_code,
             "document_analysis": result.get("document_analysis"),
             "answer": {"risk_findings": trimmed_risks},
             "citations": citations,
@@ -544,30 +552,9 @@ def format_mcp_response(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
 필수: 체크리스트는 반드시 하이픈(-)으로 시작, 괄호로 구체적 예시 추가
 금지: 이모지, 타이틀, 조문 전체 인용, 단정적 결론, "추가 정보가 필요합니다" 같은 막연한 표현"""
         else:  # document_issue_tool
-            template_reminder = """답변 형식 (A 타입, 아래 구조를 정확히 따르세요):
-
-제공해주신 [계약서 종류]에는 [당사자]에게 불리할 수 있는 조항들이 있습니다. [간략한 전체 평가 한 문장]
-
-주요 쟁점 조항은 다음과 같습니다:
-
-제○조 (조항명):
-- [문제점 1 + 왜 문제인지]
-- [문제점 2 + 왜 문제인지]
-
-제○조 (조항명):
-- [문제점 1 + 왜 문제인지]
-- [문제점 2 + 왜 문제인지]
-
-관련해서는 [법령명] [어떤 규정], [판례 방향] 등이 참고됩니다.
-(예: 근로기준법상 손해배상 예정액 제한, 약관규제법상 불공정 약관 무효 규정, 전속관할 약정의 효력 제한 판례 등이 참고됩니다.)
-
-본 답변은 법적 판단을 대신하지 않으며, 구체적인 사실관계에 따라 결론은 달라질 수 있습니다.
-
-[구체적인 추가 정보 2-3가지] 알려주시면 보다 정확한 검토에 도움이 됩니다.
-(예: 계약 체결 경위나 실제 업무 지시 방식을 알려주시면...)
-
-필수: 조항별로 불릿(-) 사용, 문제점과 이유를 함께 설명
-금지: 이모지, 타이틀, 심각도 표시, 조문 전체 인용, 단정적 조언"""
+            # structuredContent에 document_type_code가 있으면 근로·용역 문서에 고밀도(B) 지시
+            dtc = formatted.get("document_type_code")
+            template_reminder = get_document_issue_review_instruction(dtc)
 
         contents.append({
             "type": "text",

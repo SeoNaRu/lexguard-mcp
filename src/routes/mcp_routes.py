@@ -12,9 +12,17 @@ from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 from ..services.law_service import LawService
 from ..services.health_service import HealthService
+from ..services.law_comparison_service import LawComparisonService
 from ..services.smart_search_service import SmartSearchService
 from ..services.situation_guidance_service import SituationGuidanceService
+from ..utils.mcp_tool_args import resolve_law_comparison_tool
+from ..utils.document_issue_prompts import (
+    DOCUMENT_ISSUE_TOOL_DESCRIPTION_TEXT,
+    GENERIC_DOCUMENT_REVIEW_INSTRUCTION,
+    LABOR_CONTRACT_REVIEW_INSTRUCTION,
+)
 from ..utils.response_truncator import shrink_response_bytes
+from ..utils.log_sanitize import sanitize_http_headers_for_log
 from .resource_handlers import build_resources_list, read_resource
 from ..config.settings import get_limiter
 import logging
@@ -34,6 +42,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
     """MCP Streamable HTTP 엔드포인트 등록"""
     smart_search_service = SmartSearchService()
     situation_guidance_service = SituationGuidanceService()
+    law_comparison_service = LawComparisonService()
 
     # resources/read 에서 사용할 repo 인스턴스 (lazy import 방지)
     from ..repositories.law_detail import LawDetailRepository
@@ -58,7 +67,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
             logger.info(f"ALL REQUEST: {request.method} {request.url}")
             logger.info(f"Client: {request.client}")
             logger.info(f"Path: {request.url.path}")
-            logger.info(f"Headers: {dict(request.headers)}")
+            logger.info("Headers: %s", sanitize_http_headers_for_log(request.headers))
 
         try:
             response = await call_next(request)
@@ -201,6 +210,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             "priority": 1,
                             "category": "integrated",
                             "description": """법률 질문에 대한 법적 근거의 실마리를 제공합니다. 법령, 판례, 행정해석, 위원회 결정례 등을 통합 검색합니다.
+통합 법률 검색·근거 실마리의 기본 진입점입니다. 출처가 한정된 검색(판례만, 해석만, 심판만 등)은 해당 전용 툴을 우선 검토하세요.
 
 답변 형식 (A 타입, 반드시 준수):
 1) 한 줄 방향 제시 (예: 문제가 될 가능성이 있는 사안입니다)
@@ -250,16 +260,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             "name": "document_issue_tool",
                             "priority": 1,
                             "category": "document",
-                            "description": """계약서나 약관 텍스트를 분석하여 조항별 이슈와 법적 근거의 실마리를 제공합니다.
-
-답변 형식 (A 타입, 반드시 준수):
-1) 한 줄 평가 (예: [당사자]에게 불리할 수 있는 조항들이 있습니다)
-2) 주요 쟁점 조항 나열 (제○조: 문제점 2-3개)
-3) 관련 법령/판례 방향만 언급
-4) 판단 유보 문장
-5) 추가 정보 요청
-
-금지: 이모지, 타이틀(검토 결과 등), 심각도 표시(중대한/심각한), 조문 전체 인용, 단정적 조언""",
+                            "description": DOCUMENT_ISSUE_TOOL_DESCRIPTION_TEXT,
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -310,6 +311,7 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             "priority": 1,
                             "category": "law",
                             "description": """특정 법령의 조문을 직접 정밀 조회합니다. 법령명과 조문번호를 알고 있을 때 사용하세요.
+법령 신구·연혁·3단 비교가 필요하면 law_comparison_tool을 사용하세요.
 
 답변 형식 (A 타입, 반드시 준수):
 1) 조문 내용 요약 (인용 최소화)
@@ -354,6 +356,44 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                     "error": {"type": ["string", "null"]}
                                 }
                             }
+                        },
+                        {
+                            "name": "law_comparison_tool",
+                            "priority": 1,
+                            "category": "law",
+                            "description": """국가법령정보센터 API 기준으로 법령 신구·연혁·3단 비교 결과를 조회합니다. 비교·연혁 조회가 목적일 때 사용하세요. 일반 법률 질문·판례 검색은 legal_qa_tool 또는 전용 툴을 쓰세요.
+
+판단 유보: 본 도구는 조회 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "law_name": {
+                                        "type": "string",
+                                        "description": "비교할 법령명 (예: 형법, 민법, 근로기준법)",
+                                    },
+                                    "compare_type": {
+                                        "type": "string",
+                                        "description": "비교 유형: 신구법(신·구법 대비), 연혁(법령 연혁), 3단비교",
+                                        "enum": ["신구법", "연혁", "3단비교"],
+                                        "default": "신구법",
+                                    },
+                                },
+                                "required": ["law_name"],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "law_name": {"type": "string"},
+                                    "law_id": {"type": ["string", "null"]},
+                                    "compare_type": {"type": "string"},
+                                    "comparison": {"type": "object"},
+                                    "error": {"type": ["string", "null"]},
+                                    "error_code": {"type": ["string", "null"]},
+                                    "recovery_guide": {"type": ["string", "null"]},
+                                },
+                            },
                         },
                         {
                             "name": "precedent_lookup_tool",
@@ -601,6 +641,100 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                             },
                         },
                         {
+                            "name": "local_ordinance_tool",
+                            "priority": 1,
+                            "category": "ordinance",
+                            "description": """자치법규(조례 등)만 검색합니다. 지역 조례·규칙 실마리가 필요할 때 legal_qa_tool 대신 사용할 수 있습니다. query와 local_government 중 하나 이상을 넣으세요.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "조례명 또는 검색 키워드",
+                                    },
+                                    "local_government": {
+                                        "type": "string",
+                                        "description": "지방자치단체 명칭 필터 (예: 서울시, 부산시)",
+                                    },
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 20,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                },
+                                "allOf": [
+                                    {
+                                        "anyOf": [
+                                            {"required": ["query"]},
+                                            {"required": ["local_government"]},
+                                        ]
+                                    }
+                                ],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "total": {"type": "integer"},
+                                    "ordinances": {"type": "array"},
+                                    "error": {"type": ["string", "null"]},
+                                    "error_code": {"type": ["string", "null"]},
+                                },
+                            },
+                        },
+                        {
+                            "name": "administrative_rule_tool",
+                            "priority": 1,
+                            "category": "admin_rule",
+                            "description": """행정규칙만 검색합니다. 부처 훈령·예규 등 실마리가 필요할 때 legal_qa_tool 대신 사용할 수 있습니다. query와 agency 중 하나 이상을 넣으세요.
+
+판단 유보: 본 도구는 검색 결과만 제공하며 법적 판단을 대신하지 않습니다.
+
+금지: 이모지, 단정적 결론, API 링크 노출""",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "행정규칙명 또는 검색 키워드",
+                                    },
+                                    "agency": {
+                                        "type": "string",
+                                        "description": "부처명 (예: 고용노동부, 교육부). 저장소 매핑에 있는 명칭만 기관 필터로 적용될 수 있습니다.",
+                                    },
+                                    "page": {"type": "integer", "default": 1, "minimum": 1},
+                                    "per_page": {
+                                        "type": "integer",
+                                        "default": 20,
+                                        "minimum": 1,
+                                        "maximum": 50,
+                                    },
+                                },
+                                "allOf": [
+                                    {
+                                        "anyOf": [
+                                            {"required": ["query"]},
+                                            {"required": ["agency"]},
+                                        ]
+                                    }
+                                ],
+                            },
+                            "outputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "total": {"type": "integer"},
+                                    "rules": {"type": "array"},
+                                    "error": {"type": ["string", "null"]},
+                                    "error_code": {"type": ["string", "null"]},
+                                },
+                            },
+                        },
+                        {
                             "name": "health",
                             "priority": 2,
                             "category": "utility",
@@ -816,6 +950,13 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 arguments,
                             )
 
+                        elif tool_name == "law_comparison_tool":
+                            req_cmp, err_cmp = resolve_law_comparison_tool(arguments)
+                            if err_cmp:
+                                result = err_cmp
+                            else:
+                                result = await law_comparison_service.compare_laws(req_cmp, arguments)
+
                         elif tool_name == "precedent_lookup_tool":
                             result = await smart_search_service.precedent_lookup(
                                 keyword=arguments.get("keyword"),
@@ -872,6 +1013,28 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                 query=arguments.get("query", ""),
                                 page=int(arguments.get("page", 1)),
                                 per_page=int(arguments.get("per_page", 10)),
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "local_ordinance_tool":
+                            _pp_lo = int(arguments.get("per_page", 20))
+                            _pp_lo = max(1, min(50, _pp_lo))
+                            result = await smart_search_service.local_ordinance_lookup(
+                                query=arguments.get("query"),
+                                local_government=arguments.get("local_government"),
+                                page=int(arguments.get("page", 1)),
+                                per_page=_pp_lo,
+                                arguments=arguments,
+                            )
+
+                        elif tool_name == "administrative_rule_tool":
+                            _pp_ar = int(arguments.get("per_page", 20))
+                            _pp_ar = max(1, min(50, _pp_ar))
+                            result = await smart_search_service.administrative_rule_lookup(
+                                query=arguments.get("query"),
+                                agency=arguments.get("agency"),
+                                page=int(arguments.get("page", 1)),
+                                per_page=_pp_ar,
                                 arguments=arguments,
                             )
 
@@ -1022,6 +1185,17 @@ _PROMPTS = [
         ]
     },
     {
+        "name": "labor_contract_review",
+        "description": "근로계약서·용역 계약서를 조항별로 조문·위험도·수정방향까지 포함해 검토합니다(document_issue_tool B 타입과 동일 구조).",
+        "arguments": [
+            {
+                "name": "contract_text",
+                "description": "근로·용역 계약서 전문",
+                "required": True
+            }
+        ]
+    },
+    {
         "name": "legal_qa",
         "description": "일상적인 법률 상황을 설명하면 관련 법령·판례·행정해석을 찾아 실마리를 제공합니다.",
         "arguments": [
@@ -1082,25 +1256,36 @@ _PROMPT_MESSAGES = {
         ]
     },
     "contract_risk_check": lambda args: {
-        "description": "계약서 위험조항 점검 프롬프트",
+        "description": "범용 계약서 위험조항 점검 프롬프트 (임대차·약관·일반 계약 등; 노동 전용 규칙 없음)",
         "messages": [
             {
                 "role": "user",
                 "content": {
                     "type": "text",
                     "text": (
-                        "아래 계약서에서 법적으로 문제될 수 있는 조항을 항목별로 정리해주세요.\n"
-                        + (f"계약서 유형: {args['contract_type']}\n" if args.get("contract_type") else "")
-                        + "\n"
-                        "--- 계약서 전문 ---\n"
-                        f"{args.get('contract_text', '(계약서 텍스트를 붙여넣어 주세요)')}\n"
-                        "---\n\n"
-                        "점검 항목:\n"
-                        "- 불공정 조항 (약관규제법 위반 가능성)\n"
-                        "- 손해배상 예정액 과다 (근로기준법 제20조 등)\n"
-                        "- 일방적 계약 변경·해지 조항\n"
-                        "- 전속관할 약정의 효력\n\n"
-                        "본 답변은 법적 판단을 대신하지 않습니다."
+                        (f"계약서 유형(참고): {args['contract_type']}\n\n" if args.get("contract_type") else "")
+                        + "근로계약·용역·노동 문서 전용 검토는 labor_contract_review 또는 document_issue_tool(근로 분류)을 사용하세요.\n\n"
+                        + GENERIC_DOCUMENT_REVIEW_INSTRUCTION
+                        + "\n\n--- 계약서 전문 ---\n"
+                        + f"{args.get('contract_text', '(계약서 텍스트를 붙여넣어 주세요)')}\n"
+                        + "---\n"
+                    )
+                }
+            }
+        ]
+    },
+    "labor_contract_review": lambda args: {
+        "description": "근로계약서 고밀도 검토 프롬프트(document_issue_tool B 타입과 정합)",
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": (
+                        LABOR_CONTRACT_REVIEW_INSTRUCTION
+                        + "\n\n--- 계약서 전문 ---\n"
+                        + f"{args.get('contract_text', '')}\n"
+                        + "---\n"
                     )
                 }
             }

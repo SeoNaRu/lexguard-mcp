@@ -8,7 +8,7 @@ services:
     healthCheckIntervalSeconds: 120
     envVars:
       - key: PORT
-        value: 8099
+        value: 9099
       - key: LOG_LEVEL
         value: INFO
       - key: RELOAD

@@ -6,7 +6,13 @@ from ..utils.http_client import aget
 import json
 from typing import Optional
 from datetime import datetime
-from .base import BaseLawRepository, logger, LAW_API_BASE_URL, LAW_API_SEARCH_URL
+from .base import (
+    BaseLawRepository,
+    logger,
+    LAW_API_BASE_URL,
+    LAW_API_SEARCH_URL,
+    DRF_REQUEST_TIMEOUT_SEC,
+)
 
 
 class LawDetailRepository(BaseLawRepository):
@@ -49,7 +55,7 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             # 법령명 검색은 lawSearch.do 사용
-            search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=10)
+            search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(search_response)
             if invalid_response:
@@ -142,7 +148,7 @@ class LawDetailRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=10)
+            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(detail_response)
             if invalid_response:
@@ -238,7 +244,7 @@ class LawDetailRepository(BaseLawRepository):
                     return api_key_error
 
                 # 법령명 검색은 lawSearch.do 사용
-                search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=10)
+                search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
                 invalid_response = self.validate_drf_response(search_response)
                 if invalid_response:
@@ -341,7 +347,7 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             # API 호출
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -509,7 +515,7 @@ class LawDetailRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=10)
+            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_detail = self.validate_drf_response(detail_response)
             if invalid_detail:
@@ -577,7 +583,7 @@ class LawDetailRepository(BaseLawRepository):
             logger.debug("Calling eflawjosub API | params=%s", {k: v for k, v in params.items() if k != "OC"})
 
             # 3단계: 단일 조문 조회
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=10)
+            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
