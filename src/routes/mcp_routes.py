@@ -430,14 +430,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                     "date_from": {"type": "string", "description": "선고일 시작 YYYYMMDD"},
                                     "date_to": {"type": "string", "description": "선고일 종료 YYYYMMDD"}
                                 },
-                                "allOf": [
-                                    {
-                                        "anyOf": [
-                                            {"required": ["keyword"]},
-                                            {"required": ["case_number"]}
-                                        ]
-                                    }
-                                ]
                             },
                             "outputSchema": {
                                 "type": "object",
@@ -668,14 +660,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         "maximum": 50,
                                     },
                                 },
-                                "allOf": [
-                                    {
-                                        "anyOf": [
-                                            {"required": ["query"]},
-                                            {"required": ["local_government"]},
-                                        ]
-                                    }
-                                ],
                             },
                             "outputSchema": {
                                 "type": "object",
@@ -715,14 +699,6 @@ def register_mcp_routes(api: FastAPI, law_service: LawService, health_service: H
                                         "maximum": 50,
                                     },
                                 },
-                                "allOf": [
-                                    {
-                                        "anyOf": [
-                                            {"required": ["query"]},
-                                            {"required": ["agency"]},
-                                        ]
-                                    }
-                                ],
                             },
                             "outputSchema": {
                                 "type": "object",
