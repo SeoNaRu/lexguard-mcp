@@ -47,7 +47,7 @@ Thumbs.db
 # 루트에만 두는 임시/스크래치 테스트 (tests/ 패키지는 커밋함)
 /test_*.py
 TEST.md
-
+CLAUDE.md
 # Local development scripts
 start_server.bat
 start_server.ps1
