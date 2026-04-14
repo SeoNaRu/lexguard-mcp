@@ -447,6 +447,7 @@ class SituationGuidanceService:
             if hints:
                 clause_basis_hints.append({
                     "clause": item.get("clause"),
+                    "issue_tags": item.get("issue_tags", []),
                     "suggested_queries": list(dict.fromkeys(hints))[:5]
                 })
 
@@ -867,9 +868,13 @@ class SituationGuidanceService:
             from ..services.smart_search_service import SmartSearchService
             smart_search_service = SmartSearchService()
 
+            # 쟁점 태그 기준 고위험 태그 목록 (강행규정 직접 충돌·손해배상·계약 종료 관련)
+            _HIGH_RISK_TAGS = {"해지 요건", "책임 제한", "보증금 반환", "환불 제한", "약관 변경", "관할 불리"}
+
             for item in analysis.get("clause_basis_hints", [])[:max_clauses]:
                 clause = item.get("clause")
                 queries = item.get("suggested_queries", [])[:]
+                item_issue_tags = set(item.get("issue_tags", []))
                 # 최소 2개 이상의 쿼리 보장 (fallback 포함)
                 if len(queries) < 2 and analysis.get("suggested_queries"):
                     for q in analysis.get("suggested_queries", []):
@@ -900,7 +905,12 @@ class SituationGuidanceService:
                     clause_precedents.extend(collect_precedents(result))
 
                 clause_has_legal_basis = clause_sources > 0 or len(clause_citations) > 0
-                risk_level = "high" if clause_has_legal_basis else "medium"
+                # 위험도: 조항 쟁점 태그(내용 기반)를 우선 판정하고,
+                # 법적 근거가 확인되면 high로 상향. API 미검색 결과가 위험도를 낮추지 않음.
+                if item_issue_tags & _HIGH_RISK_TAGS or clause_has_legal_basis:
+                    risk_level = "high"
+                else:
+                    risk_level = "medium"
                 why = None
                 if clause_citations:
                     first = clause_citations[0]
@@ -1020,7 +1030,10 @@ class SituationGuidanceService:
 
         success_transport = True
         success_search = evidence_summary["has_legal_basis"] if auto_search else False
-        success = success_transport if not auto_search else (success_transport and success_search)
+        # success = 문서 분석(transport) 성공 여부. 법적 근거 미검색(has_legal_basis=False)은
+        # 검색 결과가 없는 것이지 분석 실패가 아니다. 클라이언트는 success_search·has_legal_basis로
+        # 검색 결과 유무를 별도 판단해야 한다.
+        success = success_transport
         doc_code = None
         if isinstance(analysis, dict):
             doc_code = analysis.get("document_type_code")

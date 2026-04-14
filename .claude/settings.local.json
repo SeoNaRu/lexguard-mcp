@@ -13,7 +13,12 @@
       "Bash(python3.12:*)",
       "Bash(gh issue:*)",
       "WebFetch(domain:github.com)",
-      "Bash(apt list:*)"
+      "Bash(apt list:*)",
+      "Bash(python -m pytest tests/test_document_issue_call_signature.py tests/test_document_issue_prompts.py -v)",
+      "Bash(python3 -m pytest tests/test_document_issue_call_signature.py tests/test_document_issue_prompts.py -v)",
+      "Bash(ls /usr/bin/python*)",
+      "Bash(ls ~/.local/bin/python*)",
+      "Bash(pip3 install:*)"
     ]
   }
 }
