@@ -540,6 +540,13 @@ class LawDetailRepository(BaseLawRepository):
                         ef_yd = (law_info.get("시행일자") or
                                 law_info.get("efYd") or
                                 law_info.get("시행일"))
+                        if not ef_yd:
+                            basic_info = law_info.get("기본정보") or law_info.get("basicInfo")
+                            if isinstance(basic_info, dict):
+                                ef_yd = (basic_info.get("시행일자") or
+                                        basic_info.get("efYd") or
+                                        basic_info.get("시행일") or
+                                        basic_info.get("enforcementDate"))
 
             # 시행일자가 없으면 오늘 날짜 사용 (YYYYMMDD 형식)
             if not ef_yd:
