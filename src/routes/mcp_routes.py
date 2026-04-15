@@ -15,7 +15,6 @@ from ..services.health_service import HealthService
 from ..services.law_comparison_service import LawComparisonService
 from ..services.smart_search_service import SmartSearchService
 from ..services.situation_guidance_service import SituationGuidanceService
-from ..utils.mcp_tool_args import resolve_law_comparison_tool
 from ..utils.document_issue_prompts import (
     GENERIC_DOCUMENT_REVIEW_INSTRUCTION,
     LABOR_CONTRACT_REVIEW_INSTRUCTION,
