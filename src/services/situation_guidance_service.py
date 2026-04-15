@@ -14,6 +14,7 @@ from ..repositories.committee_decision_repository import CommitteeDecisionReposi
 from ..repositories.special_administrative_appeal_repository import SpecialAdministrativeAppealRepository
 from ..repositories.local_ordinance_repository import LocalOrdinanceRepository
 from ..repositories.administrative_rule_repository import AdministrativeRuleRepository
+from ..utils.domain_classifier import SITUATION_DOMAIN_CONFIG
 
 
 class SituationGuidanceService:
@@ -26,66 +27,8 @@ class SituationGuidanceService:
     5. 단계별 가이드 제공
     """
 
-    # 법적 영역별 키워드 매핑
-    LEGAL_DOMAIN_KEYWORDS = {
-        "개인정보": {
-            "laws": ["개인정보보호법", "정보통신망법", "신용정보법"],
-            "agencies": ["개인정보보호위원회", "과학기술정보통신부", "금융위원회"],
-            "keywords": ["개인정보", "정보보호", "개인정보유출", "개인정보처리"]
-        },
-        "노동": {
-            "laws": ["근로기준법", "고용보험법", "산업안전보건법", "최저임금법"],
-            "agencies": ["고용노동부", "노동위원회", "고용보험심사위원회"],
-            "keywords": [
-                "근로", "임금", "해고", "퇴직금", "근로시간", "휴가",
-                "근로자성", "사용종속", "지휘감독", "위장도급", "용역", "도급",
-                "출퇴근", "고정급", "전속"
-            ]
-        },
-        "세금": {
-            "laws": ["소득세법", "부가가치세법", "법인세법", "종합소득세법"],
-            "agencies": ["국세청", "조세심판원", "기획재정부"],
-            "keywords": ["세금", "소득세", "부가가치세", "세무조사", "세액공제"]
-        },
-        "부동산": {
-            "laws": ["부동산거래법", "주택법", "건축법", "국토계획법"],
-            "agencies": ["국토교통부", "중앙토지수용위원회"],
-            "keywords": ["부동산", "임대차", "전세", "매매", "건축", "토지"]
-        },
-        "소비자": {
-            "laws": ["소비자기본법", "약관법", "전자상거래법"],
-            "agencies": ["공정거래위원회", "국가인권위원회"],
-            "keywords": [
-                "소비자", "약관", "계약", "환불", "하자",
-                "면책", "책임", "손해", "변경", "관할", "준거법", "청약철회"
-            ]
-        },
-        "환경": {
-            "laws": ["환경보전법", "대기환경보전법", "수질환경보전법"],
-            "agencies": ["환경부", "중앙환경분쟁조정위원회"],
-            "keywords": ["환경", "오염", "폐기물", "대기", "수질"]
-        },
-        "금융": {
-            "laws": ["금융실명거래법", "금융소비자보호법", "은행법"],
-            "agencies": ["금융위원회", "금융감독원"],
-            "keywords": ["금융", "대출", "이자", "신용카드", "보험"]
-        },
-        "건강": {
-            "laws": ["의료법", "식품의약품법", "국민건강보험법"],
-            "agencies": ["보건복지부", "식품의약품안전처", "건강보험심사평가원"],
-            "keywords": ["의료", "건강", "병원", "의료사고", "건강보험"]
-        },
-        "교육": {
-            "laws": ["교육기본법", "초중등교육법", "고등교육법"],
-            "agencies": ["교육부"],
-            "keywords": ["교육", "학교", "학생", "교사", "입시"]
-        },
-        "교통": {
-            "laws": ["도로교통법", "자동차관리법", "항공법"],
-            "agencies": ["국토교통부", "해양안전심판원"],
-            "keywords": ["교통", "사고", "면허", "과속", "음주운전"]
-        }
-    }
+    # 법적 영역별 키워드 매핑 — 단일 소스는 domain_classifier.SITUATION_DOMAIN_CONFIG
+    LEGAL_DOMAIN_KEYWORDS = SITUATION_DOMAIN_CONFIG
 
     def __init__(self):
         self.law_search_repo = LawRepository()
@@ -289,105 +232,176 @@ class SituationGuidanceService:
 
         return doc_type
 
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """전각문자·이중공백·비표준 공백을 정규화."""
+        import unicodedata
+        text = unicodedata.normalize("NFKC", text)
+        text = re.sub(r"\s+", " ", text)
+        return text
+
     def build_document_analysis(self, situation: str) -> Optional[Dict]:
         """
         문서 입력 감지 및 조항별 이슈/근거 힌트 분석
         """
-        has_clause_pattern = bool(re.search(r"제\s*\d+\s*조", situation))
-        if not any(keyword in situation for keyword in ["계약서", "약관", "임대인", "임차인"]) and not has_clause_pattern:
+        # 전각 공백·이중 공백·비표준 형식을 정규화한 버전으로 매칭
+        norm = self._normalize_text(situation)
+
+        has_clause_pattern = bool(re.search(r"제\s*\d+\s*조", norm))
+        has_numbered_item = bool(re.search(r"[①②③④⑤⑥⑦⑧⑨⑩]|\(\s*\d+\s*\)", norm))
+        _DOC_TRIGGER_KEYWORDS = [
+            "계약서", "약관", "임대인", "임차인",
+            "용역계약", "도급계약", "업무위탁", "협약서",
+            "비밀유지협약", "NDA", "MOU", "확약서",
+        ]
+        if not any(kw in norm for kw in _DOC_TRIGGER_KEYWORDS) and not has_clause_pattern and not has_numbered_item:
             return None
 
         # ===== 1. 문서 타입 추론 (최우선) =====
-        doc_type = self._infer_document_type(situation)
+        doc_type = self._infer_document_type(norm)
 
         issues = []
         clauses = []
 
-        # 조항 단위 추출 (예: "제1조 ...")
-        clause_pattern = re.compile(r'(제\s*\d+\s*조[^\n]*)', re.MULTILINE)
-        matches = clause_pattern.findall(situation)
-        for m in matches:
-            clause_text = m.strip()
-            clauses.append(clause_text)
+        # 조항 단위 추출 (제N조 또는 ①②③ 항목)
+        clause_pattern = re.compile(
+            r"(제\s*\d+\s*조[^\n]*|[①②③④⑤⑥⑦⑧⑨⑩][^\n]*)",
+            re.MULTILINE,
+        )
+        for m in clause_pattern.findall(norm):
+            clauses.append(m.strip())
 
-        # 문서 전체 기준 핵심 쟁점 탐지
-        if "즉시" in situation and "해지" in situation:
+        # 문서 전체 기준 핵심 쟁점 탐지 (정규화 텍스트 사용)
+        if re.search(r"즉시.{0,4}해지|해지.{0,4}즉시|일방.{0,4}해지", norm):
             issues.append({
                 "issue": "일방적 즉시 해지 조항",
                 "risk": "해지 요건·사유가 불명확하거나 과도할 수 있음",
                 "needs_review": True,
                 "related_clause": "해지"
             })
-        if "보증금" in situation and "반환" in situation and "지연" in situation:
+        if "보증금" in norm and "반환" in norm and ("지연" in norm or "거부" in norm):
             issues.append({
                 "issue": "보증금 반환 지연 조항",
                 "risk": "지연 사유/기간이 불명확할 수 있음",
                 "needs_review": True,
                 "related_clause": "보증금 반환"
             })
-        if "내부 기준" in situation or "내부기준" in situation:
+        if re.search(r"내부\s*기준|자체\s*기준|회사\s*기준", norm):
             issues.append({
                 "issue": "일방 기준 준용",
                 "risk": "외부에 공개되지 않은 기준으로 의무가 확장될 수 있음",
                 "needs_review": True,
                 "related_clause": "특약"
             })
-        if "계약 기간" in situation and ("갱신" in situation or "연장" in situation):
+        if re.search(r"계약\s*기간", norm) and re.search(r"갱신|연장", norm):
             issues.append({
                 "issue": "갱신/연장 조건",
                 "risk": "갱신 조건이 불명확할 수 있음",
                 "needs_review": True,
                 "related_clause": "계약 기간"
             })
-        if "환불" in situation and ("불가" in situation or "없다" in situation):
+        if "환불" in norm and re.search(r"불가|없다|아니한다|하지 않는다|하지않는다", norm):
             issues.append({
                 "issue": "환불 제한 조항",
                 "risk": "환불/청약철회 제한이 과도할 수 있음",
                 "needs_review": True,
                 "related_clause": "환불"
             })
-        if "책임" in situation and ("지지 않는다" in situation or "면책" in situation):
+        if "책임" in norm and re.search(r"지지\s*않는다|면책|부담하지\s*않는다|없다", norm):
             issues.append({
                 "issue": "책임 제한/면책 조항",
                 "risk": "손해배상 책임 제한이 과도할 수 있음",
                 "needs_review": True,
                 "related_clause": "책임 제한"
             })
-        if "약관" in situation and "변경" in situation and ("사전 고지 없이" in situation or "사전고지 없이" in situation):
+        if re.search(r"약관|이용\s*조건", norm) and "변경" in norm and re.search(r"사전\s*고지\s*없이|고지\s*없이|통보\s*없이", norm):
             issues.append({
                 "issue": "약관 일방 변경",
                 "risk": "사전 고지 없는 변경은 불공정 약관 소지가 있음",
                 "needs_review": True,
                 "related_clause": "약관 변경"
             })
-        if "관할" in situation and ("본점" in situation or "회사" in situation):
+        if "관할" in norm and re.search(r"본점|회사\s*소재지|사업자\s*소재", norm):
             issues.append({
                 "issue": "관할 법원 조항",
                 "risk": "소비자에게 불리한 전속관할일 수 있음",
                 "needs_review": True,
                 "related_clause": "관할"
             })
+        if re.search(r"위약금|손해\s*배상\s*예정|손해배상예정", norm):
+            issues.append({
+                "issue": "위약금/손해배상 예정액 조항",
+                "risk": "과도한 위약금 예정은 민법 제398조 기준 감액 또는 무효 가능성이 있음",
+                "needs_review": True,
+                "related_clause": "위약금"
+            })
+        if any(kw in norm for kw in ["비밀유지", "기밀", "NDA", "비공개", "confidential"]):
+            issues.append({
+                "issue": "비밀유지 의무 조항",
+                "risk": "비밀 범위·존속 기간·위반 효과가 과도하거나 불명확할 수 있음",
+                "needs_review": True,
+                "related_clause": "비밀유지"
+            })
+        if any(kw in norm for kw in ["경쟁금지", "겸업금지", "전직금지", "경업금지"]):
+            issues.append({
+                "issue": "경쟁금지/전직금지 조항",
+                "risk": "직업의 자유를 과도하게 제한하면 약정이 무효·감축될 수 있음",
+                "needs_review": True,
+                "related_clause": "경쟁금지"
+            })
+        if re.search(r"자동\s*갱신|자동\s*연장", norm):
+            issues.append({
+                "issue": "자동갱신 조항",
+                "risk": "갱신 거절 통지 기한·방법이 불명확할 경우 불이익이 발생할 수 있음",
+                "needs_review": True,
+                "related_clause": "계약 기간"
+            })
+        if re.search(r"개인\s*정보", norm) and re.search(r"제3자|제 3 자|third", norm):
+            issues.append({
+                "issue": "개인정보 제3자 제공 조항",
+                "risk": "동의 범위·목적·수령자가 불명확하거나 포괄 동의 형식일 수 있음",
+                "needs_review": True,
+                "related_clause": "개인정보"
+            })
+        if re.search(r"지식\s*재산|저작권|특허|IP\b", norm) and re.search(r"귀속|양도|소유", norm):
+            issues.append({
+                "issue": "지식재산권 귀속 조항",
+                "risk": "업무 결과물의 권리 귀속 범위가 과도하거나 불명확할 수 있음",
+                "needs_review": True,
+                "related_clause": "지식재산권"
+            })
 
-        # 조항별 키워드 매핑
+        # 조항별 키워드 매핑 (정규화 텍스트 기반)
         clause_issues = []
         for clause in clauses:
+            nc = self._normalize_text(clause)
             issue_tags = []
-            if "해지" in clause:
+            if "해지" in nc:
                 issue_tags.append("해지 요건")
-            if "보증금" in clause and "반환" in clause:
+            if "보증금" in nc and "반환" in nc:
                 issue_tags.append("보증금 반환")
-            if "특약" in clause or "내부 기준" in clause:
+            if re.search(r"특약|내부\s*기준|자체\s*기준", nc):
                 issue_tags.append("특약 효력")
-            if "계약 기간" in clause or "기간" in clause:
+            if re.search(r"계약\s*기간|기간|자동\s*갱신|자동\s*연장", nc):
                 issue_tags.append("계약 기간/갱신")
-            if "환불" in clause or "청약철회" in clause:
+            if "환불" in nc or "청약철회" in nc:
                 issue_tags.append("환불 제한")
-            if "책임" in clause or "손해" in clause or "면책" in clause:
+            if "책임" in nc or "손해" in nc or "면책" in nc:
                 issue_tags.append("책임 제한")
-            if "약관" in clause and "변경" in clause:
+            if re.search(r"약관|이용\s*조건", nc) and "변경" in nc:
                 issue_tags.append("약관 변경")
-            if "관할" in clause or "준거법" in clause:
+            if re.search(r"관할|준거법|분쟁\s*해결|중재", nc):
                 issue_tags.append("관할 불리")
+            if re.search(r"위약금|손해\s*배상\s*예정|손해배상예정", nc):
+                issue_tags.append("위약금")
+            if any(kw in nc for kw in ["비밀유지", "기밀", "비공개", "NDA", "confidential"]):
+                issue_tags.append("비밀유지")
+            if any(kw in nc for kw in ["경쟁금지", "겸업금지", "전직금지", "경업금지"]):
+                issue_tags.append("경쟁금지")
+            if re.search(r"개인\s*정보", nc) and re.search(r"제3자|third", nc):
+                issue_tags.append("개인정보")
+            if re.search(r"지식\s*재산|저작권|특허|IP\b", nc) and re.search(r"귀속|양도|소유", nc):
+                issue_tags.append("지식재산권")
 
             if issue_tags:
                 clause_issues.append({
@@ -442,7 +456,31 @@ class SituationGuidanceService:
                     hints.extend(["약관 변경 사전고지", "사업자 일방 변경 약관법"])
 
                 elif tag == "관할 불리":
-                    hints.extend(["전속관할 약관 무효", "소비자 관할 약관 불리"])
+                    hints.extend(["전속관할 약관 무효", "소비자 관할 약관 불리", "중재조항 효력"])
+
+                elif tag == "위약금":
+                    if doc_type == "labor":
+                        hints.extend(["근로기준법 위약 예정 금지", "민법 제398조 손해배상 예정", "용역계약 위약금 감액"])
+                    else:
+                        hints.extend(["민법 제398조 위약금 감액", "손해배상 예정액 감액 판례", "과도한 위약금 무효"])
+
+                elif tag == "비밀유지":
+                    if doc_type == "labor":
+                        hints.extend(["영업비밀 보호법 비밀유지 의무", "근로계약 비밀유지 범위", "퇴직 후 비밀유지 기간"])
+                    else:
+                        hints.extend(["비밀유지 의무 존속 기간", "영업비밀 보호법", "비밀유지 위반 손해배상"])
+
+                elif tag == "경쟁금지":
+                    hints.extend(["경업금지 약정 유효성 판례", "직업의 자유 경쟁금지 약정", "전직금지 기간 지역 제한"])
+
+                elif tag == "개인정보":
+                    hints.extend(["개인정보보호법 제3자 제공 동의", "포괄적 개인정보 동의 무효", "정보통신망법 개인정보 제공"])
+
+                elif tag == "지식재산권":
+                    if doc_type == "labor":
+                        hints.extend(["직무발명 보상 판례", "근로자 저작물 귀속 기준", "용역계약 결과물 소유권"])
+                    else:
+                        hints.extend(["저작권법 업무상저작물", "용역 결과물 지식재산권 귀속 판례", "특허 직무발명 보상"])
 
             if hints:
                 clause_basis_hints.append({
@@ -869,7 +907,10 @@ class SituationGuidanceService:
             smart_search_service = SmartSearchService()
 
             # 쟁점 태그 기준 고위험 태그 목록 (강행규정 직접 충돌·손해배상·계약 종료 관련)
-            _HIGH_RISK_TAGS = {"해지 요건", "책임 제한", "보증금 반환", "환불 제한", "약관 변경", "관할 불리"}
+            _HIGH_RISK_TAGS = {
+                "해지 요건", "책임 제한", "보증금 반환", "환불 제한",
+                "약관 변경", "관할 불리", "위약금", "비밀유지", "경쟁금지",
+            }
 
             for item in analysis.get("clause_basis_hints", [])[:max_clauses]:
                 clause = item.get("clause")

@@ -18,7 +18,15 @@
       "Bash(python3 -m pytest tests/test_document_issue_call_signature.py tests/test_document_issue_prompts.py -v)",
       "Bash(ls /usr/bin/python*)",
       "Bash(ls ~/.local/bin/python*)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(wc -l /mnt/c/Users/seonaru/Desktop/LexGuardMcp/src/**/*.py)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(pytest tests/ -v --tb=short -x)",
+      "Bash(python -m pytest tests/ -v --tb=short -x)",
+      "Bash(python3 -m pytest tests/ -v --tb=short -x)",
+      "Bash(python3:*)",
+      "Bash(wc:*)"
     ]
   }
 }

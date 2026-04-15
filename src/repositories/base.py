@@ -20,7 +20,37 @@ logger.propagate = True
 
 # Cache settings
 search_cache = TTLCache(maxsize=200, ttl=1800)  # 검색 결과 30분 캐시
-failure_cache = TTLCache(maxsize=200, ttl=300)  # 실패 요청 5분 캐시
+
+
+class _StructuralFailureCache:
+    """구조적 오류(AUTH·HTML·OTHER)만 5분 캐싱. 타임아웃·네트워크 오류는 저장 안 함.
+
+    error_code 필드가 있는 항목만 저장합니다.  Repository의 except
+    httpx.TimeoutException / httpx.RequestError 핸들러가 반환하는 dict는
+    error_code 없이 {"error": "..."} 형태이므로 자동으로 캐싱이 스킵됩니다.
+    validate_drf_response()가 반환하는 {"error_code": "API_ERROR_AUTH", ...}
+    같은 구조적 오류는 정상적으로 캐싱됩니다.
+    """
+
+    def __init__(self, maxsize: int, ttl: int) -> None:
+        self._cache: TTLCache = TTLCache(maxsize=maxsize, ttl=ttl)
+
+    def __setitem__(self, key, value):
+        if isinstance(value, dict) and value.get("error_code"):
+            self._cache[key] = value
+        # error_code 없으면 (타임아웃·네트워크 오류) 저장하지 않음
+
+    def __getitem__(self, key):
+        return self._cache[key]
+
+    def __contains__(self, key):
+        return key in self._cache
+
+    def __delitem__(self, key):
+        del self._cache[key]
+
+
+failure_cache = _StructuralFailureCache(maxsize=200, ttl=300)  # 구조적 실패 5분 캐시
 
 # 국가법령정보센터 API 기본 URL
 LAW_API_BASE_URL = "https://www.law.go.kr/DRF/lawService.do"

@@ -4,6 +4,7 @@ API Router - 완벽한 DRF API 라우팅 시스템
 """
 from typing import List, Dict, Optional, Tuple
 from enum import Enum
+from ..utils.domain_classifier import SITUATION_DOMAIN_CONFIG as _DOMAIN_CFG
 
 
 class APICategory(str, Enum):
@@ -36,6 +37,22 @@ class DomainType(str, Enum):
     GENERAL = "general"                  # 일반
 
 
+# SITUATION_DOMAIN_CONFIG 한국어 키 → DomainType 매핑
+# 도메인 추가 시 SITUATION_DOMAIN_CONFIG 와 여기만 편집하면 됩니다.
+_KOREAN_TO_DOMAIN_TYPE: Dict[str, DomainType] = {
+    "노동": DomainType.LABOR,
+    "개인정보": DomainType.PERSONAL_INFO,
+    "세금": DomainType.TAX,
+    "금융": DomainType.FINANCE,
+    "부동산": DomainType.REAL_ESTATE,
+    "소비자": DomainType.CONSUMER,
+    "환경": DomainType.ENVIRONMENT,
+    "건강": DomainType.HEALTH,
+    "교육": DomainType.EDUCATION,
+    "교통": DomainType.TRAFFIC,
+}
+
+
 class APIRouter:
     """
     완벽한 API 라우팅 시스템
@@ -44,53 +61,18 @@ class APIRouter:
     - 172개 DRF API 완전 활용
     """
 
-    # 도메인별 주요 법령
-    DOMAIN_LAWS = {
-        DomainType.LABOR: [
-            "근로기준법", "고용보험법", "산업안전보건법", "최저임금법",
-            "근로자퇴직급여 보장법", "파견근로자보호 등에 관한 법률"
-        ],
-        DomainType.PERSONAL_INFO: [
-            "개인정보보호법", "정보통신망법", "신용정보법"
-        ],
-        DomainType.TAX: [
-            "소득세법", "법인세법", "부가가치세법", "국세기본법", "국세징수법"
-        ],
-        DomainType.FINANCE: [
-            "금융실명거래법", "금융소비자보호법", "은행법", "자본시장법"
-        ],
-        DomainType.REAL_ESTATE: [
-            "주택법", "건축법", "국토계획법", "부동산거래신고법"
-        ],
-        DomainType.CONSUMER: [
-            "소비자기본법", "약관법", "전자상거래법", "할부거래법"
-        ],
-        DomainType.ENVIRONMENT: [
-            "환경정책기본법", "대기환경보전법", "수질환경보전법"
-        ],
-        DomainType.HEALTH: [
-            "의료법", "약사법", "국민건강보험법", "식품의약품법"
-        ],
-        DomainType.EDUCATION: [
-            "교육기본법", "초중등교육법", "고등교육법", "사립학교법"
-        ],
-        DomainType.TRAFFIC: [
-            "도로교통법", "자동차관리법", "항공법", "선박법"
-        ]
+    # 도메인별 주요 법령 — 단일 소스: domain_classifier.SITUATION_DOMAIN_CONFIG
+    DOMAIN_LAWS: Dict["DomainType", List[str]] = {
+        _KOREAN_TO_DOMAIN_TYPE[k]: v["laws"]
+        for k, v in _DOMAIN_CFG.items()
+        if k in _KOREAN_TO_DOMAIN_TYPE
     }
 
-    # 도메인별 주요 부처 (법령해석용)
-    DOMAIN_AGENCIES = {
-        DomainType.LABOR: ["고용노동부"],
-        DomainType.PERSONAL_INFO: ["과학기술정보통신부", "개인정보보호위원회"],
-        DomainType.TAX: ["기획재정부", "국세청", "조세심판원"],
-        DomainType.FINANCE: ["금융위원회", "금융감독원"],
-        DomainType.REAL_ESTATE: ["국토교통부", "중앙토지수용위원회"],
-        DomainType.CONSUMER: ["공정거래위원회"],
-        DomainType.ENVIRONMENT: ["기후에너지환경부", "중앙환경분쟁조정위원회"],
-        DomainType.HEALTH: ["보건복지부", "식품의약품안전처", "질병관리청"],
-        DomainType.EDUCATION: ["교육부"],
-        DomainType.TRAFFIC: ["국토교통부", "경찰청", "해양경찰청"]
+    # 도메인별 주요 부처 — 단일 소스: domain_classifier.SITUATION_DOMAIN_CONFIG
+    DOMAIN_AGENCIES: Dict["DomainType", List[str]] = {
+        _KOREAN_TO_DOMAIN_TYPE[k]: v["agencies"]
+        for k, v in _DOMAIN_CFG.items()
+        if k in _KOREAN_TO_DOMAIN_TYPE
     }
 
     # 도메인별 위원회

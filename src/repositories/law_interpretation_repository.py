@@ -17,7 +17,55 @@ from .base import (
 
 
 class LawInterpretationRepository(BaseLawRepository):
-    """법령해석 검색 및 조회 관련 기능을 담당하는 Repository"""
+    """법령해석 검색 및 조회 관련 기능을 담당하는 Repository.
+
+    부처별 법령해석(CgmExpc) 39개 target을 AGENCY_TARGET_MAP을 통해 지원합니다.
+    agency 파라미터가 map에 있으면 해당 부처 전용 target을 사용하고,
+    없으면 법제처 통합 해석 target=expc를 사용합니다.
+    """
+
+    # 한국어 부처명 → DRF target 코드 (39개 부처별 법령해석)
+    AGENCY_TARGET_MAP: dict = {
+        "고용노동부": "moelCgmExpc",
+        "국토교통부": "molitCgmExpc",
+        "기획재정부": "moefCgmExpc",
+        "해양수산부": "mofCgmExpc",
+        "행정안전부": "moisCgmExpc",
+        "기후에너지환경부": "meCgmExpc",
+        "관세청": "kcsCgmExpc",
+        "국세청": "ntsCgmExpc",
+        "교육부": "moeCgmExpc",
+        "과학기술정보통신부": "msitCgmExpc",
+        "국가보훈부": "mpvaCgmExpc",
+        "국방부": "mndCgmExpc",
+        "농림축산식품부": "mafraCgmExpc",
+        "문화체육관광부": "mcstCgmExpc",
+        "법무부": "mojCgmExpc",
+        "보건복지부": "mohwCgmExpc",
+        "산업통상자원부": "motieCgmExpc",
+        "성평등가족부": "mogefCgmExpc",
+        "외교부": "mofaCgmExpc",
+        "중소벤처기업부": "mssCgmExpc",
+        "통일부": "mouCgmExpc",
+        "법제처": "molegCgmExpc",
+        "식품의약품안전처": "mfdsCgmExpc",
+        "인사혁신처": "mpmCgmExpc",
+        "기상청": "kmaCgmExpc",
+        "국가유산청": "khsCgmExpc",
+        "농촌진흥청": "rdaCgmExpc",
+        "경찰청": "npaCgmExpc",
+        "방위사업청": "dapaCgmExpc",
+        "병무청": "mmaCgmExpc",
+        "산림청": "kfsCgmExpc",
+        "소방청": "nfaCgmExpc",
+        "재외동포청": "okaCgmExpc",
+        "조달청": "ppsCgmExpc",
+        "질병관리청": "kdcaCgmExpc",
+        "국가데이터처": "kostatCgmExpc",
+        "지식재산처": "kipoCgmExpc",
+        "해양경찰청": "kcgCgmExpc",
+        "행정중심복합도시건설청": "naaccCgmExpc",
+    }
 
     async def search_law_interpretation(
         self,
@@ -59,8 +107,11 @@ class LawInterpretationRepository(BaseLawRepository):
             return failure_cache[cache_key]
 
         try:
+            # 부처명에 맞는 target 코드 결정
+            target = self.AGENCY_TARGET_MAP.get(agency or "", "expc")
+
             params = {
-                "target": "expc",
+                "target": target,
                 "type": "JSON",
                 "page": page,
                 "display": per_page
@@ -68,18 +119,6 @@ class LawInterpretationRepository(BaseLawRepository):
 
             if query:
                 params["query"] = self.normalize_search_query(query)
-
-            # 부처명이 있으면 질의기관코드로 변환 (간단한 매핑)
-            if agency:
-                # 부처명을 기관코드로 변환하는 로직 (필요시 확장)
-                agency_code_map = {
-                    "고용노동부": "100000",
-                    "국세청": "200000",
-                    "기획재정부": "300000",
-                    # 필요시 더 추가
-                }
-                if agency in agency_code_map:
-                    params["inq"] = agency_code_map[agency]
 
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if api_key_error:
@@ -175,6 +214,7 @@ class LawInterpretationRepository(BaseLawRepository):
     async def get_law_interpretation(
         self,
         interpretation_id: str,
+        agency: Optional[str] = None,
         arguments: Optional[dict] = None
     ) -> dict:
         """
@@ -200,8 +240,9 @@ class LawInterpretationRepository(BaseLawRepository):
             return failure_cache[cache_key]
 
         try:
+            target = self.AGENCY_TARGET_MAP.get(agency or "", "expc")
             params = {
-                "target": "expc",
+                "target": target,
                 "type": "JSON",
                 "ID": interpretation_id
             }

@@ -1,5 +1,5 @@
 """
-Administrative Rule Repository - 행정규칙 검색 기능
+Law History Repository - 법령 변경이력·조문 개정이력 검색
 """
 import httpx
 from ..utils.http_client import aget
@@ -16,156 +16,33 @@ from .base import (
 )
 
 
-class AdministrativeRuleRepository(BaseLawRepository):
-    """행정규칙 검색 관련 기능을 담당하는 Repository"""
+class LawHistoryRepository(BaseLawRepository):
+    """법령 변경이력(lsHstInf) 및 조문 개정이력(lsJoHstInf) 담당 Repository"""
 
-    async def search_administrative_rule(
+    # ------------------------------------------------------------------ #
+    # 법령 변경이력 (target=lsHstInf) — lawSearch.do
+    # ------------------------------------------------------------------ #
+
+    async def search_law_change_history(
         self,
         query: Optional[str] = None,
-        agency: Optional[str] = None,
-        page: int = 1,
-        per_page: int = 20,
-        arguments: Optional[dict] = None
-    ) -> dict:
-        """행정규칙을 검색합니다."""
-        logger.debug("search_administrative_rule called | query=%r agency=%r page=%d per_page=%d",
-                    query, agency, page, per_page)
-
-        if per_page < 1:
-            per_page = 1
-        if per_page > 100:
-            per_page = 100
-
-        cache_key = ("administrative_rule", query or "", agency or "", page, per_page)
-
-        if cache_key in search_cache:
-            return search_cache[cache_key]
-        if cache_key in failure_cache:
-            return failure_cache[cache_key]
-
-        try:
-            params = {
-                "target": "admrul",
-                "type": "JSON",
-                "page": page,
-                "display": per_page
-            }
-
-            if query:
-                params["query"] = self.normalize_search_query(query)
-
-            if agency:
-                # 부처명을 기관코드로 변환 (간단한 매핑)
-                agency_code_map = {
-                    "고용노동부": "100000",
-                    "교육부": "200000",
-                    "기획재정부": "300000",
-                    # 필요시 더 추가
-                }
-                if agency in agency_code_map:
-                    params["orgCd"] = agency_code_map[agency]
-
-            _, api_key_error = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
-            if api_key_error:
-                return api_key_error
-
-            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
-
-            invalid_response = self.validate_drf_response(response)
-            if invalid_response:
-                return invalid_response
-            response.raise_for_status()
-
-            try:
-                data = response.json()
-            except json.JSONDecodeError as e:
-                return {
-                    "error": f"API 응답이 유효한 JSON 형식이 아닙니다: {str(e)}",
-                    "query": query,
-                    "agency": agency,
-                    "api_url": response.url,
-                    "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요."
-                }
-
-            result = {
-                "query": query,
-                "agency": agency,
-                "page": page,
-                "per_page": per_page,
-                "total": 0,
-                "rules": [],
-                "api_url": response.url
-            }
-
-            if isinstance(data, dict):
-                if "AdmrulSearch" in data:
-                    admrul_search = data["AdmrulSearch"]
-                    if isinstance(admrul_search, dict):
-                        total_raw = admrul_search.get("totalCnt", 0)
-                        try:
-                            result["total"] = int(total_raw)
-                        except (TypeError, ValueError):
-                            result["total"] = 0
-                        rules = admrul_search.get("admrul", [])
-                    else:
-                        rules = []
-                elif "admrul" in data:
-                    total_raw = data.get("totalCnt", 0)
-                    try:
-                        result["total"] = int(total_raw)
-                    except (TypeError, ValueError):
-                        result["total"] = 0
-                    rules = data.get("admrul", [])
-                else:
-                    total_raw = data.get("totalCnt", 0)
-                    try:
-                        result["total"] = int(total_raw)
-                    except (TypeError, ValueError):
-                        result["total"] = 0
-                    rules = data.get("admrul", [])
-
-                if not isinstance(rules, list):
-                    rules = [rules] if rules else []
-
-                result["rules"] = rules[:per_page]
-
-            # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
-            if result["total"] and not result["rules"]:
-                result["note"] = "API 응답에서 totalCnt는 있으나 행정규칙 목록(admrul)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
-
-            search_cache[cache_key] = result
-            return result
-
-        except httpx.TimeoutException:
-            error_result = {
-                "error": "API 호출 타임아웃",
-                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
-            }
-            failure_cache[cache_key] = error_result
-            return error_result
-        except httpx.RequestError as e:
-            error_result = {
-                "error": f"API 요청 실패: {str(e)}",
-                "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
-            }
-            failure_cache[cache_key] = error_result
-            return error_result
-        except Exception as e:
-            logger.exception("예상치 못한 오류")
-            return {
-                "error": f"예상치 못한 오류: {str(e)}",
-                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
-            }
-
-    async def search_admin_rule_comparison(
-        self,
-        query: Optional[str] = None,
+        law_id: Optional[str] = None,
+        reg_dt: Optional[str] = None,
         page: int = 1,
         per_page: int = 20,
         arguments: Optional[dict] = None,
     ) -> dict:
-        """행정규칙 신구법 비교 목록 검색 (target=admrulOldAndNew, lawSearch.do)."""
-        cache_key = ("admrulOldAndNew", query or "", page, per_page)
+        """법령 변경이력 목록 검색 (target=lsHstInf).
+
+        Args:
+            query: 법령명 검색어
+            law_id: 법령 ID (lsId)
+            reg_dt: 기준 일자 (YYYYMMDD, 해당 일자 기준 변경이력)
+            page: 페이지 번호
+            per_page: 페이지당 결과 수
+            arguments: API 키 등 추가 인자
+        """
+        cache_key = ("lsHstInf", query or "", law_id or "", reg_dt or "", page, per_page)
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
@@ -173,13 +50,17 @@ class AdministrativeRuleRepository(BaseLawRepository):
 
         try:
             params: dict = {
-                "target": "admrulOldAndNew",
+                "target": "lsHstInf",
                 "type": "JSON",
                 "page": page,
                 "display": per_page,
             }
             if query:
                 params["query"] = self.normalize_search_query(query)
+            if law_id:
+                params["lsId"] = law_id
+            if reg_dt:
+                params["regDt"] = reg_dt
 
             _, err = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
             if err:
@@ -200,24 +81,26 @@ class AdministrativeRuleRepository(BaseLawRepository):
             total, items = 0, []
             if isinstance(data, dict):
                 for v in data.values():
-                    if isinstance(v, dict) and "admrulOldAndNew" in v:
+                    if isinstance(v, dict) and "lsHstInf" in v:
                         try:
                             total = int(v.get("totalCnt", 0))
                         except (TypeError, ValueError):
                             total = 0
-                        items = v.get("admrulOldAndNew", [])
+                        items = v.get("lsHstInf", [])
                         break
                 else:
                     try:
                         total = int(data.get("totalCnt", 0))
                     except (TypeError, ValueError):
                         total = 0
-                    items = data.get("admrulOldAndNew", [])
+                    items = data.get("lsHstInf", [])
                 if not isinstance(items, list):
                     items = [items] if items else []
 
             result = {
                 "query": query,
+                "law_id": law_id,
+                "reg_dt": reg_dt,
                 "page": page,
                 "per_page": per_page,
                 "total": total,
@@ -241,23 +124,140 @@ class AdministrativeRuleRepository(BaseLawRepository):
         except httpx.RequestError as e:
             return {"error": f"API 요청 실패: {e}"}
         except Exception as e:
-            logger.exception("search_admin_rule_comparison 오류")
+            logger.exception("search_law_change_history 오류")
             return {"error": f"예상치 못한 오류: {e}"}
 
-    async def get_admin_rule_comparison(
+    # ------------------------------------------------------------------ #
+    # 일자별 조문 개정이력 (target=lsJoHstInf) — lawSearch.do
+    # ------------------------------------------------------------------ #
+
+    async def search_article_change_history(
         self,
-        comparison_id: str,
+        query: Optional[str] = None,
+        law_id: Optional[str] = None,
+        reg_dt: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
         arguments: Optional[dict] = None,
     ) -> dict:
-        """행정규칙 신구법 본문 조회 (target=admrulOldAndNew, lawService.do)."""
-        cache_key = ("admrulOldAndNew_detail", comparison_id)
+        """일자별 조문 개정이력 목록 검색 (target=lsJoHstInf, lawSearch.do)."""
+        cache_key = ("lsJoHstInf_search", query or "", law_id or "", reg_dt or "", page, per_page)
         if cache_key in search_cache:
             return search_cache[cache_key]
         if cache_key in failure_cache:
             return failure_cache[cache_key]
 
         try:
-            params = {"target": "admrulOldAndNew", "type": "JSON", "ID": comparison_id}
+            params: dict = {
+                "target": "lsJoHstInf",
+                "type": "JSON",
+                "page": page,
+                "display": per_page,
+            }
+            if query:
+                params["query"] = self.normalize_search_query(query)
+            if law_id:
+                params["lsId"] = law_id
+            if reg_dt:
+                params["regDt"] = reg_dt
+
+            _, err = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if err:
+                return err
+
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            invalid = self.validate_drf_response(response)
+            if invalid:
+                failure_cache[cache_key] = invalid
+                return invalid
+            response.raise_for_status()
+
+            try:
+                data = response.json()
+            except json.JSONDecodeError as e:
+                return {"error": f"JSON 파싱 오류: {e}"}
+
+            total, items = 0, []
+            if isinstance(data, dict):
+                for v in data.values():
+                    if isinstance(v, dict) and "lsJoHstInf" in v:
+                        try:
+                            total = int(v.get("totalCnt", 0))
+                        except (TypeError, ValueError):
+                            total = 0
+                        items = v.get("lsJoHstInf", [])
+                        break
+                else:
+                    try:
+                        total = int(data.get("totalCnt", 0))
+                    except (TypeError, ValueError):
+                        total = 0
+                    items = data.get("lsJoHstInf", [])
+                if not isinstance(items, list):
+                    items = [items] if items else []
+
+            result = {
+                "query": query,
+                "law_id": law_id,
+                "reg_dt": reg_dt,
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "items": items[:per_page],
+                "api_url": str(response.url),
+            }
+            if not items:
+                result["message"] = "검색 결과가 없습니다."
+            search_cache[cache_key] = result
+            return result
+
+        except httpx.TimeoutException:
+            err = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
+                "error": "API 호출 타임아웃",
+                "recovery_guide": "잠시 후 다시 시도하세요.",
+            }
+            failure_cache[cache_key] = err
+            return err
+        except httpx.RequestError as e:
+            return {"error": f"API 요청 실패: {e}"}
+        except Exception as e:
+            logger.exception("search_article_change_history 오류")
+            return {"error": f"예상치 못한 오류: {e}"}
+
+    # ------------------------------------------------------------------ #
+    # 조문별 변경이력 (target=lsJoHstInf) — lawService.do
+    # ------------------------------------------------------------------ #
+
+    async def get_article_change_history(
+        self,
+        law_id: str,
+        jo_no: Optional[str] = None,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """조문별 변경이력 조회 (target=lsJoHstInf, lawService.do).
+
+        Args:
+            law_id: 법령 ID (lsId)
+            jo_no: 조문 번호 (joNo, 예: '000100')
+            arguments: API 키 등 추가 인자
+        """
+        cache_key = ("lsJoHstInf_detail", law_id, jo_no or "")
+        if cache_key in search_cache:
+            return search_cache[cache_key]
+        if cache_key in failure_cache:
+            return failure_cache[cache_key]
+
+        try:
+            params: dict = {
+                "target": "lsJoHstInf",
+                "type": "JSON",
+                "lsId": law_id,
+            }
+            if jo_no:
+                params["joNo"] = jo_no
+
             _, err = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
             if err:
                 return err
@@ -274,7 +274,12 @@ class AdministrativeRuleRepository(BaseLawRepository):
             except json.JSONDecodeError as e:
                 return {"error": f"JSON 파싱 오류: {e}"}
 
-            result = {"id": comparison_id, "data": data, "api_url": str(response.url)}
+            result = {
+                "law_id": law_id,
+                "jo_no": jo_no,
+                "data": data,
+                "api_url": str(response.url),
+            }
             search_cache[cache_key] = result
             return result
 
@@ -290,6 +295,5 @@ class AdministrativeRuleRepository(BaseLawRepository):
         except httpx.RequestError as e:
             return {"error": f"API 요청 실패: {e}"}
         except Exception as e:
-            logger.exception("get_admin_rule_comparison 오류")
+            logger.exception("get_article_change_history 오류")
             return {"error": f"예상치 못한 오류: {e}"}
-

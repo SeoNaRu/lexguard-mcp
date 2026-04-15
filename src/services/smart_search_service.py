@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
-from .api_router import APIRouter, APICategory
+from .api_router import APIRouter
 from ..utils.reranker import get_reranker
 from ..repositories.law_repository import LawRepository
 from ..repositories.law_detail import LawDetailRepository
@@ -24,6 +24,10 @@ from ..repositories.special_administrative_appeal_repository import (
 from ..repositories.local_ordinance_repository import LocalOrdinanceRepository
 from ..repositories.administrative_rule_repository import AdministrativeRuleRepository
 from ..repositories.law_comparison_repository import LawComparisonRepository
+from ..repositories.law_misc_repository import LawMiscRepository
+from ..repositories.law_history_repository import LawHistoryRepository
+from ..repositories.law_link_repository import LawLinkRepository
+from ..repositories.law_form_repository import LawFormRepository
 
 logger = logging.getLogger("lexguard-mcp")
 
@@ -51,6 +55,10 @@ class SmartSearchService:
         self.ordinance_repo = LocalOrdinanceRepository()
         self.rule_repo = AdministrativeRuleRepository()
         self.comparison_repo = LawComparisonRepository()
+        self.misc_repo = LawMiscRepository()
+        self.history_repo = LawHistoryRepository()
+        self.link_repo = LawLinkRepository()
+        self.form_repo = LawFormRepository()
 
         # 완벽한 API 라우터 (172개 API 관리)
         self.api_router = APIRouter()
@@ -313,65 +321,6 @@ class SmartSearchService:
         # 기본값: 원본 query
         return [query]
 
-    async def _fetch_category_v2(
-        self,
-        api_category: "APICategory",
-        cat_params: dict,
-        query: str,
-        max_results: int,
-        time_condition: Optional[dict],
-        arguments: Optional[dict],
-    ) -> tuple:
-        """
-        단일 API 카테고리를 비동기 조회 (comprehensive_search_v2 내부 병렬용).
-
-        Returns:
-            (api_category, result_dict | None)
-        """
-        import asyncio
-        try:
-            if api_category == APICategory.LAW:
-                target_laws = cat_params.get("target_laws", [])
-                if target_laws:
-                    law_tasks = [
-                        self.law_detail_repo.get_law(
-                            None, law_name, "detail", None, None, None, None, arguments,
-                        )
-                        for law_name in target_laws[:2]
-                    ]
-                    law_results = await asyncio.gather(*law_tasks, return_exceptions=True)
-                    laws = [
-                        r for r in law_results
-                        if isinstance(r, dict) and not r.get("error")
-                    ]
-                    merged = {"laws": laws}
-                    return (api_category, self._apply_rerank_lists(query, merged))
-                else:
-                    result = await self.law_search_repo.search_law(
-                        query, 1, max_results, arguments,
-                    )
-                    self._apply_rerank_lists(query, result)
-                    return (api_category, result)
-
-            elif api_category == APICategory.PRECEDENT:
-                result = await self.precedent_repo.search_precedent(
-                    query,
-                    1,
-                    max_results,
-                    None,
-                    time_condition.get("date_from") if time_condition else None,
-                    time_condition.get("date_to") if time_condition else None,
-                    arguments,
-                )
-                self._apply_rerank_lists(query, result)
-                return (api_category, result)
-
-            return (api_category, None)
-
-        except Exception as e:
-            logger.error("_fetch_category_v2 failed | category=%s error=%s", api_category.value, e)
-            return (api_category, None)
-
     async def precedent_lookup(
         self,
         keyword: Optional[str] = None,
@@ -587,93 +536,6 @@ class SmartSearchService:
         if isinstance(result, dict):
             self._apply_rerank_lists(qq, result)
         return result
-
-    async def comprehensive_search_v2(
-        self,
-        query: str,
-        max_results_per_type: int = 3,
-        arguments: Optional[dict] = None,
-        document_text: Optional[str] = None
-    ) -> Dict:
-        """
-        완벽한 다단계 검색 파이프라인 (v2)
-        - API Router 기반으로 172개 API 활용
-        - 도메인 감지 → Intent 분류 → API 순서 계획 → 병렬 검색
-
-        Args:
-            query: 사용자 질문
-            max_results_per_type: 타입당 최대 결과 수
-            arguments: 추가 인자
-            document_text: 문서 전문 (옵션)
-
-        Returns:
-            통합 검색 결과
-        """
-        import asyncio
-
-        start_time = datetime.now()
-
-        # 1단계: 도메인 감지
-        domain = self.api_router.detect_domain(query, document_text)
-        logger.info("Domain detected | domain=%s query=%s", domain.value, query[:50])
-
-        # 2단계: Intent 분류
-        intent_results = self.analyze_intent(query)
-        primary_intent = intent_results[0][0] if intent_results else "general"
-        logger.info("Intent analyzed | intent=%s", primary_intent)
-
-        # 3단계: 시간 조건 파싱
-        time_condition = self.parse_time_condition(query)
-
-        # 4단계: API 호출 순서 계획
-        api_sequence = self.api_router.plan_api_sequence(query, domain, primary_intent, document_text)
-        logger.info("API sequence planned | steps=%d", len(api_sequence))
-
-        # 5단계: 병렬 검색 실행 (asyncio.gather)
-        gather_tasks = [
-            self._fetch_category_v2(cat, params, query, max_results_per_type, time_condition, arguments)
-            for cat, params in api_sequence[:5]
-        ]
-        raw_results = await asyncio.gather(*gather_tasks)
-        logger.info("Parallel fetch done | fetched=%d", len(raw_results))
-
-        # 6단계: 결과 통합
-        all_results: Dict = {}
-        sources_count: Dict = {}
-
-        for api_category, result in raw_results:
-            if result is None:
-                continue
-            if api_category == APICategory.LAW:
-                laws = result.get("laws", [])
-                if laws:
-                    all_results["laws"] = laws
-                sources_count["law"] = len(all_results.get("laws", []))
-            elif api_category == APICategory.PRECEDENT:
-                precedents = result.get("precedents", [])
-                if precedents:
-                    all_results["precedents"] = precedents
-                    sources_count["precedent"] = len(precedents)
-
-        total_sources = sum(sources_count.values())
-        has_legal_basis = total_sources > 0
-        elapsed = (datetime.now() - start_time).total_seconds()
-
-        return {
-            "success": True,
-            "success_transport": True,
-            "success_search": has_legal_basis,
-            "has_legal_basis": has_legal_basis,
-            "query": query,
-            "domain": domain.value,
-            "detected_intent": primary_intent,
-            "results": all_results,
-            "sources_count": sources_count,
-            "total_sources": total_sources,
-            "missing_reason": None if has_legal_basis else "NO_MATCH",
-            "elapsed_seconds": elapsed,
-            "pipeline_version": "v2_parallel",
-        }
 
     def extract_parameters(self, query: str, search_type: str) -> Dict:
         """
@@ -1053,34 +915,9 @@ class SmartSearchService:
             search_types = [st for st, conf in intent_results if conf > 0.3]
 
             # 모호한 질문 처리: 의도가 명확하지 않으면 법령 검색 기본값
+            # (very_ambiguous인 경우 이미 위에서 clarification_needed=True 처리됨)
             if not search_types:
-                # 매우 모호한 질문인 경우 clarification 필요
-                # 단일 단어이거나 매우 짧은 질문인 경우
-                query_stripped = query.strip()
-                very_ambiguous_keywords = ["법", "법률", "정보", "찾아줘", "알려줘", "확인", "검색", "알려주세요", "찾아주세요"]
-                very_ambiguous = (
-                    len(query_stripped) <= 3 or
-                    query_stripped in very_ambiguous_keywords
-                )
-
-                if very_ambiguous:
-                    clarification_needed = True
-                    # 가능한 의도 후보 생성
-                    possible_intents = [
-                        {"type": "law", "description": "법령 검색", "example": "형법 제250조"},
-                        {"type": "precedent", "description": "판례 검색", "example": "손해배상 판례"},
-                        {"type": "interpretation", "description": "법령해석 검색", "example": "개인정보보호법 해석"},
-                        {"type": "administrative_appeal", "description": "행정심판 검색", "example": "행정심판 사례"},
-                        {"type": "constitutional", "description": "헌재결정 검색", "example": "위헌 결정례"}
-                    ]
-                    # clarification이 필요한 경우 search_types를 설정하지 않음
-                else:
-                    # "관련" 같은 키워드가 있으면 법령 검색
-                    # 단, "찾아줘", "알려줘" 같은 단독 키워드는 이미 very_ambiguous에서 처리됨
-                    if "관련" in query:
-                        search_types = ["law"]
-                    else:
-                        search_types = ["law"]  # 기본값
+                search_types = ["law"]
 
         # clarification이 필요한 경우 조기 반환 (search_types 설정 전에)
         if clarification_needed:
@@ -1480,4 +1317,187 @@ class SmartSearchService:
             response["note"] = f"모든 검색 타입({', '.join(failed_types)})에서 오류가 발생했습니다."
 
         return response
+
+    # ------------------------------------------------------------------ #
+    # 부처별 법령해석 (39개 부처 전용 target)
+    # ------------------------------------------------------------------ #
+
+    async def ministry_interpretation_lookup(
+        self,
+        query: Optional[str] = None,
+        agency: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """특정 부처의 법령해석을 검색합니다."""
+        q = (query or "").strip() or None
+        ag = (agency or "").strip() or None
+        if not q and not ag:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": "검색어(query) 또는 부처명(agency) 중 하나 이상이 필요합니다.",
+                "recovery_guide": "예: query='퇴직금', agency='고용노동부'",
+                "supported_agencies": list(self.interpretation_repo.AGENCY_TARGET_MAP.keys()),
+            }
+        result = await self.interpretation_repo.search_law_interpretation(
+            q, page, per_page, ag, arguments
+        )
+        if isinstance(result, dict) and q:
+            self._apply_rerank_lists(q, result)
+        return result
+
+    # ------------------------------------------------------------------ #
+    # 법령 이력 조회
+    # ------------------------------------------------------------------ #
+
+    async def law_history_lookup(
+        self,
+        search_type: str = "law_change",
+        query: Optional[str] = None,
+        law_id: Optional[str] = None,
+        article_number: Optional[str] = None,
+        date: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """법령 변경이력 또는 조문 개정이력을 조회합니다."""
+        valid_types = {"law_change", "article_change", "article_detail"}
+        if search_type not in valid_types:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": f"지원하지 않는 search_type: {search_type}",
+                "recovery_guide": "search_type은 law_change / article_change / article_detail 중 하나여야 합니다.",
+            }
+
+        if search_type == "article_detail":
+            if not law_id:
+                return {
+                    "error_code": "INVALID_INPUT",
+                    "error": "article_detail 조회 시 law_id가 필요합니다.",
+                    "recovery_guide": "law_id(법령 ID)를 입력하세요.",
+                }
+            return await self.history_repo.get_article_change_history(law_id, article_number, arguments)
+
+        if search_type == "article_change":
+            return await self.history_repo.search_article_change_history(
+                query, law_id, date, page, per_page, arguments
+            )
+
+        # default: law_change
+        return await self.history_repo.search_law_change_history(
+            query, law_id, date, page, per_page, arguments
+        )
+
+    # ------------------------------------------------------------------ #
+    # 법령 부가 정보 조회 (영문법령·조약·체계도·한눈보기·약칭·삭제이력)
+    # ------------------------------------------------------------------ #
+
+    async def law_info_lookup(
+        self,
+        info_type: str = "english_law",
+        query: Optional[str] = None,
+        item_id: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """영문법령·조약·체계도·한눈보기·약칭 등 부가 정보를 조회합니다."""
+        valid_types = {"english_law", "treaty", "structure", "oneview", "abbreviation", "deleted"}
+        if info_type not in valid_types:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": f"지원하지 않는 info_type: {info_type}",
+                "recovery_guide": "info_type은 english_law / treaty / structure / oneview / abbreviation / deleted 중 하나여야 합니다.",
+            }
+
+        if info_type == "english_law":
+            if item_id:
+                return await self.misc_repo.get_english_law(item_id, arguments)
+            return await self.misc_repo.search_english_law(query, page, per_page, arguments)
+        elif info_type == "treaty":
+            if item_id:
+                return await self.misc_repo.get_treaty(item_id, arguments)
+            return await self.misc_repo.search_treaty(query, page, per_page, arguments)
+        elif info_type == "structure":
+            if item_id:
+                return await self.misc_repo.get_law_structure(item_id, arguments)
+            return await self.misc_repo.search_law_structure(query, page, per_page, arguments)
+        elif info_type == "oneview":
+            if item_id:
+                return await self.misc_repo.get_oneview(item_id, arguments)
+            return await self.misc_repo.search_oneview(query, page, per_page, arguments)
+        elif info_type == "abbreviation":
+            return await self.misc_repo.search_law_abbreviation(query, page, per_page, arguments)
+        else:  # deleted
+            return await self.misc_repo.search_deleted_history(query, page, per_page, arguments)
+
+    # ------------------------------------------------------------------ #
+    # 별표서식 검색
+    # ------------------------------------------------------------------ #
+
+    async def law_form_lookup(
+        self,
+        form_type: str = "law",
+        query: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """별표서식을 검색합니다."""
+        valid_types = {"law", "admin_rule", "ordinance"}
+        if form_type not in valid_types:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": f"지원하지 않는 form_type: {form_type}",
+                "recovery_guide": "form_type은 law / admin_rule / ordinance 중 하나여야 합니다.",
+            }
+
+        if form_type == "law":
+            return await self.form_repo.search_law_forms(query, page, per_page, arguments)
+        elif form_type == "admin_rule":
+            return await self.form_repo.search_admin_rule_forms(query, page, per_page, arguments)
+        else:  # ordinance
+            return await self.form_repo.search_ordinance_forms(query, page, per_page, arguments)
+
+    # ------------------------------------------------------------------ #
+    # 법령-자치법규 연계 정보 조회
+    # ------------------------------------------------------------------ #
+
+    async def law_link_lookup(
+        self,
+        link_type: str = "law_to_ordinance",
+        query: Optional[str] = None,
+        law_id: Optional[str] = None,
+        department: Optional[str] = None,
+        region_code: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """법령-자치법규 연계 정보를 조회합니다."""
+        valid_types = {
+            "law_to_ordinance", "ordinance_articles", "by_department",
+            "linked_ordinance", "law_linked_ordinance", "by_region",
+        }
+        if link_type not in valid_types:
+            return {
+                "error_code": "INVALID_INPUT",
+                "error": f"지원하지 않는 link_type: {link_type}",
+                "recovery_guide": "법령 및 자치법규 연계 조회 유형을 올바르게 입력하세요.",
+            }
+
+        if link_type == "law_to_ordinance":
+            return await self.link_repo.search_law_ordinance_link(query, law_id, page, per_page, arguments)
+        elif link_type == "ordinance_articles":
+            return await self.link_repo.search_linked_ordinance_articles(query, law_id, page, per_page, arguments)
+        elif link_type == "by_department":
+            return await self.link_repo.search_link_by_department(query, department, page, per_page, arguments)
+        elif link_type == "linked_ordinance":
+            return await self.link_repo.search_linked_ordinance(query, page, per_page, arguments)
+        elif link_type == "law_linked_ordinance":
+            return await self.link_repo.search_law_linked_ordinance(query, law_id, page, per_page, arguments)
+        else:  # by_region
+            return await self.link_repo.search_link_by_region(query, region_code, page, per_page, arguments)
 

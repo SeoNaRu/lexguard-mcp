@@ -159,3 +159,54 @@ class LocalOrdinanceRepository(BaseLawRepository):
                 "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
             }
 
+    async def get_ordinance_fields(
+        self,
+        arguments: Optional[dict] = None,
+    ) -> dict:
+        """자치법규 분야 목록 조회 (target=ordinfd).
+
+        분야 코드 목록을 조회하여 자치법규 검색 시 분야 필터 기준으로 활용합니다.
+        """
+        cache_key = ("ordinfd",)
+        if cache_key in search_cache:
+            return search_cache[cache_key]
+        if cache_key in failure_cache:
+            return failure_cache[cache_key]
+
+        try:
+            params: dict = {"target": "ordinfd", "type": "JSON"}
+            _, err = self.attach_api_key(params, arguments, LAW_API_SEARCH_URL)
+            if err:
+                return err
+
+            response = await aget(LAW_API_SEARCH_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            invalid = self.validate_drf_response(response)
+            if invalid:
+                failure_cache[cache_key] = invalid
+                return invalid
+            response.raise_for_status()
+
+            try:
+                data = response.json()
+            except Exception as e:
+                return {"error": f"JSON 파싱 오류: {e}"}
+
+            result = {"data": data, "api_url": str(response.url)}
+            search_cache[cache_key] = result
+            return result
+
+        except httpx.TimeoutException:
+            err = {
+                "error_code": "API_ERROR_TIMEOUT",
+                "missing_reason": "API_ERROR_TIMEOUT",
+                "error": "API 호출 타임아웃",
+                "recovery_guide": "잠시 후 다시 시도하세요.",
+            }
+            failure_cache[cache_key] = err
+            return err
+        except httpx.RequestError as e:
+            return {"error": f"API 요청 실패: {e}"}
+        except Exception as e:
+            logger.exception("get_ordinance_fields 오류")
+            return {"error": f"예상치 못한 오류: {e}"}
+
