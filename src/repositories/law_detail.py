@@ -18,6 +18,42 @@ from .base import (
 class LawDetailRepository(BaseLawRepository):
     """법령 조회 관련 기능을 담당하는 Repository"""
 
+    # DRF API 필드명 후보 목록 (우선순위 순)
+    FIELD_MAPPINGS = {
+        "law_name": ["법령명한글", "lawNm", "법령명", "lawNmKo"],
+        "law_id":   ["법령일련번호", "일련번호", "lawSeq", "lawId", "법령ID", "id"],
+    }
+
+    def _get_field(self, item: dict, field: str) -> Optional[str]:
+        """FIELD_MAPPINGS 기준으로 item 딕셔너리에서 필드 값을 추출합니다."""
+        for key in self.FIELD_MAPPINGS.get(field, []):
+            val = item.get(key)
+            if val:
+                return str(val)
+        return None
+
+    def _find_law_item(self, laws: list, query: str) -> Optional[dict]:
+        """법령 목록에서 query와 가장 잘 맞는 항목을 반환합니다.
+        1순위: 정확 일치, 2순위: 부분 포함, 3순위: 첫 번째 항목.
+        """
+        if not laws:
+            return None
+        normalized_query = self.normalize_search_query(query)
+        # 1순위: 정확 일치
+        for item in laws:
+            if isinstance(item, dict):
+                item_name = self.normalize_search_query(self._get_field(item, "law_name") or "")
+                if normalized_query == item_name:
+                    return item
+        # 2순위: 부분 포함
+        for item in laws:
+            if isinstance(item, dict):
+                item_name = self.normalize_search_query(self._get_field(item, "law_name") or "")
+                if normalized_query in item_name:
+                    return item
+        # 3순위: 첫 번째
+        return laws[0] if isinstance(laws[0], dict) else None
+
     async def get_law_detail(self, law_name: str, arguments: Optional[dict] = None) -> dict:
         """
         법령 상세 정보를 조회합니다.
@@ -82,50 +118,10 @@ class LawDetailRepository(BaseLawRepository):
                     if not isinstance(laws, list):
                         laws = [laws] if laws else []
 
-                    # 정확히 일치하는 법령명 찾기 (우선순위: 정확 일치 > 부분 일치 > 첫 번째)
-                    normalized_query = self.normalize_search_query(law_name)
-                    law_item = None
-
-                    # 1순위: 정확히 일치하는 법령명 찾기
-                    for item in laws:
-                        if isinstance(item, dict):
-                            item_name = (item.get("법령명한글") or
-                                       item.get("lawNm") or
-                                       item.get("법령명") or
-                                       item.get("lawNmKo") or "")
-                            if normalized_query == self.normalize_search_query(item_name):
-                                law_item = item
-                                break
-
-                    # 2순위: 부분 일치 (법령명에 검색어가 포함된 경우)
-                    if not law_item:
-                        for item in laws:
-                            if isinstance(item, dict):
-                                item_name = (item.get("법령명한글") or
-                                           item.get("lawNm") or
-                                           item.get("법령명") or
-                                           item.get("lawNmKo") or "")
-                                if normalized_query in self.normalize_search_query(item_name):
-                                    law_item = item
-                                    break
-
-                    # 3순위: 첫 번째 항목 사용
-                    if not law_item and laws and isinstance(laws[0], dict):
-                        law_item = laws[0]
-
+                    law_item = self._find_law_item(laws, law_name)
                     if law_item:
-                        # 법령일련번호 추출 (여러 가능한 필드명 시도)
-                        law_id = (law_item.get("법령일련번호") or
-                                 law_item.get("일련번호") or
-                                 law_item.get("lawSeq") or
-                                 law_item.get("lawId") or
-                                 law_item.get("법령ID") or
-                                 law_item.get("id"))
-                        # 법령명 추출
-                        law_name_found = (law_item.get("법령명한글") or
-                                        law_item.get("lawNm") or
-                                        law_item.get("법령명") or
-                                        law_item.get("lawNmKo"))
+                        law_id = self._get_field(law_item, "law_id")
+                        law_name_found = self._get_field(law_item, "law_name")
             except json.JSONDecodeError as e:
                 logger.warning("Failed to parse JSON for law search: %s", str(e))
 
@@ -141,7 +137,7 @@ class LawDetailRepository(BaseLawRepository):
             detail_params = {
                 "target": "law",
                 "type": "JSON",
-                "MST": law_id  # 법령일련번호는 MST로 사용
+                "MST": law_id
             }
 
             _, api_key_error = self.attach_api_key(detail_params, arguments, LAW_API_BASE_URL)
@@ -160,32 +156,18 @@ class LawDetailRepository(BaseLawRepository):
             try:
                 detail_data = detail_response.json()
                 if isinstance(detail_data, dict):
-                    # LawSearch 래퍼 확인
                     if "LawSearch" in detail_data:
                         law_search = detail_data["LawSearch"]
-                        if isinstance(law_search, dict):
-                            detail_law = law_search.get("법령") or law_search.get("law")
-                        else:
-                            detail_law = None
+                        detail_law = law_search.get("법령") or law_search.get("law") if isinstance(law_search, dict) else None
                     else:
                         detail_law = detail_data.get("법령") or detail_data.get("law")
 
                     if isinstance(detail_law, dict):
-                        detail_law_id = (detail_law.get("일련번호") or
-                                        detail_law.get("법령일련번호") or
-                                        detail_law.get("lawSeq") or
-                                        detail_law.get("lawId") or
-                                        detail_law.get("법령ID") or
-                                        detail_law.get("id"))
+                        detail_law_id = self._get_field(detail_law, "law_id")
                         if detail_law_id:
                             law_id = detail_law_id
-
-                        # 법령명 재확인
                         if not law_name_found:
-                            law_name_found = (detail_law.get("법령명한글") or
-                                            detail_law.get("lawNm") or
-                                            detail_law.get("법령명") or
-                                            detail_law.get("lawNmKo"))
+                            law_name_found = self._get_field(detail_law, "law_name")
             except json.JSONDecodeError as e:
                 logger.warning("Failed to parse JSON for law detail: %s", str(e))
 
@@ -266,44 +248,9 @@ class LawDetailRepository(BaseLawRepository):
                         if not isinstance(laws, list):
                             laws = [laws] if laws else []
 
-                        # 정확히 일치하는 법령명 찾기 (우선순위: 정확 일치 > 부분 일치 > 첫 번째)
-                        normalized_query = self.normalize_search_query(law_name)
-                        law_item = None
-
-                        # 1순위: 정확히 일치하는 법령명 찾기
-                        for item in laws:
-                            if isinstance(item, dict):
-                                item_name = (item.get("법령명한글") or
-                                           item.get("lawNm") or
-                                           item.get("법령명") or
-                                           item.get("lawNmKo") or "")
-                                if normalized_query == self.normalize_search_query(item_name):
-                                    law_item = item
-                                    break
-
-                        # 2순위: 부분 일치 (법령명에 검색어가 포함된 경우)
-                        if not law_item:
-                            for item in laws:
-                                if isinstance(item, dict):
-                                    item_name = (item.get("법령명한글") or
-                                               item.get("lawNm") or
-                                               item.get("법령명") or
-                                               item.get("lawNmKo") or "")
-                                    if normalized_query in self.normalize_search_query(item_name):
-                                        law_item = item
-                                        break
-
-                        # 3순위: 첫 번째 항목 사용
-                        if not law_item and laws and isinstance(laws[0], dict):
-                            law_item = laws[0]
-
+                        law_item = self._find_law_item(laws, law_name)
                         if law_item:
-                            law_id = (law_item.get("법령일련번호") or
-                                     law_item.get("일련번호") or
-                                     law_item.get("lawSeq") or
-                                     law_item.get("lawId") or
-                                     law_item.get("법령ID") or
-                                     law_item.get("id"))
+                            law_id = self._get_field(law_item, "law_id")
                 except json.JSONDecodeError as e:
                     logger.warning("Failed to parse JSON for law search: %s", str(e))
 
@@ -372,10 +319,7 @@ class LawDetailRepository(BaseLawRepository):
                         law_obj = data.get("법령") or data.get("law")
 
                 if isinstance(law_obj, dict):
-                    law_name = (law_obj.get("법령명한글") or
-                               law_obj.get("lawNm") or
-                               law_obj.get("법령명") or
-                               law_obj.get("lawNmKo"))
+                    law_name = self._get_field(law_obj, "law_name")
 
                 # 조문 목록 추출
                 articles = []

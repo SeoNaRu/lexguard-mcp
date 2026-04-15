@@ -394,73 +394,24 @@ class PrecedentRepository(BaseLawRepository):
                 # 품질이 낮으면 계속 fallback 진행
 
         # Step B: 쿼리 세트로 검색 (동의어 확장)
-        for q_plan in query_plan[:5]:  # 상위 5개만 시도
-            q = q_plan.get("query")
-            if not q or q == original_query:
-                continue
-
-            logger.debug("Step B: Query set | query=%r strategy=%s",
-                        q, q_plan.get("strategy"))
-            result = await self._search_precedent_internal(
-                q, page, per_page, court, date_from, date_to, arguments
-            )
-            attempts.append({
-                "step": "B",
-                "query": q,
-                "date_from": date_from,
-                "date_to": date_to,
-                "strategy": q_plan.get("strategy", "unknown"),
-                "total": result.get("total", 0),
-                "success": result.get("total", 0) > 0 and "error" not in result
-            })
-
-            if result.get("total", 0) > 0 and "error" not in result:
-                if not best_result or result.get("total", 0) > best_result.get("total", 0):
-                    best_result = result
-                    logger.debug("Step B succeeded | query=%r total=%d", q, result.get("total", 0))
-
+        best_result = await self._run_fallback_step_b(
+            query_plan, original_query, page, per_page, court, date_from, date_to,
+            arguments, attempts, best_result,
+        )
         if best_result:
             return {
                 **best_result,
                 "query_plan": query_plan,
                 "attempts": attempts,
                 "best_result": best_result,
-                "fallback_used": True
+                "fallback_used": True,
             }
 
         # Step C: 날짜 범위 확장 (5년 → 10년 → 전체)
-        for step in [1, 2, 3]:  # 1=10년, 2=전체
-            expanded_from, expanded_to = expand_date_range_stepwise(
-                date_from, date_to, step
-            )
-
-            if expanded_from == date_from and expanded_to == date_to:
-                continue  # 변화 없으면 스킵
-
-            logger.debug("Step C: Date expansion | step=%d date_from=%r date_to=%r",
-                        step, expanded_from, expanded_to)
-
-            # 원본 쿼리로 다시 시도
-            if original_query:
-                result = await self._search_precedent_internal(
-                    original_query, page, per_page, court, expanded_from, expanded_to, arguments
-                )
-                attempts.append({
-                    "step": "C",
-                    "query": original_query,
-                    "date_from": expanded_from,
-                    "date_to": expanded_to,
-                    "strategy": f"date_expansion_step_{step}",
-                    "total": result.get("total", 0),
-                    "success": result.get("total", 0) > 0 and "error" not in result
-                })
-
-                if result.get("total", 0) > 0 and "error" not in result:
-                    if not best_result or result.get("total", 0) > best_result.get("total", 0):
-                        best_result = result
-                        logger.debug("Step C succeeded | step=%d total=%d", step, result.get("total", 0))
-                        break
-
+        best_result = await self._run_fallback_step_c(
+            original_query, page, per_page, court, date_from, date_to,
+            arguments, attempts, best_result,
+        )
         if best_result:
             return {
                 **best_result,
@@ -515,6 +466,77 @@ class PrecedentRepository(BaseLawRepository):
                 "fallback_used": True,
                 "message": "모든 검색 시도가 실패했습니다."
             }
+
+    async def _run_fallback_step_b(
+        self,
+        query_plan: List[Dict],
+        original_query: Optional[str],
+        page: int,
+        per_page: int,
+        court: Optional[str],
+        date_from: Optional[str],
+        date_to: Optional[str],
+        arguments: Optional[dict],
+        attempts: List[Dict],
+        best_result: Optional[dict],
+    ) -> Optional[dict]:
+        """Step B: 쿼리 세트(동의어 확장)로 fallback 검색. best_result 반환."""
+        for q_plan in query_plan[:5]:
+            q = q_plan.get("query")
+            if not q or q == original_query:
+                continue
+            logger.debug("Step B: Query set | query=%r strategy=%s", q, q_plan.get("strategy"))
+            result = await self._search_precedent_internal(
+                q, page, per_page, court, date_from, date_to, arguments
+            )
+            attempts.append({
+                "step": "B", "query": q, "date_from": date_from, "date_to": date_to,
+                "strategy": q_plan.get("strategy", "unknown"),
+                "total": result.get("total", 0),
+                "success": result.get("total", 0) > 0 and "error" not in result,
+            })
+            if result.get("total", 0) > 0 and "error" not in result:
+                if not best_result or result.get("total", 0) > best_result.get("total", 0):
+                    best_result = result
+                    logger.debug("Step B succeeded | query=%r total=%d", q, result.get("total", 0))
+        return best_result
+
+    async def _run_fallback_step_c(
+        self,
+        original_query: Optional[str],
+        page: int,
+        per_page: int,
+        court: Optional[str],
+        date_from: Optional[str],
+        date_to: Optional[str],
+        arguments: Optional[dict],
+        attempts: List[Dict],
+        best_result: Optional[dict],
+    ) -> Optional[dict]:
+        """Step C: 날짜 범위 확장(5년→10년→전체)으로 fallback 검색. best_result 반환."""
+        for step in [1, 2, 3]:
+            expanded_from, expanded_to = expand_date_range_stepwise(date_from, date_to, step)
+            if expanded_from == date_from and expanded_to == date_to:
+                continue
+            logger.debug("Step C: Date expansion | step=%d date_from=%r date_to=%r",
+                         step, expanded_from, expanded_to)
+            if original_query:
+                result = await self._search_precedent_internal(
+                    original_query, page, per_page, court, expanded_from, expanded_to, arguments
+                )
+                attempts.append({
+                    "step": "C", "query": original_query,
+                    "date_from": expanded_from, "date_to": expanded_to,
+                    "strategy": f"date_expansion_step_{step}",
+                    "total": result.get("total", 0),
+                    "success": result.get("total", 0) > 0 and "error" not in result,
+                })
+                if result.get("total", 0) > 0 and "error" not in result:
+                    if not best_result or result.get("total", 0) > best_result.get("total", 0):
+                        best_result = result
+                        logger.debug("Step C succeeded | step=%d total=%d", step, result.get("total", 0))
+                        break
+        return best_result
 
     def _finalize_result(
         self,

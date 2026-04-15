@@ -15,6 +15,10 @@ from ..repositories.special_administrative_appeal_repository import SpecialAdmin
 from ..repositories.local_ordinance_repository import LocalOrdinanceRepository
 from ..repositories.administrative_rule_repository import AdministrativeRuleRepository
 from ..utils.domain_classifier import SITUATION_DOMAIN_CONFIG
+from .document_analysis_builder import (
+    has_law_data, has_precedent_data, has_interpretation_data, has_appeal_data,
+    collect_error, count_sources, collect_precedents, collect_citations,
+)
 
 
 class SituationGuidanceService:
@@ -630,53 +634,10 @@ class SituationGuidanceService:
         appeal_results = results.get("administrative_appeal", {})
 
         # 에러만 있는 결과는 근거로 취급하지 않음
-        def has_law_data(payload: dict) -> bool:
-            if not isinstance(payload, dict):
-                return False
-            if "error" in payload:
-                return False
-            if payload.get("laws"):
-                return True
-            if payload.get("law_name"):
-                return True
-            return False
-
-        def has_precedent_data(payload: dict) -> bool:
-            if not isinstance(payload, dict):
-                return False
-            if "error" in payload:
-                return False
-            return bool(payload.get("precedents"))
-
-        def has_interpretation_data(payload: dict) -> bool:
-            if not isinstance(payload, dict):
-                return False
-            if "error" in payload:
-                return False
-            return bool(payload.get("interpretations"))
-
-        def has_appeal_data(payload: dict) -> bool:
-            if not isinstance(payload, dict):
-                return False
-            if "error" in payload:
-                return False
-            return bool(payload.get("appeals"))
-
         law_results_clean = law_results if has_law_data(law_results) else {}
         precedent_results_clean = precedent_results if has_precedent_data(precedent_results) else {}
         interpretation_results_clean = interpretation_results if has_interpretation_data(interpretation_results) else {}
         appeal_results_clean = appeal_results if has_appeal_data(appeal_results) else {}
-
-        # 에러 정보는 별도로 보존 (error/api_error/text/html 대응)
-        def collect_error(payload: dict) -> Optional[dict]:
-            if not isinstance(payload, dict):
-                return None
-            content_type = payload.get("content_type") or payload.get("api_error", {}).get("content_type")
-            if "error" in payload or "api_error" in payload:
-                return payload
-            if isinstance(content_type, str) and content_type.lower().startswith("text/html"):
-                return payload
-            return None
 
         errors = {}
         law_error = collect_error(law_results)
@@ -856,48 +817,6 @@ class SituationGuidanceService:
             "missing_reason": "NO_SEARCH"
         }
         risk_findings = []
-
-        def count_sources(payload: Optional[dict]) -> int:
-            if not isinstance(payload, dict):
-                return 0
-            sources_count = payload.get("sources_count")
-            if isinstance(sources_count, dict):
-                return sum(int(v or 0) for v in sources_count.values())
-            results = payload.get("results", {}) if isinstance(payload.get("results"), dict) else {}
-            law_count = 0
-            precedent_count = 0
-            interpretation_count = 0
-            if isinstance(results.get("law"), dict):
-                law_count = len(results.get("law", {}).get("laws", []))
-            if isinstance(results.get("precedent"), dict):
-                precedent_count = len(results.get("precedent", {}).get("precedents", []))
-            if isinstance(results.get("interpretation"), dict):
-                interpretation_count = len(results.get("interpretation", {}).get("interpretations", []))
-            # fallback: citations가 있으면 근거로 간주
-            if not (law_count or precedent_count or interpretation_count):
-                citations = payload.get("citations")
-                if isinstance(citations, list) and citations:
-                    return len(citations)
-            return law_count + precedent_count + interpretation_count
-
-        def collect_precedents(payload: Optional[dict]) -> List[str]:
-            if not isinstance(payload, dict):
-                return []
-            results = payload.get("results", {}) if isinstance(payload.get("results"), dict) else {}
-            precedents = results.get("precedent", {}).get("precedents", []) if isinstance(results.get("precedent", {}), dict) else []
-            names = []
-            for item in precedents:
-                if isinstance(item, dict):
-                    name = item.get("case_name") or item.get("caseNumber") or item.get("case_number")
-                    if name:
-                        names.append(name)
-            return names[:5]
-
-        def collect_citations(payload: Optional[dict]) -> List[dict]:
-            if not isinstance(payload, dict):
-                return []
-            citations = payload.get("citations", [])
-            return citations[:5] if isinstance(citations, list) else []
 
         # 조항별 자동 검색 (옵션)
         if not auto_search:

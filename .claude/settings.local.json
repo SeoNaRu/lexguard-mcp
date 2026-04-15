@@ -26,7 +26,10 @@
       "Bash(python -m pytest tests/ -v --tb=short -x)",
       "Bash(python3 -m pytest tests/ -v --tb=short -x)",
       "Bash(python3:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(cat)",
+      "Bash(python /tmp/analyze.py)",
+      "Bash(xargs -I {} bash -c 'grep -H \"^from.*smart_search_service\\\\|^import.*smart_search_service\" \"{}\" 2>/dev/null')"
     ]
   }
 }
