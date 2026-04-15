@@ -549,31 +549,63 @@ class LawDetailRepository(BaseLawRepository):
                 article_content = None
                 article_title = None
 
-                if isinstance(data, dict):
-                    # 다양한 키 이름으로 조문 내용 찾기
-                    article_content = (data.get("조문내용") or
-                                     data.get("articleContent") or
-                                     data.get("내용") or
-                                     data.get("content") or
-                                     data.get("조문") or
-                                     data.get("text"))
+                # eflawjosub 응답 구조: {"법령": {"기본정보": {...}, "조문정보": {"조문단위": {...}}}}
+                # 또는 flat: {"조문내용": "...", ...}
+                # 1) 법령 래퍼 벗기기
+                root = data
+                if isinstance(data, dict) and "법령" in data:
+                    root = data["법령"] or {}
 
-                    article_title = (data.get("조문제목") or
-                                   data.get("articleTitle") or
-                                   data.get("제목") or
-                                   data.get("title"))
+                if isinstance(root, dict):
+                    article_content = (root.get("조문내용") or
+                                       root.get("articleContent") or
+                                       root.get("내용") or
+                                       root.get("content") or
+                                       root.get("text"))
+                    article_title = (root.get("조문제목") or
+                                     root.get("articleTitle") or
+                                     root.get("제목") or
+                                     root.get("title"))
 
-                    # 중첩된 구조에서 찾기
-                if not article_content:
-                    sub_data = data.get("조문정보") or data.get("articleInfo") or data.get("조문")
-                    if isinstance(sub_data, dict):
-                            article_content = (sub_data.get("조문내용") or
-                                             sub_data.get("articleContent") or
-                                             sub_data.get("내용") or
-                                             sub_data.get("content"))
-                            article_title = (sub_data.get("조문제목") or
-                                           sub_data.get("articleTitle") or
-                                           sub_data.get("제목"))
+                # 2) 조문정보 → 조문단위 중첩 탐색
+                if not article_content and isinstance(root, dict):
+                    josub_info = root.get("조문정보") or root.get("articleInfo")
+                    if isinstance(josub_info, dict):
+                        josub_unit = josub_info.get("조문단위")
+                        if isinstance(josub_unit, list):
+                            josub_unit = josub_unit[0] if josub_unit else None
+                        if isinstance(josub_unit, dict):
+                            article_content = (josub_unit.get("조문내용") or
+                                               josub_unit.get("articleContent") or
+                                               josub_unit.get("내용"))
+                            article_title = article_title or josub_unit.get("조문제목")
+
+                # 3) lawjosub 폴백 (efYd 없이 재시도)
+                if not (article_content and str(article_content).strip()):
+                    lawjosub_params = {k: v for k, v in params.items() if k != "efYd"}
+                    lawjosub_params["target"] = "lawjosub"
+                    try:
+                        lawjosub_resp = await aget(LAW_API_BASE_URL, params=lawjosub_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+                        if not self.validate_drf_response(lawjosub_resp):
+                            lawjosub_data = lawjosub_resp.json()
+                            lawjosub_root = lawjosub_data.get("법령", lawjosub_data) if isinstance(lawjosub_data, dict) else {}
+                            if isinstance(lawjosub_root, dict):
+                                article_content = (lawjosub_root.get("조문내용") or
+                                                   lawjosub_root.get("내용"))
+                                article_title = article_title or lawjosub_root.get("조문제목")
+                            if not article_content:
+                                josub_info2 = lawjosub_root.get("조문정보") if isinstance(lawjosub_root, dict) else None
+                                if isinstance(josub_info2, dict):
+                                    unit2 = josub_info2.get("조문단위")
+                                    if isinstance(unit2, list):
+                                        unit2 = unit2[0] if unit2 else None
+                                    if isinstance(unit2, dict):
+                                        article_content = unit2.get("조문내용") or unit2.get("내용")
+                                        article_title = article_title or unit2.get("조문제목")
+                            if article_content:
+                                logger.info("lawjosub fallback succeeded | law_id=%s jo=%s", law_id, jo_number)
+                    except Exception as e:
+                        logger.debug("lawjosub fallback failed | %s", e)
 
                 fallback_mode = None
                 fallback_source = None
