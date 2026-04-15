@@ -3,7 +3,7 @@
 comprehensive_search 와 document_issue_analysis 에서 반복 사용되는
 데이터 조회·집계 함수를 모듈 레벨로 추출합니다.
 """
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 
 # ------------------------------------------------------------------ #
