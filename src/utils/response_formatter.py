@@ -72,7 +72,8 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "search_administrative_rule_tool": "rule_list",
         "smart_search_tool": "integrated_search",
         "situation_guidance_tool": "situation_guidance",
-        "document_issue_tool": "document_issue"
+        "document_issue_tool": "document_issue",
+        "law_article_tool": "law_article",
     }
 
     meta["response_type"] = response_type_map.get(tool_name, "unknown")
@@ -116,6 +117,7 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "integrated_search": "results.results 객체에 검색 타입별 결과가 있습니다. results.detected_intents로 감지된 의도를 확인하세요.",
         "situation_guidance": "results.guidance 배열에 단계별 가이드가 있습니다. results.laws, results.precedents, results.interpretations에 관련 법적 정보가 있습니다.",
         "document_issue": "results.document_analysis에 조항별 이슈와 근거 조회 힌트가 있습니다.",
+        "law_article": "results.content에 조문 내용이 있습니다.",
         "clarification_needed": "results.possible_intents 배열에 가능한 의도 후보가 있습니다. results.suggestion을 참고하여 사용자에게 질문하세요."
     }
 
@@ -498,6 +500,28 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "legal_basis_block_text": result.get("legal_basis_block_text"),
             "retry_plan": result.get("retry_plan"),
             "response_policy": result.get("response_policy")
+        }
+
+    elif tool_name == "law_article_tool":
+        if "error" in result:
+            return {
+                "success": False,
+                "error": result["error"],
+                "recovery_guide": result.get("recovery_guide"),
+                "api_url": result.get("api_url"),
+            }
+        return {
+            "success": True,
+            "law_id": result.get("law_id"),
+            "article_number": result.get("article_number"),
+            "hang": result.get("hang"),
+            "ho": result.get("ho"),
+            "mok": result.get("mok"),
+            "title": result.get("title"),
+            "content": result.get("content"),
+            "fallback": result.get("fallback"),
+            "note": result.get("note"),
+            "api_url": result.get("api_url"),
         }
 
     # 기본: 원본 반환 (구조가 유동적인 경우)

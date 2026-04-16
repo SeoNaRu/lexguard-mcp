@@ -938,12 +938,28 @@ class LawDetailRepository(BaseLawRepository):
                         if isinstance(josub_unit, list):
                             josub_unit = josub_unit[0] if josub_unit else None
                         if isinstance(josub_unit, dict):
-                            article_content = (
-                                josub_unit.get("조문내용")
-                                or josub_unit.get("articleContent")
-                                or josub_unit.get("내용")
-                            )
                             article_title = article_title or josub_unit.get("조문제목")
+                            if hang or ho or mok:
+                                hang_items = self._as_dict_list(josub_unit.get("항") or josub_unit.get("paragraphs"))
+                                m_hang = self._find_hang_item(hang_items, hang)
+                                if m_hang:
+                                    ho_items = self._as_dict_list(m_hang.get("호") or m_hang.get("subItems"))
+                                    m_ho = self._find_ho_item(ho_items, ho)
+                                    if m_ho and mok:
+                                        mok_items = self._as_dict_list(m_ho.get("목") or m_ho.get("subItems"))
+                                        m_mok = self._find_mok_item(mok_items, mok)
+                                        if m_mok:
+                                            article_content = (m_mok.get("목내용") or m_mok.get("내용") or m_mok.get("content"))
+                                    elif m_ho and ho:
+                                        article_content = self._render_ho_text(m_ho)
+                                    elif hang:
+                                        article_content = self._render_hang_text(m_hang)
+                            if not (article_content and str(article_content).strip()):
+                                article_content = (
+                                    josub_unit.get("조문내용")
+                                    or josub_unit.get("articleContent")
+                                    or josub_unit.get("내용")
+                                )
 
                 if not (article_content and str(article_content).strip()):
                     lawjosub_params = {k: v for k, v in params.items() if k != "efYd"}
@@ -980,12 +996,24 @@ class LawDetailRepository(BaseLawRepository):
                                             josub_unit[0] if josub_unit else None
                                         )
                                     if isinstance(josub_unit, dict):
-                                        article_content = josub_unit.get(
-                                            "조문내용"
-                                        ) or josub_unit.get("내용")
-                                        article_title = article_title or josub_unit.get(
-                                            "조문제목"
-                                        )
+                                        article_title = article_title or josub_unit.get("조문제목")
+                                        if hang or ho or mok:
+                                            hang_items = self._as_dict_list(josub_unit.get("항") or josub_unit.get("paragraphs"))
+                                            m_hang = self._find_hang_item(hang_items, hang)
+                                            if m_hang:
+                                                ho_items = self._as_dict_list(m_hang.get("호") or m_hang.get("subItems"))
+                                                m_ho = self._find_ho_item(ho_items, ho)
+                                                if m_ho and mok:
+                                                    mok_items = self._as_dict_list(m_ho.get("목") or m_ho.get("subItems"))
+                                                    m_mok = self._find_mok_item(mok_items, mok)
+                                                    if m_mok:
+                                                        article_content = (m_mok.get("목내용") or m_mok.get("내용") or m_mok.get("content"))
+                                                elif m_ho and ho:
+                                                    article_content = self._render_ho_text(m_ho)
+                                                elif hang:
+                                                    article_content = self._render_hang_text(m_hang)
+                                        if not (article_content and str(article_content).strip()):
+                                            article_content = josub_unit.get("조문내용") or josub_unit.get("내용")
 
                             if article_content:
                                 logger.info(
@@ -1034,6 +1062,8 @@ class LawDetailRepository(BaseLawRepository):
                                         or article_section.get("articleUnit")
                                         or article_section.get("article")
                                     )
+                                elif isinstance(article_section, list):
+                                    article_units = [item for item in article_section if isinstance(item, dict)]
 
                             matched_article = self._find_article_unit(
                                 article_units, article_number
