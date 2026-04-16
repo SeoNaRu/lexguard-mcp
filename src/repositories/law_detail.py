@@ -1,10 +1,11 @@
 """
 Law Detail Repository - 법령 조회 기능
 """
+
 import httpx
 from ..utils.http_client import aget
 import json
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 from .base import (
     BaseLawRepository,
@@ -18,43 +19,210 @@ from .base import (
 class LawDetailRepository(BaseLawRepository):
     """법령 조회 관련 기능을 담당하는 Repository"""
 
-    # DRF API 필드명 후보 목록 (우선순위 순)
-    FIELD_MAPPINGS = {
-        "law_name": ["법령명한글", "lawNm", "법령명", "lawNmKo"],
-        "law_id":   ["법령일련번호", "일련번호", "lawSeq", "lawId", "법령ID", "id"],
-    }
+    @staticmethod
+    def _as_dict_list(value: Any) -> list[dict[str, Any]]:
+        """dict 또는 list[dict] 값을 list[dict]로 정규화합니다."""
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        if isinstance(value, dict):
+            return [value]
+        return []
 
-    def _get_field(self, item: dict, field: str) -> Optional[str]:
-        """FIELD_MAPPINGS 기준으로 item 딕셔너리에서 필드 값을 추출합니다."""
-        for key in self.FIELD_MAPPINGS.get(field, []):
-            val = item.get(key)
-            if val:
-                return str(val)
+    @staticmethod
+    def _normalize_article_match_key(value: Any) -> str:
+        """조/호 번호 비교용 키를 정규화합니다."""
+        if value is None:
+            return ""
+
+        text = str(value).strip().replace(" ", "").rstrip(".")
+        if not text:
+            return ""
+
+        parsed = BaseLawRepository.parse_article_number(text)
+        if parsed != "000000":
+            main_num = int(parsed[:4]) if parsed[:4] else 0
+            sub_num = int(parsed[4:]) if parsed[4:] else 0
+            if main_num:
+                return f"{main_num}의{sub_num}" if sub_num else str(main_num)
+
+        stripped = text.lstrip("0")
+        return stripped or "0"
+
+    @staticmethod
+    def _normalize_mok_match_key(value: Any) -> str:
+        """목 번호 비교용 키를 정규화합니다."""
+        if value is None:
+            return ""
+
+        text = str(value).strip().replace(" ", "").rstrip(".")
+        if not text:
+            return ""
+
+        mok_char = BaseLawRepository.parse_mok(text)
+        return mok_char or text[:1]
+
+    @staticmethod
+    def _compose_numbered_text(number: Any, content: Any) -> str:
+        """번호와 내용을 사람이 읽기 쉬운 한 줄로 합칩니다."""
+        parts = []
+        for part in (number, content):
+            if part is None:
+                continue
+            text = str(part).strip()
+            if text:
+                parts.append(text)
+        return " ".join(parts).strip()
+
+    @classmethod
+    def _render_mok_text(cls, mok_item: dict[str, Any]) -> str:
+        return cls._compose_numbered_text(
+            mok_item.get("목번호") or mok_item.get("번호"),
+            mok_item.get("목내용") or mok_item.get("내용") or mok_item.get("content"),
+        )
+
+    @classmethod
+    def _render_ho_text(cls, ho_item: dict[str, Any]) -> str:
+        parts = [
+            cls._compose_numbered_text(
+                ho_item.get("호번호") or ho_item.get("번호"),
+                ho_item.get("호내용") or ho_item.get("내용") or ho_item.get("content"),
+            )
+        ]
+        parts.extend(
+            cls._render_mok_text(mok_item)
+            for mok_item in cls._as_dict_list(
+                ho_item.get("목") or ho_item.get("subItems")
+            )
+        )
+        return "\n".join(part for part in parts if part)
+
+    @classmethod
+    def _render_hang_text(cls, hang_item: dict[str, Any]) -> str:
+        parts = [
+            cls._compose_numbered_text(
+                hang_item.get("항번호") or hang_item.get("번호"),
+                hang_item.get("항내용")
+                or hang_item.get("내용")
+                or hang_item.get("content"),
+            )
+        ]
+        parts.extend(
+            cls._render_ho_text(ho_item)
+            for ho_item in cls._as_dict_list(
+                hang_item.get("호") or hang_item.get("subItems")
+            )
+        )
+        return "\n".join(part for part in parts if part)
+
+    @classmethod
+    def _render_article_text(cls, article_item: dict[str, Any]) -> str:
+        title = (
+            article_item.get("조문제목")
+            or article_item.get("articleTitle")
+            or article_item.get("제목")
+            or article_item.get("title")
+        )
+        article_body = (
+            article_item.get("조문내용")
+            or article_item.get("articleContent")
+            or article_item.get("내용")
+            or article_item.get("content")
+        )
+        hang_items = cls._as_dict_list(
+            article_item.get("항") or article_item.get("paragraphs")
+        )
+
+        parts = [str(title).strip()] if title else []
+        if hang_items:
+            parts.extend(cls._render_hang_text(hang_item) for hang_item in hang_items)
+        else:
+            body_text = str(article_body).strip() if article_body else ""
+            if body_text and body_text not in parts:
+                parts.append(body_text)
+
+        return "\n".join(part for part in parts if part)
+
+    @staticmethod
+    def _find_article_unit(
+        article_units: list[dict[str, Any]], article_number: str
+    ) -> Optional[dict[str, Any]]:
+        target_key = LawDetailRepository._normalize_article_match_key(article_number)
+        for article_item in article_units:
+            article_key = LawDetailRepository._normalize_article_match_key(
+                article_item.get("조문번호") or article_item.get("articleNumber")
+            )
+            if article_key == target_key:
+                return article_item
         return None
 
-    def _find_law_item(self, laws: list, query: str) -> Optional[dict]:
-        """법령 목록에서 query와 가장 잘 맞는 항목을 반환합니다.
-        1순위: 정확 일치, 2순위: 부분 포함, 3순위: 첫 번째 항목.
-        """
-        if not laws:
+    @staticmethod
+    def _find_hang_item(
+        hang_items: list[dict[str, Any]], hang: Optional[str]
+    ) -> Optional[dict[str, Any]]:
+        if not hang_items or not hang:
             return None
-        normalized_query = self.normalize_search_query(query)
-        # 1순위: 정확 일치
-        for item in laws:
-            if isinstance(item, dict):
-                item_name = self.normalize_search_query(self._get_field(item, "law_name") or "")
-                if normalized_query == item_name:
-                    return item
-        # 2순위: 부분 포함
-        for item in laws:
-            if isinstance(item, dict):
-                item_name = self.normalize_search_query(self._get_field(item, "law_name") or "")
-                if normalized_query in item_name:
-                    return item
-        # 3순위: 첫 번째
-        return laws[0] if isinstance(laws[0], dict) else None
 
-    async def get_law_detail(self, law_name: str, arguments: Optional[dict] = None) -> dict:
+        target_key = LawDetailRepository._normalize_article_match_key(hang)
+        circled_map = {
+            "1": "①",
+            "2": "②",
+            "3": "③",
+            "4": "④",
+            "5": "⑤",
+            "6": "⑥",
+            "7": "⑦",
+            "8": "⑧",
+            "9": "⑨",
+            "10": "⑩",
+        }
+        circled_target = circled_map.get(target_key)
+        if circled_target:
+            for hang_item in hang_items:
+                if str(hang_item.get("항번호") or "").strip() == circled_target:
+                    return hang_item
+
+        if target_key.isdigit():
+            index = int(target_key) - 1
+            if 0 <= index < len(hang_items):
+                return hang_items[index]
+
+        return None
+
+    @staticmethod
+    def _find_ho_item(
+        ho_items: list[dict[str, Any]], ho: Optional[str]
+    ) -> Optional[dict[str, Any]]:
+        if not ho_items or not ho:
+            return None
+
+        target_key = LawDetailRepository._normalize_article_match_key(ho)
+        for ho_item in ho_items:
+            ho_key = LawDetailRepository._normalize_article_match_key(
+                ho_item.get("호번호") or ho_item.get("번호")
+            )
+            if ho_key == target_key:
+                return ho_item
+        return None
+
+    @staticmethod
+    def _find_mok_item(
+        mok_items: list[dict[str, Any]], mok: Optional[str]
+    ) -> Optional[dict[str, Any]]:
+        if not mok_items or not mok:
+            return None
+
+        target_key = LawDetailRepository._normalize_mok_match_key(mok)
+        for mok_item in mok_items:
+            mok_key = LawDetailRepository._normalize_mok_match_key(
+                mok_item.get("목번호") or mok_item.get("번호")
+            )
+            if mok_key == target_key:
+                return mok_item
+        return None
+
+    async def get_law_detail(
+        self, law_name: str, arguments: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         법령 상세 정보를 조회합니다.
 
@@ -72,7 +240,7 @@ class LawDetailRepository(BaseLawRepository):
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "법령명을 입력해주세요. 예: '형법', '민법', '개인정보보호법'"
+                "recovery_guide": "법령명을 입력해주세요. 예: '형법', '민법', '개인정보보호법'",
             }
 
         try:
@@ -83,15 +251,21 @@ class LawDetailRepository(BaseLawRepository):
                 "type": "JSON",
                 "query": self.normalize_search_query(law_name),
                 "page": 1,
-                "display": 10  # 더 많은 결과를 받아서 정확한 매칭을 위해
+                "display": 10,  # 더 많은 결과를 받아서 정확한 매칭을 위해
             }
 
-            _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
+            _, api_key_error = self.attach_api_key(
+                search_params, arguments, LAW_API_SEARCH_URL
+            )
             if api_key_error:
                 return api_key_error
 
             # 법령명 검색은 lawSearch.do 사용
-            search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            search_response = await aget(
+                LAW_API_SEARCH_URL,
+                params=search_params,
+                timeout=DRF_REQUEST_TIMEOUT_SEC,
+            )
 
             invalid_response = self.validate_drf_response(search_response)
             if invalid_response:
@@ -118,10 +292,64 @@ class LawDetailRepository(BaseLawRepository):
                     if not isinstance(laws, list):
                         laws = [laws] if laws else []
 
-                    law_item = self._find_law_item(laws, law_name)
+                    # 정확히 일치하는 법령명 찾기 (우선순위: 정확 일치 > 부분 일치 > 첫 번째)
+                    normalized_query = self.normalize_search_query(law_name)
+                    law_item = None
+
+                    # 1순위: 정확히 일치하는 법령명 찾기
+                    for item in laws:
+                        if isinstance(item, dict):
+                            item_name = (
+                                item.get("법령명한글")
+                                or item.get("lawNm")
+                                or item.get("법령명")
+                                or item.get("lawNmKo")
+                                or ""
+                            )
+                            if normalized_query == self.normalize_search_query(
+                                item_name
+                            ):
+                                law_item = item
+                                break
+
+                    # 2순위: 부분 일치 (법령명에 검색어가 포함된 경우)
+                    if not law_item:
+                        for item in laws:
+                            if isinstance(item, dict):
+                                item_name = (
+                                    item.get("법령명한글")
+                                    or item.get("lawNm")
+                                    or item.get("법령명")
+                                    or item.get("lawNmKo")
+                                    or ""
+                                )
+                                if normalized_query in self.normalize_search_query(
+                                    item_name
+                                ):
+                                    law_item = item
+                                    break
+
+                    # 3순위: 첫 번째 항목 사용
+                    if not law_item and laws and isinstance(laws[0], dict):
+                        law_item = laws[0]
+
                     if law_item:
-                        law_id = self._get_field(law_item, "law_id")
-                        law_name_found = self._get_field(law_item, "law_name")
+                        # 법령일련번호 추출 (여러 가능한 필드명 시도)
+                        law_id = (
+                            law_item.get("법령일련번호")
+                            or law_item.get("일련번호")
+                            or law_item.get("lawSeq")
+                            or law_item.get("lawId")
+                            or law_item.get("법령ID")
+                            or law_item.get("id")
+                        )
+                        # 법령명 추출
+                        law_name_found = (
+                            law_item.get("법령명한글")
+                            or law_item.get("lawNm")
+                            or law_item.get("법령명")
+                            or law_item.get("lawNmKo")
+                        )
             except json.JSONDecodeError as e:
                 logger.warning("Failed to parse JSON for law search: %s", str(e))
 
@@ -130,21 +358,25 @@ class LawDetailRepository(BaseLawRepository):
                     "error": "법령 ID를 찾을 수 없습니다.",
                     "law_name": law_name,
                     "raw_response": search_response.text[:1000],
-                    "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요."
+                    "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요.",
                 }
 
             # law_id로 상세 정보 조회 (법령일련번호는 MST 파라미터로 사용)
             detail_params = {
                 "target": "law",
                 "type": "JSON",
-                "MST": law_id
+                "MST": law_id,  # 법령일련번호는 MST로 사용
             }
 
-            _, api_key_error = self.attach_api_key(detail_params, arguments, LAW_API_BASE_URL)
+            _, api_key_error = self.attach_api_key(
+                detail_params, arguments, LAW_API_BASE_URL
+            )
             if api_key_error:
                 return api_key_error
 
-            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            detail_response = await aget(
+                LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC
+            )
 
             invalid_response = self.validate_drf_response(detail_response)
             if invalid_response:
@@ -156,47 +388,66 @@ class LawDetailRepository(BaseLawRepository):
             try:
                 detail_data = detail_response.json()
                 if isinstance(detail_data, dict):
+                    # LawSearch 래퍼 확인
                     if "LawSearch" in detail_data:
                         law_search = detail_data["LawSearch"]
-                        detail_law = law_search.get("법령") or law_search.get("law") if isinstance(law_search, dict) else None
+                        if isinstance(law_search, dict):
+                            detail_law = law_search.get("법령") or law_search.get("law")
+                        else:
+                            detail_law = None
                     else:
                         detail_law = detail_data.get("법령") or detail_data.get("law")
 
                     if isinstance(detail_law, dict):
-                        detail_law_id = self._get_field(detail_law, "law_id")
+                        detail_law_id = (
+                            detail_law.get("일련번호")
+                            or detail_law.get("법령일련번호")
+                            or detail_law.get("lawSeq")
+                            or detail_law.get("lawId")
+                            or detail_law.get("법령ID")
+                            or detail_law.get("id")
+                        )
                         if detail_law_id:
                             law_id = detail_law_id
+
+                        # 법령명 재확인
                         if not law_name_found:
-                            law_name_found = self._get_field(detail_law, "law_name")
+                            law_name_found = (
+                                detail_law.get("법령명한글")
+                                or detail_law.get("lawNm")
+                                or detail_law.get("법령명")
+                                or detail_law.get("lawNmKo")
+                            )
             except json.JSONDecodeError as e:
                 logger.warning("Failed to parse JSON for law detail: %s", str(e))
 
             return {
                 "law_name": law_name_found or law_name,
                 "law_id": law_id,
-                "detail": json.dumps(detail_data, ensure_ascii=False, indent=2)[:2000] if detail_data else detail_response.text[:2000],
+                "detail": json.dumps(detail_data, ensure_ascii=False, indent=2)[:2000]
+                if detail_data
+                else detail_response.text[:2000],
                 "api_url": detail_response.url,
-                "note": "전체 내용은 API URL에서 확인하세요."
-                }
+                "note": "전체 내용은 API URL에서 확인하세요.",
+            }
 
         except httpx.TimeoutException:
             return {
                 "error": "API 호출 타임아웃",
                 "law_name": law_name,
-                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
             }
         except httpx.RequestError as e:
-            return {
-                "error": f"API 요청 실패: {str(e)}",
-                "law_name": law_name
-            }
+            return {"error": f"API 요청 실패: {str(e)}", "law_name": law_name}
         except Exception as e:
-            return {
-                "error": f"법령 상세 조회 중 오류: {str(e)}",
-                "law_name": law_name
-            }
+            return {"error": f"법령 상세 조회 중 오류: {str(e)}", "law_name": law_name}
 
-    async def get_law_articles(self, law_id: Optional[str] = None, law_name: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
+    async def get_law_articles(
+        self,
+        law_id: Optional[str] = None,
+        law_name: Optional[str] = None,
+        arguments: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         특정 법령의 조문 전체를 조회합니다.
 
@@ -208,7 +459,9 @@ class LawDetailRepository(BaseLawRepository):
         Returns:
             조문 목록이 포함된 딕셔너리 또는 {"error": "error message"}
         """
-        logger.debug("get_law_articles called | law_id=%r law_name=%r", law_id, law_name)
+        logger.debug(
+            "get_law_articles called | law_id=%r law_name=%r", law_id, law_name
+        )
 
         # 법령명이 입력되면 검색해서 ID 찾기
         if law_name and not law_id:
@@ -218,15 +471,21 @@ class LawDetailRepository(BaseLawRepository):
                     "type": "JSON",
                     "query": self.normalize_search_query(law_name),
                     "page": 1,
-                    "display": 10  # 더 많은 결과를 받아서 정확한 매칭을 위해
+                    "display": 10,  # 더 많은 결과를 받아서 정확한 매칭을 위해
                 }
 
-                _, api_key_error = self.attach_api_key(search_params, arguments, LAW_API_SEARCH_URL)
+                _, api_key_error = self.attach_api_key(
+                    search_params, arguments, LAW_API_SEARCH_URL
+                )
                 if api_key_error:
                     return api_key_error
 
                 # 법령명 검색은 lawSearch.do 사용
-                search_response = await aget(LAW_API_SEARCH_URL, params=search_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+                search_response = await aget(
+                    LAW_API_SEARCH_URL,
+                    params=search_params,
+                    timeout=DRF_REQUEST_TIMEOUT_SEC,
+                )
 
                 invalid_response = self.validate_drf_response(search_response)
                 if invalid_response:
@@ -248,9 +507,56 @@ class LawDetailRepository(BaseLawRepository):
                         if not isinstance(laws, list):
                             laws = [laws] if laws else []
 
-                        law_item = self._find_law_item(laws, law_name)
+                        # 정확히 일치하는 법령명 찾기 (우선순위: 정확 일치 > 부분 일치 > 첫 번째)
+                        normalized_query = self.normalize_search_query(law_name)
+                        law_item = None
+
+                        # 1순위: 정확히 일치하는 법령명 찾기
+                        for item in laws:
+                            if isinstance(item, dict):
+                                item_name = (
+                                    item.get("법령명한글")
+                                    or item.get("lawNm")
+                                    or item.get("법령명")
+                                    or item.get("lawNmKo")
+                                    or ""
+                                )
+                                if normalized_query == self.normalize_search_query(
+                                    item_name
+                                ):
+                                    law_item = item
+                                    break
+
+                        # 2순위: 부분 일치 (법령명에 검색어가 포함된 경우)
+                        if not law_item:
+                            for item in laws:
+                                if isinstance(item, dict):
+                                    item_name = (
+                                        item.get("법령명한글")
+                                        or item.get("lawNm")
+                                        or item.get("법령명")
+                                        or item.get("lawNmKo")
+                                        or ""
+                                    )
+                                    if normalized_query in self.normalize_search_query(
+                                        item_name
+                                    ):
+                                        law_item = item
+                                        break
+
+                        # 3순위: 첫 번째 항목 사용
+                        if not law_item and laws and isinstance(laws[0], dict):
+                            law_item = laws[0]
+
                         if law_item:
-                            law_id = self._get_field(law_item, "law_id")
+                            law_id = (
+                                law_item.get("법령일련번호")
+                                or law_item.get("일련번호")
+                                or law_item.get("lawSeq")
+                                or law_item.get("lawId")
+                                or law_item.get("법령ID")
+                                or law_item.get("id")
+                            )
                 except json.JSONDecodeError as e:
                     logger.warning("Failed to parse JSON for law search: %s", str(e))
 
@@ -258,19 +564,19 @@ class LawDetailRepository(BaseLawRepository):
                     return {
                         "error": "법령 ID를 찾을 수 없습니다.",
                         "law_name": law_name,
-                        "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요."
+                        "recovery_guide": "법령명을 정확히 입력해주세요. 예: '형법', '민법', '개인정보보호법'. 법령명이 정확한지 확인하세요.",
                     }
             except httpx.TimeoutException:
                 return {
                     "error": "법령 검색 타임아웃",
                     "law_name": law_name,
-                    "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                    "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
                 }
             except httpx.RequestError as e:
                 return {
                     "error": f"법령 검색 실패: {str(e)}",
                     "law_name": law_name,
-                    "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                    "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
                 }
 
         if not law_id or not law_id.strip():
@@ -278,15 +584,15 @@ class LawDetailRepository(BaseLawRepository):
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "법령 ID 또는 법령명 중 하나는 필수입니다. 예: law_name='형법' 또는 law_id='123456'"
+                "recovery_guide": "법령 ID 또는 법령명 중 하나는 필수입니다. 예: law_name='형법' 또는 law_id='123456'",
             }
 
         try:
             # lawService.do API 호출 파라미터 설정
             params = {
-                "target": "law",      # 법령 조회
-                "type": "JSON",       # JSON 형식 응답
-                "MST": law_id          # 법령일련번호는 MST로 사용
+                "target": "law",  # 법령 조회
+                "type": "JSON",  # JSON 형식 응답
+                "MST": law_id,  # 법령일련번호는 MST로 사용
             }
 
             _, api_key_error = self.attach_api_key(params, arguments, LAW_API_BASE_URL)
@@ -294,7 +600,9 @@ class LawDetailRepository(BaseLawRepository):
                 return api_key_error
 
             # API 호출
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            response = await aget(
+                LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC
+            )
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -319,7 +627,12 @@ class LawDetailRepository(BaseLawRepository):
                         law_obj = data.get("법령") or data.get("law")
 
                 if isinstance(law_obj, dict):
-                    law_name = self._get_field(law_obj, "law_name")
+                    law_name = (
+                        law_obj.get("법령명한글")
+                        or law_obj.get("lawNm")
+                        or law_obj.get("법령명")
+                        or law_obj.get("lawNmKo")
+                    )
 
                 # 조문 목록 추출
                 articles = []
@@ -327,11 +640,13 @@ class LawDetailRepository(BaseLawRepository):
                 # JSON에서 조문 요소 찾기
                 article_list = None
                 if isinstance(law_obj, dict):
-                    article_list = (law_obj.get("조문") or
-                                   law_obj.get("article") or
-                                   law_obj.get("articles") or
-                                   law_obj.get("조") or
-                                   law_obj.get("조문목록"))
+                    article_list = (
+                        law_obj.get("조문")
+                        or law_obj.get("article")
+                        or law_obj.get("articles")
+                        or law_obj.get("조")
+                        or law_obj.get("조문목록")
+                    )
 
                 if article_list:
                     if not isinstance(article_list, list):
@@ -339,39 +654,51 @@ class LawDetailRepository(BaseLawRepository):
 
                     for article_item in article_list:
                         if isinstance(article_item, dict):
-                            article_no = (article_item.get("조문번호") or
-                                         article_item.get("articleNo") or
-                                         article_item.get("조번호") or
-                                         article_item.get("articleNum") or
-                                         article_item.get("번호"))
-                            article_title = (article_item.get("조문제목") or
-                                            article_item.get("articleTitle") or
-                                            article_item.get("제목") or
-                                            article_item.get("title"))
-                            article_content = (article_item.get("조문내용") or
-                                             article_item.get("articleContent") or
-                                             article_item.get("내용") or
-                                             article_item.get("content") or
-                                             article_item.get("조문") or
-                                             article_item.get("text"))
+                            article_no = (
+                                article_item.get("조문번호")
+                                or article_item.get("articleNo")
+                                or article_item.get("조번호")
+                                or article_item.get("articleNum")
+                                or article_item.get("번호")
+                            )
+                            article_title = (
+                                article_item.get("조문제목")
+                                or article_item.get("articleTitle")
+                                or article_item.get("제목")
+                                or article_item.get("title")
+                            )
+                            article_content = (
+                                article_item.get("조문내용")
+                                or article_item.get("articleContent")
+                                or article_item.get("내용")
+                                or article_item.get("content")
+                                or article_item.get("조문")
+                                or article_item.get("text")
+                            )
 
                             # 조문 정보가 하나라도 있으면 추가
                             if article_no or article_content:
-                                articles.append({
-                                    "article_no": article_no or "번호 없음",
-                                    "title": article_title,
-                                    "content": article_content or ""
-                                })
+                                articles.append(
+                                    {
+                                        "article_no": article_no or "번호 없음",
+                                        "title": article_title,
+                                        "content": article_content or "",
+                                    }
+                                )
 
                 result = {
                     "law_id": law_id,
                     "law_name": law_name or "법령명 없음",
                     "articles": articles,
                     "article_count": len(articles),
-                    "api_url": response.url
+                    "api_url": response.url,
                 }
 
-                logger.debug("Successfully parsed law articles | law_id=%s count=%d", law_id, len(articles))
+                logger.debug(
+                    "Successfully parsed law articles | law_id=%s count=%d",
+                    law_id,
+                    len(articles),
+                )
                 return result
 
             except json.JSONDecodeError as e:
@@ -383,7 +710,7 @@ class LawDetailRepository(BaseLawRepository):
                     "raw_response": response.text[:1000],
                     "api_url": response.url,
                     "recovery_guide": "API 응답 형식 오류입니다. API 서버 상태를 확인하거나 잠시 후 다시 시도하세요.",
-                    "note": "API 응답 형식이 예상과 다를 수 있습니다."
+                    "note": "API 응답 형식이 예상과 다를 수 있습니다.",
                 }
 
         except httpx.TimeoutException:
@@ -392,7 +719,7 @@ class LawDetailRepository(BaseLawRepository):
             return {
                 "error": error_msg,
                 "law_id": law_id,
-                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
             }
         except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
@@ -400,7 +727,7 @@ class LawDetailRepository(BaseLawRepository):
             return {
                 "error": error_msg,
                 "law_id": law_id,
-                "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
             }
         except Exception as e:
             error_msg = f"예상치 못한 오류: {str(e)}"
@@ -408,12 +735,18 @@ class LawDetailRepository(BaseLawRepository):
             return {
                 "error": error_msg,
                 "law_id": law_id,
-                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
+                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요.",
             }
 
-    async def get_single_article(self, law_id: str, article_number: str, hang: Optional[str] = None,
-                          ho: Optional[str] = None, mok: Optional[str] = None,
-                          arguments: Optional[dict] = None) -> dict:
+    async def get_single_article(
+        self,
+        law_id: str,
+        article_number: str,
+        hang: Optional[str] = None,
+        ho: Optional[str] = None,
+        mok: Optional[str] = None,
+        arguments: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         특정 법령의 단일 조문을 조회합니다.
 
@@ -428,15 +761,21 @@ class LawDetailRepository(BaseLawRepository):
         Returns:
             조문 내용 딕셔너리 또는 {"error": "error message"}
         """
-        logger.debug("get_single_article called | law_id=%s article_number=%s hang=%s ho=%s mok=%s",
-                    law_id, article_number, hang, ho, mok)
+        logger.debug(
+            "get_single_article called | law_id=%s article_number=%s hang=%s ho=%s mok=%s",
+            law_id,
+            article_number,
+            hang,
+            ho,
+            mok,
+        )
 
         if not law_id or not law_id.strip():
             error_msg = "법령 ID가 비어있습니다."
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "법령 ID를 입력해주세요. 법령명으로 검색하여 법령 ID를 먼저 확인하세요."
+                "recovery_guide": "법령 ID를 입력해주세요. 법령명으로 검색하여 법령 ID를 먼저 확인하세요.",
             }
 
         if not article_number or not article_number.strip():
@@ -444,7 +783,7 @@ class LawDetailRepository(BaseLawRepository):
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'"
+                "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'",
             }
 
         try:
@@ -452,14 +791,18 @@ class LawDetailRepository(BaseLawRepository):
             detail_params = {
                 "target": "law",
                 "type": "JSON",
-                "MST": law_id  # 법령일련번호는 MST로 사용
+                "MST": law_id,  # 법령일련번호는 MST로 사용
             }
 
-            _, api_key_error = self.attach_api_key(detail_params, arguments, LAW_API_BASE_URL)
+            _, api_key_error = self.attach_api_key(
+                detail_params, arguments, LAW_API_BASE_URL
+            )
             if api_key_error:
                 return api_key_error
 
-            detail_response = await aget(LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            detail_response = await aget(
+                LAW_API_BASE_URL, params=detail_params, timeout=DRF_REQUEST_TIMEOUT_SEC
+            )
 
             invalid_detail = self.validate_drf_response(detail_response)
             if invalid_detail:
@@ -472,30 +815,44 @@ class LawDetailRepository(BaseLawRepository):
             ef_yd = None
             if isinstance(detail_data, dict):
                 # 다양한 키 이름으로 시행일자 찾기
-                ef_yd = (detail_data.get("시행일자") or
-                        detail_data.get("efYd") or
-                        detail_data.get("시행일") or
-                        detail_data.get("enforcementDate"))
+                ef_yd = (
+                    detail_data.get("시행일자")
+                    or detail_data.get("efYd")
+                    or detail_data.get("시행일")
+                    or detail_data.get("enforcementDate")
+                )
 
                 # 법령 정보에서 시행일자 찾기
                 if not ef_yd:
-                    law_info = detail_data.get("법령정보") or detail_data.get("lawInfo") or detail_data.get("법령")
+                    law_info = (
+                        detail_data.get("법령정보")
+                        or detail_data.get("lawInfo")
+                        or detail_data.get("법령")
+                    )
                     if isinstance(law_info, dict):
-                        ef_yd = (law_info.get("시행일자") or
-                                law_info.get("efYd") or
-                                law_info.get("시행일"))
+                        ef_yd = (
+                            law_info.get("시행일자")
+                            or law_info.get("efYd")
+                            or law_info.get("시행일")
+                        )
                         if not ef_yd:
-                            basic_info = law_info.get("기본정보") or law_info.get("basicInfo")
+                            basic_info = law_info.get("기본정보") or law_info.get(
+                                "basicInfo"
+                            )
                             if isinstance(basic_info, dict):
-                                ef_yd = (basic_info.get("시행일자") or
-                                        basic_info.get("efYd") or
-                                        basic_info.get("시행일") or
-                                        basic_info.get("enforcementDate"))
+                                ef_yd = (
+                                    basic_info.get("시행일자")
+                                    or basic_info.get("efYd")
+                                    or basic_info.get("시행일")
+                                    or basic_info.get("enforcementDate")
+                                )
 
             # 시행일자가 없으면 오늘 날짜 사용 (YYYYMMDD 형식)
             if not ef_yd:
                 ef_yd = datetime.now().strftime("%Y%m%d")
-                logger.warning("시행일자를 찾을 수 없어 오늘 날짜를 사용합니다: %s", ef_yd)
+                logger.warning(
+                    "시행일자를 찾을 수 없어 오늘 날짜를 사용합니다: %s", ef_yd
+                )
 
             # 2단계: 조문 조회 파라미터 구성
             # 조 번호를 6자리 숫자로 변환
@@ -506,7 +863,7 @@ class LawDetailRepository(BaseLawRepository):
                 "type": "JSON",
                 "MST": law_id,  # 법령일련번호는 MST로 사용
                 "efYd": ef_yd,
-                "JO": jo_number
+                "JO": jo_number,
             }
 
             # 항 번호 변환 및 추가
@@ -531,10 +888,15 @@ class LawDetailRepository(BaseLawRepository):
             if api_key_error:
                 return api_key_error
 
-            logger.debug("Calling eflawjosub API | params=%s", {k: v for k, v in params.items() if k != "OC"})
+            logger.debug(
+                "Calling eflawjosub API | params=%s",
+                {k: v for k, v in params.items() if k != "OC"},
+            )
 
             # 3단계: 단일 조문 조회
-            response = await aget(LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC)
+            response = await aget(
+                LAW_API_BASE_URL, params=params, timeout=DRF_REQUEST_TIMEOUT_SEC
+            )
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
@@ -549,25 +911,26 @@ class LawDetailRepository(BaseLawRepository):
                 article_content = None
                 article_title = None
 
-                # eflawjosub 응답 구조: {"법령": {"기본정보": {...}, "조문정보": {"조문단위": {...}}}}
-                # 또는 flat: {"조문내용": "...", ...}
-                # 1) 법령 래퍼 벗기기
                 root = data
                 if isinstance(data, dict) and "법령" in data:
                     root = data["법령"] or {}
 
                 if isinstance(root, dict):
-                    article_content = (root.get("조문내용") or
-                                       root.get("articleContent") or
-                                       root.get("내용") or
-                                       root.get("content") or
-                                       root.get("text"))
-                    article_title = (root.get("조문제목") or
-                                     root.get("articleTitle") or
-                                     root.get("제목") or
-                                     root.get("title"))
+                    article_content = (
+                        root.get("조문내용")
+                        or root.get("articleContent")
+                        or root.get("내용")
+                        or root.get("content")
+                        or root.get("text")
+                    )
 
-                # 2) 조문정보 → 조문단위 중첩 탐색
+                    article_title = (
+                        root.get("조문제목")
+                        or root.get("articleTitle")
+                        or root.get("제목")
+                        or root.get("title")
+                    )
+
                 if not article_content and isinstance(root, dict):
                     josub_info = root.get("조문정보") or root.get("articleInfo")
                     if isinstance(josub_info, dict):
@@ -575,50 +938,181 @@ class LawDetailRepository(BaseLawRepository):
                         if isinstance(josub_unit, list):
                             josub_unit = josub_unit[0] if josub_unit else None
                         if isinstance(josub_unit, dict):
-                            article_content = (josub_unit.get("조문내용") or
-                                               josub_unit.get("articleContent") or
-                                               josub_unit.get("내용"))
+                            article_content = (
+                                josub_unit.get("조문내용")
+                                or josub_unit.get("articleContent")
+                                or josub_unit.get("내용")
+                            )
                             article_title = article_title or josub_unit.get("조문제목")
 
-                # 3) lawjosub 폴백 (efYd 없이 재시도)
                 if not (article_content and str(article_content).strip()):
                     lawjosub_params = {k: v for k, v in params.items() if k != "efYd"}
                     lawjosub_params["target"] = "lawjosub"
                     try:
-                        lawjosub_resp = await aget(LAW_API_BASE_URL, params=lawjosub_params, timeout=DRF_REQUEST_TIMEOUT_SEC)
-                        if not self.validate_drf_response(lawjosub_resp):
-                            lawjosub_data = lawjosub_resp.json()
-                            lawjosub_root = lawjosub_data.get("법령", lawjosub_data) if isinstance(lawjosub_data, dict) else {}
+                        lawjosub_response = await aget(
+                            LAW_API_BASE_URL,
+                            params=lawjosub_params,
+                            timeout=DRF_REQUEST_TIMEOUT_SEC,
+                        )
+                        invalid_lawjosub = self.validate_drf_response(lawjosub_response)
+                        if not invalid_lawjosub:
+                            lawjosub_data = lawjosub_response.json()
+                            lawjosub_root = (
+                                lawjosub_data.get("법령", lawjosub_data)
+                                if isinstance(lawjosub_data, dict)
+                                else {}
+                            )
+
                             if isinstance(lawjosub_root, dict):
-                                article_content = (lawjosub_root.get("조문내용") or
-                                                   lawjosub_root.get("내용"))
-                                article_title = article_title or lawjosub_root.get("조문제목")
-                            if not article_content:
-                                josub_info2 = lawjosub_root.get("조문정보") if isinstance(lawjosub_root, dict) else None
-                                if isinstance(josub_info2, dict):
-                                    unit2 = josub_info2.get("조문단위")
-                                    if isinstance(unit2, list):
-                                        unit2 = unit2[0] if unit2 else None
-                                    if isinstance(unit2, dict):
-                                        article_content = unit2.get("조문내용") or unit2.get("내용")
-                                        article_title = article_title or unit2.get("조문제목")
+                                article_content = lawjosub_root.get(
+                                    "조문내용"
+                                ) or lawjosub_root.get("내용")
+                                article_title = article_title or lawjosub_root.get(
+                                    "조문제목"
+                                )
+
+                            if not article_content and isinstance(lawjosub_root, dict):
+                                josub_info = lawjosub_root.get("조문정보")
+                                if isinstance(josub_info, dict):
+                                    josub_unit = josub_info.get("조문단위")
+                                    if isinstance(josub_unit, list):
+                                        josub_unit = (
+                                            josub_unit[0] if josub_unit else None
+                                        )
+                                    if isinstance(josub_unit, dict):
+                                        article_content = josub_unit.get(
+                                            "조문내용"
+                                        ) or josub_unit.get("내용")
+                                        article_title = article_title or josub_unit.get(
+                                            "조문제목"
+                                        )
+
                             if article_content:
-                                logger.info("lawjosub fallback succeeded | law_id=%s jo=%s", law_id, jo_number)
+                                logger.info(
+                                    "lawjosub fallback succeeded | law_id=%s jo=%s",
+                                    law_id,
+                                    jo_number,
+                                )
                     except Exception as e:
                         logger.debug("lawjosub fallback failed | %s", e)
+
+                if not (article_content and str(article_content).strip()):
+                    law_params = {
+                        "target": "law",
+                        "type": "JSON",
+                        "MST": law_id,
+                    }
+                    _, api_key_error = self.attach_api_key(
+                        law_params, arguments, LAW_API_BASE_URL
+                    )
+                    if api_key_error:
+                        return api_key_error
+
+                    try:
+                        law_response = await aget(
+                            LAW_API_BASE_URL,
+                            params=law_params,
+                            timeout=DRF_REQUEST_TIMEOUT_SEC,
+                        )
+                        invalid_law = self.validate_drf_response(law_response)
+                        if not invalid_law:
+                            law_data = law_response.json()
+                            law_root = (
+                                law_data.get("법령", law_data)
+                                if isinstance(law_data, dict)
+                                else {}
+                            )
+                            article_units: list[dict[str, Any]] = []
+
+                            if isinstance(law_root, dict):
+                                article_section = law_root.get("조문") or law_root.get(
+                                    "articles"
+                                )
+                                if isinstance(article_section, dict):
+                                    article_units = self._as_dict_list(
+                                        article_section.get("조문단위")
+                                        or article_section.get("articleUnit")
+                                        or article_section.get("article")
+                                    )
+
+                            matched_article = self._find_article_unit(
+                                article_units, article_number
+                            )
+                            if matched_article:
+                                article_title = article_title or (
+                                    matched_article.get("조문제목")
+                                    or matched_article.get("articleTitle")
+                                    or matched_article.get("제목")
+                                    or matched_article.get("title")
+                                )
+
+                                hang_items = self._as_dict_list(
+                                    matched_article.get("항")
+                                    or matched_article.get("paragraphs")
+                                )
+                                matched_hang = self._find_hang_item(hang_items, hang)
+                                matched_ho = self._find_ho_item(
+                                    self._as_dict_list(
+                                        matched_hang.get("호")
+                                        or matched_hang.get("subItems")
+                                    )
+                                    if matched_hang
+                                    else [],
+                                    ho,
+                                )
+                                matched_mok = self._find_mok_item(
+                                    self._as_dict_list(
+                                        matched_ho.get("목")
+                                        or matched_ho.get("subItems")
+                                    )
+                                    if matched_ho
+                                    else [],
+                                    mok,
+                                )
+
+                                if matched_mok:
+                                    article_content = (
+                                        matched_mok.get("목내용")
+                                        or matched_mok.get("내용")
+                                        or matched_mok.get("content")
+                                    )
+                                elif ho and matched_ho:
+                                    article_content = self._render_ho_text(matched_ho)
+                                elif hang and matched_hang:
+                                    article_content = self._render_hang_text(
+                                        matched_hang
+                                    )
+                                elif not hang and not ho and not mok:
+                                    article_content = self._render_article_text(
+                                        matched_article
+                                    )
+
+                                if article_content and str(article_content).strip():
+                                    logger.info(
+                                        "law target fallback succeeded | law_id=%s jo=%s",
+                                        law_id,
+                                        jo_number,
+                                    )
+                    except Exception as e:
+                        logger.debug("law target fallback failed | %s", e)
 
                 fallback_mode = None
                 fallback_source = None
                 if not (article_content and str(article_content).strip()):
                     from ..utils.eflawjosub_fallback import atry_recover_article_text
-                    recovered, src_url, fb_mode = await atry_recover_article_text(LAW_API_BASE_URL, params)
+
+                    recovered, src_url, fb_mode = await atry_recover_article_text(
+                        LAW_API_BASE_URL, params
+                    )
                     if recovered:
                         article_content = recovered
                         fallback_mode = fb_mode
                         fallback_source = src_url
                         logger.info(
                             "eflawjosub empty JSON; fallback ok | mode=%s law_id=%s jo=%s",
-                            fb_mode, law_id, jo_number,
+                            fb_mode,
+                            law_id,
+                            jo_number,
                         )
 
                 result = {
@@ -627,9 +1121,13 @@ class LawDetailRepository(BaseLawRepository):
                     "hang": hang,
                     "ho": ho,
                     "mok": mok,
-                    "title": article_title or f"{article_number}" + (f" {hang}" if hang else "") + (f" {ho}" if ho else "") + (f" {mok}" if mok else ""),
+                    "title": article_title
+                    or f"{article_number}"
+                    + (f" {hang}" if hang else "")
+                    + (f" {ho}" if ho else "")
+                    + (f" {mok}" if mok else ""),
                     "content": article_content or "조문 내용을 찾을 수 없습니다.",
-                    "api_url": response.url
+                    "api_url": response.url,
                 }
 
                 if fallback_mode and fallback_mode != "none":
@@ -640,10 +1138,16 @@ class LawDetailRepository(BaseLawRepository):
                     }
 
                 if not (article_content and str(article_content).strip()):
-                    result["note"] = "조문 내용이 비어있거나 찾을 수 없습니다. API 응답을 확인하세요."
+                    result["note"] = (
+                        "조문 내용이 비어있거나 찾을 수 없습니다. API 응답을 확인하세요."
+                    )
                     result["raw_data"] = str(data)[:500]  # 디버깅용
 
-                logger.debug("Successfully retrieved single article | law_id=%s article=%s", law_id, article_number)
+                logger.debug(
+                    "Successfully retrieved single article | law_id=%s article=%s",
+                    law_id,
+                    article_number,
+                )
                 return result
 
             except json.JSONDecodeError as e:
@@ -653,7 +1157,7 @@ class LawDetailRepository(BaseLawRepository):
                     "law_id": law_id,
                     "article_number": article_number,
                     "raw_response": response.text[:1000],
-                    "api_url": response.url
+                    "api_url": response.url,
                 }
 
         except httpx.TimeoutException:
@@ -663,7 +1167,7 @@ class LawDetailRepository(BaseLawRepository):
                 "error": error_msg,
                 "law_id": law_id,
                 "article_number": article_number,
-                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                "recovery_guide": "네트워크 응답 시간이 초과되었습니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
             }
         except httpx.RequestError as e:
             error_msg = f"API 요청 실패: {str(e)}"
@@ -672,7 +1176,7 @@ class LawDetailRepository(BaseLawRepository):
                 "error": error_msg,
                 "law_id": law_id,
                 "article_number": article_number,
-                "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요."
+                "recovery_guide": "네트워크 오류입니다. 잠시 후 다시 시도하거나, 인터넷 연결을 확인하세요.",
             }
         except Exception as e:
             error_msg = f"예상치 못한 오류: {str(e)}"
@@ -681,13 +1185,20 @@ class LawDetailRepository(BaseLawRepository):
                 "error": error_msg,
                 "law_id": law_id,
                 "article_number": article_number,
-                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요."
+                "recovery_guide": "시스템 오류가 발생했습니다. 서버 로그를 확인하거나 관리자에게 문의하세요.",
             }
 
-    async def get_law(self, law_id: Optional[str] = None, law_name: Optional[str] = None,
-                mode: str = "detail", article_number: Optional[str] = None,
-                hang: Optional[str] = None, ho: Optional[str] = None,
-                mok: Optional[str] = None, arguments: Optional[dict] = None) -> dict:
+    async def get_law(
+        self,
+        law_id: Optional[str] = None,
+        law_name: Optional[str] = None,
+        mode: str = "detail",
+        article_number: Optional[str] = None,
+        hang: Optional[str] = None,
+        ho: Optional[str] = None,
+        mok: Optional[str] = None,
+        arguments: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         법령 조회 (통합: 상세 + 조문 + 단일 조문).
 
@@ -704,7 +1215,9 @@ class LawDetailRepository(BaseLawRepository):
         Returns:
             법령 정보 딕셔너리 또는 {"error": "error message"}
         """
-        logger.debug("get_law called | law_id=%s law_name=%s mode=%s", law_id, law_name, mode)
+        logger.debug(
+            "get_law called | law_id=%s law_name=%s mode=%s", law_id, law_name, mode
+        )
 
         # law_id 또는 law_name 중 하나는 필수
         if not law_id and not law_name:
@@ -712,7 +1225,7 @@ class LawDetailRepository(BaseLawRepository):
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "법령 ID 또는 법령명 중 하나를 입력해주세요. 예: law_name='형법' 또는 law_id='123456'"
+                "recovery_guide": "법령 ID 또는 법령명 중 하나를 입력해주세요. 예: law_name='형법' 또는 law_id='123456'",
             }
 
         # mode에 따라 분기
@@ -725,13 +1238,15 @@ class LawDetailRepository(BaseLawRepository):
                 if "error" in articles_result:
                     return articles_result
                 # articles_result에서 법령명 추출 시도
-                law_name_from_result = articles_result.get("law_name") or articles_result.get("법령명")
-                if law_name_from_result:
+                law_name_from_result = articles_result.get(
+                    "law_name"
+                ) or articles_result.get("법령명")
+                if isinstance(law_name_from_result, str) and law_name_from_result:
                     return await self.get_law_detail(law_name_from_result, arguments)
                 else:
                     return {
                         "error": "법령명을 찾을 수 없습니다. law_name을 제공해주세요.",
-                        "recovery_guide": "법령명을 입력해주세요. 예: law_name='형법', '민법', '개인정보보호법'"
+                        "recovery_guide": "법령명을 입력해주세요. 예: law_name='형법', '민법', '개인정보보호법'",
                     }
             return await self.get_law_detail(law_name, arguments)
 
@@ -742,35 +1257,43 @@ class LawDetailRepository(BaseLawRepository):
         elif mode == "single":
             # 단일 조문 조회
             if not law_id:
+                if not law_name:
+                    return {
+                        "error": "법령명을 찾을 수 없습니다. law_name을 제공해주세요.",
+                        "recovery_guide": "법령명을 입력해주세요. 예: law_name='형법', '민법', '개인정보보호법'",
+                    }
                 # law_name만 있으면 먼저 law_id를 찾아야 함
                 detail_result = await self.get_law_detail(law_name, arguments)
                 if "error" in detail_result:
                     return detail_result
                 # detail_result에서 law_id 추출 시도
-                law_id_from_result = (detail_result.get("law_id") or
-                                     detail_result.get("법령일련번호") or
-                                     detail_result.get("일련번호"))
+                law_id_from_result = (
+                    detail_result.get("law_id")
+                    or detail_result.get("법령일련번호")
+                    or detail_result.get("일련번호")
+                )
                 if law_id_from_result:
                     law_id = str(law_id_from_result)
                 else:
                     return {
                         "error": "법령 ID를 찾을 수 없습니다. law_id를 제공해주세요.",
-                        "recovery_guide": "법령 ID를 입력해주세요. 또는 law_name을 제공하여 법령 ID를 자동으로 찾을 수 있습니다."
+                        "recovery_guide": "법령 ID를 입력해주세요. 또는 law_name을 제공하여 법령 ID를 자동으로 찾을 수 있습니다.",
                     }
 
             if not article_number:
                 return {
                     "error": "mode='single'일 때 article_number는 필수입니다.",
-                    "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'"
+                    "recovery_guide": "단일 조문 조회 시 조 번호를 입력해주세요. 예: article_number='제1조' 또는 '1'",
                 }
 
-            return await self.get_single_article(law_id, article_number, hang, ho, mok, arguments)
+            return await self.get_single_article(
+                law_id, article_number, hang, ho, mok, arguments
+            )
 
         else:
             error_msg = f"유효하지 않은 mode: {mode}. 'detail', 'articles', 'single' 중 하나를 선택하세요."
             logger.error(error_msg)
             return {
                 "error": error_msg,
-                "recovery_guide": "법령 조회 중 오류가 발생했습니다. 법령명이나 법령 ID를 확인하거나 잠시 후 다시 시도하세요."
+                "recovery_guide": "법령 조회 중 오류가 발생했습니다. 법령명이나 법령 ID를 확인하거나 잠시 후 다시 시도하세요.",
             }
-
