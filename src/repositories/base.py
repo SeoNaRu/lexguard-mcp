@@ -1,6 +1,7 @@
 """
 Base Repository - 공통 유틸리티 및 상수
 """
+
 import os
 import logging
 from cachetools import TTLCache
@@ -14,7 +15,9 @@ level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.IN
 logger.setLevel(level)
 if not logger.handlers:
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
     logger.addHandler(handler)
 logger.propagate = True
 
@@ -52,9 +55,29 @@ class _StructuralFailureCache:
 
 failure_cache = _StructuralFailureCache(maxsize=200, ttl=300)  # 구조적 실패 5분 캐시
 
+
+def _get_drf_scheme() -> str:
+    """Return configured DRF scheme with compatibility fallback."""
+    scheme = (
+        (os.environ.get("LAW_GO_KR_DRF_SCHEME", "https") or "https").strip().lower()
+    )
+    if scheme in {"http", "https"}:
+        return scheme
+
+    logger.warning(
+        "Invalid LAW_GO_KR_DRF_SCHEME=%r; falling back to https",
+        scheme,
+    )
+    return "https"
+
+
+def _build_drf_url(path: str) -> str:
+    return f"{_get_drf_scheme()}://www.law.go.kr/DRF/{path}"
+
+
 # 국가법령정보센터 API 기본 URL
-LAW_API_BASE_URL = "https://www.law.go.kr/DRF/lawService.do"
-LAW_API_SEARCH_URL = "https://www.law.go.kr/DRF/lawSearch.do"  # 법령 검색용
+LAW_API_BASE_URL = _build_drf_url("lawService.do")
+LAW_API_SEARCH_URL = _build_drf_url("lawSearch.do")  # 법령 검색용
 
 # DRF HTTP 요청 타임아웃(초) — aget(..., timeout=...) 에서 공통 사용
 DRF_REQUEST_TIMEOUT_SEC = 10
@@ -120,7 +143,12 @@ class BaseLawRepository:
         return key[:4] + "****" + key[-4:]
 
     @classmethod
-    def attach_api_key(cls, params: dict, arguments: Optional[dict] = None, request_url: Optional[str] = None):
+    def attach_api_key(
+        cls,
+        params: dict,
+        arguments: Optional[dict] = None,
+        request_url: Optional[str] = None,
+    ):
         """API 키를 params에 추가하고 유효성 검증을 수행합니다."""
         api_key = cls.get_api_key(arguments)
         if cls.is_placeholder_key(api_key):
@@ -132,7 +160,9 @@ class BaseLawRepository:
                 "api_url": request_url,
             }
         params["OC"] = api_key
-        logger.info("DRF request | url=%s OC=%s", request_url or "", cls.mask_api_key(api_key))
+        logger.info(
+            "DRF request | url=%s OC=%s", request_url or "", cls.mask_api_key(api_key)
+        )
         return api_key, None
 
     @staticmethod
@@ -262,14 +292,14 @@ class BaseLawRepository:
         article_str = str(article_str).strip()
 
         # 숫자 추출
-        numbers = re.findall(r'\d+', article_str)
+        numbers = re.findall(r"\d+", article_str)
         if not numbers:
             return "000000"
 
         main_num = int(numbers[0])
 
         # '의' 뒤의 숫자 확인 (예: '제10조의2')
-        if '의' in article_str and len(numbers) > 1:
+        if "의" in article_str and len(numbers) > 1:
             sub_num = int(numbers[1])
             # 6자리: 앞 4자리는 조 번호, 뒤 2자리는 '의' 뒤 숫자
             return f"{main_num:04d}{sub_num:02d}"
@@ -294,7 +324,6 @@ class BaseLawRepository:
 
         # 한글 목 문자만 추출 (가-하)
         mok_char = mok_str.strip()[0] if mok_str.strip() else ""
-        if '가' <= mok_char <= '하':
+        if "가" <= mok_char <= "하":
             return mok_char
         return ""
-

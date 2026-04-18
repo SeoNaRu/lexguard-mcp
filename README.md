@@ -363,6 +363,20 @@ docker run -p 9099:9099 -e LAW_API_KEY=your_key lexguard-mcp
 2. API 활용 신청
 3. `.env`에 `LAW_API_KEY=발급받은키` 설정
 
+### DRF scheme 선택
+
+`lexguard-mcp`는 국가법령정보센터 DRF URL의 host/path를 고정한 채, scheme만 `.env`로 선택할 수 있습니다.
+
+```env
+LAW_GO_KR_DRF_SCHEME=https
+```
+
+- 허용값: `http`, `https`
+- 기본값: `https`
+- 제한된 기업망/방화벽 환경에서는 공식 가이드 예시에 맞춘 `http://www.law.go.kr/DRF/...` 경로가 필요할 수 있습니다.
+
+이 설정은 `https` 하드코딩이 일반 환경에서 우연히 가려질 수 있었던 잠복 URL-generation 문제를 운영환경별로 조정하기 위한 옵션입니다.
+
 ---
 
 ## Architecture

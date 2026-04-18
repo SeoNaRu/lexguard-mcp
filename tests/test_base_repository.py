@@ -3,7 +3,11 @@ BaseLawRepository 유틸리티 메서드 단위 테스트
 
 API 호출 없이 순수 유틸리티 로직을 검증.
 """
+
+import importlib
+
 import pytest
+from src.repositories import base as base_module
 from src.repositories.base import BaseLawRepository
 
 
@@ -15,6 +19,7 @@ def repo():
 # ---------------------------------------------------------------------------
 # is_placeholder_key
 # ---------------------------------------------------------------------------
+
 
 class TestIsPlaceholderKey:
     def test_none_is_placeholder(self, repo):
@@ -49,6 +54,7 @@ class TestIsPlaceholderKey:
 # mask_api_key
 # ---------------------------------------------------------------------------
 
+
 class TestMaskApiKey:
     def test_none_returns_empty(self, repo):
         assert repo.mask_api_key(None) == ""
@@ -75,6 +81,7 @@ class TestMaskApiKey:
 # ---------------------------------------------------------------------------
 # parse_article_number
 # ---------------------------------------------------------------------------
+
 
 class TestParseArticleNumber:
     def test_simple_article(self, repo):
@@ -110,6 +117,7 @@ class TestParseArticleNumber:
 # normalize_search_query
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeSearchQuery:
     def test_strips_whitespace(self, repo):
         result = repo.normalize_search_query("  근로기준법  ")
@@ -131,6 +139,7 @@ class TestNormalizeSearchQuery:
 # ---------------------------------------------------------------------------
 # _has_html_body
 # ---------------------------------------------------------------------------
+
 
 class TestHasHtmlBody:
     def test_html_doctype_detected(self, repo):
@@ -160,6 +169,7 @@ class TestHasHtmlBody:
 # _sanitize_url
 # ---------------------------------------------------------------------------
 
+
 class TestSanitizeUrl:
     def test_masks_oc_param(self, repo):
         url = "https://www.law.go.kr/DRF/lawService.do?OC=myrealapikey&target=law"
@@ -181,3 +191,38 @@ class TestSanitizeUrl:
 
     def test_empty_url_returns_empty(self, repo):
         assert repo._sanitize_url("") == ""
+
+
+# ---------------------------------------------------------------------------
+# DRF URL generation
+# ---------------------------------------------------------------------------
+
+
+class TestDrfUrlGeneration:
+    def test_default_scheme_is_https(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("LAW_GO_KR_DRF_SCHEME", raising=False)
+        reloaded = importlib.reload(base_module)
+
+        assert reloaded.LAW_API_BASE_URL == "https://www.law.go.kr/DRF/lawService.do"
+        assert reloaded.LAW_API_SEARCH_URL == "https://www.law.go.kr/DRF/lawSearch.do"
+
+    def test_http_scheme_supported(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("LAW_GO_KR_DRF_SCHEME", "http")
+        reloaded = importlib.reload(base_module)
+
+        assert reloaded.LAW_API_BASE_URL == "http://www.law.go.kr/DRF/lawService.do"
+        assert reloaded.LAW_API_SEARCH_URL == "http://www.law.go.kr/DRF/lawSearch.do"
+
+    def test_https_scheme_supported(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("LAW_GO_KR_DRF_SCHEME", "https")
+        reloaded = importlib.reload(base_module)
+
+        assert reloaded.LAW_API_BASE_URL == "https://www.law.go.kr/DRF/lawService.do"
+        assert reloaded.LAW_API_SEARCH_URL == "https://www.law.go.kr/DRF/lawSearch.do"
+
+    def test_invalid_scheme_falls_back_to_https(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("LAW_GO_KR_DRF_SCHEME", "ftp")
+        reloaded = importlib.reload(base_module)
+
+        assert reloaded.LAW_API_BASE_URL == "https://www.law.go.kr/DRF/lawService.do"
+        assert reloaded.LAW_API_SEARCH_URL == "https://www.law.go.kr/DRF/lawSearch.do"
