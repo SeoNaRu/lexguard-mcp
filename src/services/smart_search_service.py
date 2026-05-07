@@ -916,23 +916,15 @@ class SmartSearchService:
                             )
 
             elif search_type == "precedent":
-                result = await self.precedent_repo.search_precedent(
-                    query, 1, max_results, None, None, None, arguments,
+                result = await self.precedent_repo.search_precedent_with_fallback(
+                    query,
+                    1,
+                    max_results,
+                    None,
+                    params.get("date_from"),
+                    params.get("date_to"),
+                    arguments,
                 )
-                if result and "error" in result and not result.get("precedents"):
-                    if keyword_query and keyword_query != query:
-                        logger.info("Precedent fallback: keyword '%s'", keyword_query)
-                        result = await self.precedent_repo.search_precedent(
-                            keyword_query, 1, max_results, None, None, None, arguments,
-                        )
-                if result and "error" in result and not result.get("precedents"):
-                    kws = keyword_query.split()
-                    if len(kws) >= 2:
-                        short_q = " ".join(kws[:2])
-                        logger.info("Precedent fallback: short query '%s'", short_q)
-                        result = await self.precedent_repo.search_precedent(
-                            short_q, 1, max_results, None, None, None, arguments,
-                        )
 
             elif search_type == "interpretation":
                 result = await self.interpretation_repo.search_law_interpretation(
@@ -947,12 +939,12 @@ class SmartSearchService:
 
             elif search_type == "administrative_appeal":
                 result = await self.appeal_repo.search_administrative_appeal(
-                    query, 1, max_results, None, None, arguments,
+                    query, 1, max_results, params.get("date_from"), params.get("date_to"), arguments,
                 )
 
             elif search_type == "constitutional":
                 result = await self.constitutional_repo.search_constitutional_decision(
-                    query, 1, max_results, None, None, arguments,
+                    query, 1, max_results, params.get("date_from"), params.get("date_to"), arguments,
                 )
 
             elif search_type == "committee" and "committee_type" in params:

@@ -21,6 +21,8 @@ KOREAN_STOPWORDS = {
     "뭐", "뭔", "뭘", "뭐야", "뭐예요",
     # 법률 검색에 불필요한 일반 동사
     "하다", "되다", "이다", "있다", "없다", "알다", "모르다", "보다", "듣다", "말하다",
+    # 검색/시간 표현
+    "검색", "판례", "재결례", "결정례", "결정", "최근", "최신", "요즘", "근래",
 }
 
 
@@ -102,6 +104,12 @@ def extract_keywords(text: str, min_length: int = 2) -> List[str]:
     for word in words:
         word = word.strip()
         if len(word) < min_length:
+            continue
+        if word in KOREAN_STOPWORDS:
+            continue
+        if word.isdigit():
+            continue
+        if word.endswith("년") and word[:-1].isdigit():
             continue
 
         # 법률 핵심 키워드인지 확인 (부분 일치)
