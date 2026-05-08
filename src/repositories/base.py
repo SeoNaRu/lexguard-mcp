@@ -304,8 +304,8 @@ class BaseLawRepository:
             # 6자리: 앞 4자리는 조 번호, 뒤 2자리는 '의' 뒤 숫자
             return f"{main_num:04d}{sub_num:02d}"
         else:
-            # 6자리: 조 번호만
-            return f"{main_num:06d}"
+            # 6자리: 앞 4자리는 본 번호, 뒤 2자리는 00
+            return f"{main_num:04d}00"
 
     @staticmethod
     def parse_mok(mok_str: str) -> str:
