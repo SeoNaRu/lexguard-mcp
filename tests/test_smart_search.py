@@ -121,6 +121,20 @@ class TestParseTimeCondition:
         assert year_to == today.year
         assert year_from == today.year - 3
 
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "최근 3개년 부당해고 판례",
+            "최근 2년동안 부당해고 판례",
+            "최근 3년간 부당해고 판례",
+        ],
+    )
+    def test_recent_year_variants(self, service, query):
+        result = service.parse_time_condition(query)
+        assert result is not None
+        assert len(result["date_from"]) == 8
+        assert len(result["date_to"]) == 8
+
     def test_after_year(self, service):
         result = service.parse_time_condition("2022년 이후 판례")
         assert result is not None
@@ -149,6 +163,75 @@ class TestParseTimeCondition:
             if result:
                 assert result["date_from"] <= result["date_to"], \
                     f"date_from > date_to: {query}"
+
+
+class TestStripTimeCondition:
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ("최근 3년 부당해고 판례", "부당해고 판례"),
+            ("최근 3개년 부당해고 판례", "부당해고 판례"),
+            ("최근 2년동안 부당해고 판례", "부당해고 판례"),
+            ("최근 3년간 부당해고 판례", "부당해고 판례"),
+            ("2022년 이후 부당해고 판례", "부당해고 판례"),
+            ("2020년부터 2023년까지 부당해고 판례", "부당해고 판례"),
+        ],
+    )
+    def test_strips_supported_time_phrases(self, service, query, expected):
+        assert service.strip_time_condition(query) == expected
+
+
+class TestFetchSearchType:
+    @pytest.mark.asyncio
+    async def test_precedent_uses_time_condition_and_fallback(self, service, monkeypatch):
+        captured = {}
+
+        async def fake_search_precedent_with_fallback(
+            query, page, per_page, court, date_from, date_to, arguments
+        ):
+            captured.update(
+                {
+                    "query": query,
+                    "page": page,
+                    "per_page": per_page,
+                    "court": court,
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "arguments": arguments,
+                }
+            )
+            return {"total": 1, "precedents": [{"caseNm": "테스트"}]}
+
+        async def fail_search_precedent(*args, **kwargs):
+            raise AssertionError("search_precedent should not be used for precedent smart search")
+
+        monkeypatch.setattr(
+            service.precedent_repo,
+            "search_precedent_with_fallback",
+            fake_search_precedent_with_fallback,
+        )
+        monkeypatch.setattr(service.precedent_repo, "search_precedent", fail_search_precedent)
+
+        search_type, result = await service._fetch_search_type(
+            "precedent",
+            {"date_from": "20230101", "date_to": "20251231"},
+            "최근 3년 부당해고 판례",
+            "부당해고 판례",
+            3,
+            {"oc": "demo"},
+        )
+
+        assert search_type == "precedent"
+        assert result["total"] == 1
+        assert captured == {
+            "query": "부당해고 판례",
+            "page": 1,
+            "per_page": 3,
+            "court": None,
+            "date_from": "20230101",
+            "date_to": "20251231",
+            "arguments": {"oc": "demo"},
+        }
 
 
 # ---------------------------------------------------------------------------

@@ -154,8 +154,8 @@ class SmartSearchService(LookupMethodsMixin):
         """
         today = datetime.now()
 
-        # 패턴 1: "최근 N년"
-        match = re.search(r"최근\s*(\d+)\s*년", query)
+        # 패턴 1: "최근 N년", "최근 N개년", "최근 N년간", "최근 N년동안"
+        match = re.search(r"최근\s*(\d+)\s*(?:개)?년(?:간|동안)?", query)
         if match:
             years = int(match.group(1))
             date_from = (today - timedelta(days=years*365)).strftime("%Y%m%d")
@@ -192,6 +192,16 @@ class SmartSearchService(LookupMethodsMixin):
             return {"date_from": date_from, "date_to": date_to}
 
         return None
+
+    def strip_time_condition(self, query: str) -> str:
+        """판례 검색어에서 날짜 표현을 제거하고 날짜는 별도 파라미터로 전달한다."""
+        cleaned = re.sub(r"최근\s*\d+\s*(?:개)?년(?:간|동안)?", " ", query)
+        cleaned = re.sub(r"\d{4}\s*년\s*이후", " ", cleaned)
+        cleaned = re.sub(r"\d{4}\s*년\s*부터\s*\d{4}\s*년\s*까지", " ", cleaned)
+        cleaned = re.sub(r"예전.*요즘|과거.*최근|예전.*최근", " ", cleaned)
+        cleaned = re.sub(r"최신|요즘|근래", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned or query
 
     def plan_queries(self, query: str, intent: str) -> List[str]:
         """
@@ -494,23 +504,60 @@ class SmartSearchService(LookupMethodsMixin):
                             )
 
             elif search_type == "precedent":
-                result = await self.precedent_repo.search_precedent(
-                    query, 1, max_results, None, None, None, arguments,
-                )
+                has_time_condition = bool(params.get("date_from") or params.get("date_to"))
+                precedent_query = self.strip_time_condition(query) if has_time_condition else query
+                if has_time_condition:
+                    result = await self.precedent_repo.search_precedent_with_fallback(
+                        precedent_query,
+                        1,
+                        max_results,
+                        None,
+                        params.get("date_from"),
+                        params.get("date_to"),
+                        arguments,
+                    )
+                else:
+                    result = await self.precedent_repo.search_precedent(
+                        precedent_query, 1, max_results, None, None, None, arguments,
+                    )
                 if result and "error" in result and not result.get("precedents"):
                     if keyword_query and keyword_query != query:
                         logger.info("Precedent fallback: keyword '%s'", keyword_query)
-                        result = await self.precedent_repo.search_precedent(
-                            keyword_query, 1, max_results, None, None, None, arguments,
-                        )
+                        fallback_query = self.strip_time_condition(keyword_query) if has_time_condition else keyword_query
+                        if has_time_condition:
+                            result = await self.precedent_repo.search_precedent_with_fallback(
+                                fallback_query,
+                                1,
+                                max_results,
+                                None,
+                                params.get("date_from"),
+                                params.get("date_to"),
+                                arguments,
+                            )
+                        else:
+                            result = await self.precedent_repo.search_precedent(
+                                fallback_query, 1, max_results, None, None, None, arguments,
+                            )
                 if result and "error" in result and not result.get("precedents"):
                     kws = keyword_query.split()
                     if len(kws) >= 2:
                         short_q = " ".join(kws[:2])
                         logger.info("Precedent fallback: short query '%s'", short_q)
-                        result = await self.precedent_repo.search_precedent(
-                            short_q, 1, max_results, None, None, None, arguments,
-                        )
+                        short_query = self.strip_time_condition(short_q) if has_time_condition else short_q
+                        if has_time_condition:
+                            result = await self.precedent_repo.search_precedent_with_fallback(
+                                short_query,
+                                1,
+                                max_results,
+                                None,
+                                params.get("date_from"),
+                                params.get("date_to"),
+                                arguments,
+                            )
+                        else:
+                            result = await self.precedent_repo.search_precedent(
+                                short_query, 1, max_results, None, None, None, arguments,
+                            )
 
             elif search_type == "interpretation":
                 result = await self.interpretation_repo.search_law_interpretation(
@@ -525,12 +572,22 @@ class SmartSearchService(LookupMethodsMixin):
 
             elif search_type == "administrative_appeal":
                 result = await self.appeal_repo.search_administrative_appeal(
-                    query, 1, max_results, None, None, arguments,
+                    query,
+                    1,
+                    max_results,
+                    params.get("date_from"),
+                    params.get("date_to"),
+                    arguments,
                 )
 
             elif search_type == "constitutional":
                 result = await self.constitutional_repo.search_constitutional_decision(
-                    query, 1, max_results, None, None, arguments,
+                    query,
+                    1,
+                    max_results,
+                    params.get("date_from"),
+                    params.get("date_to"),
+                    arguments,
                 )
 
             elif search_type == "committee" and "committee_type" in params:
