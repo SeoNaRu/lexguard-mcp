@@ -203,6 +203,24 @@ class SmartSearchService(LookupMethodsMixin):
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned or query
 
+    def clean_precedent_query(self, query: str) -> str:
+        """판례 검색용 query에서 시간표현/표지어를 제거해 핵심 쟁점만 남긴다."""
+        cleaned = self.strip_time_condition(query)
+        cleaned = re.sub(r"유사\s*재판\s*사례", " ", cleaned)
+        cleaned = re.sub(r"유사\s*기록", " ", cleaned)
+        cleaned = re.sub(r"유사\s*판례", " ", cleaned)
+        cleaned = re.sub(r"참고\s*사례", " ", cleaned)
+        cleaned = re.sub(r"참고\s*판례", " ", cleaned)
+        cleaned = re.sub(r"관련\s*판례", " ", cleaned)
+        cleaned = re.sub(r"관련\s*사례", " ", cleaned)
+        cleaned = re.sub(r"관련", " ", cleaned)
+        cleaned = re.sub(r"기록", " ", cleaned)
+        cleaned = re.sub(r"유사\s*사례", " ", cleaned)
+        cleaned = re.sub(r"판례\s*검색", " ", cleaned)
+        cleaned = re.sub(r"판례", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned or query
+
     def plan_queries(self, query: str, intent: str) -> List[str]:
         """
         Intent별로 다단계 검색 쿼리 생성
@@ -505,7 +523,7 @@ class SmartSearchService(LookupMethodsMixin):
 
             elif search_type == "precedent":
                 has_time_condition = bool(params.get("date_from") or params.get("date_to"))
-                precedent_query = self.strip_time_condition(query) if has_time_condition else query
+                precedent_query = self.clean_precedent_query(query)
                 if has_time_condition:
                     result = await self.precedent_repo.search_precedent_with_fallback(
                         precedent_query,
@@ -523,7 +541,7 @@ class SmartSearchService(LookupMethodsMixin):
                 if result and "error" in result and not result.get("precedents"):
                     if keyword_query and keyword_query != query:
                         logger.info("Precedent fallback: keyword '%s'", keyword_query)
-                        fallback_query = self.strip_time_condition(keyword_query) if has_time_condition else keyword_query
+                        fallback_query = self.clean_precedent_query(keyword_query)
                         if has_time_condition:
                             result = await self.precedent_repo.search_precedent_with_fallback(
                                 fallback_query,
@@ -543,7 +561,7 @@ class SmartSearchService(LookupMethodsMixin):
                     if len(kws) >= 2:
                         short_q = " ".join(kws[:2])
                         logger.info("Precedent fallback: short query '%s'", short_q)
-                        short_query = self.strip_time_condition(short_q) if has_time_condition else short_q
+                        short_query = self.clean_precedent_query(short_q)
                         if has_time_condition:
                             result = await self.precedent_repo.search_precedent_with_fallback(
                                 short_query,
