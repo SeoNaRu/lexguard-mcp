@@ -175,3 +175,34 @@ async def test_missing_api_key_returns_error():
     )
     assert "error" in result
     assert result.get("error_code") == "API_ERROR_AUTH"
+
+
+@pytest.mark.asyncio
+async def test_single_article_clause_indexes_follow_drf_six_digit_format():
+    """JO/HANG/HO 는 law.go.kr 가이드의 6자리 형식(000300/000100/000200)으로 호출되어야 한다."""
+    repo = LawDetailRepository()
+
+    detail_resp = _make_response(_DETAIL_BASICINFO)
+    josub_resp = _make_response(_JOSUB_OK)
+
+    call_params = []
+
+    async def fake_aget(url, params=None, timeout=None):
+        call_params.append(dict(params or {}))
+        return josub_resp if params and params.get("target") == "eflawjosub" else detail_resp
+
+    with patch("src.repositories.law_detail.aget", side_effect=fake_aget):
+        await repo.get_single_article(
+            law_id="273437",
+            article_number="제3조",
+            hang="제1항",
+            ho="제2호",
+            mok="다",
+            arguments={"env": {"LAW_API_KEY": "testkey123"}},
+        )
+
+    josub_call = next(p for p in call_params if p.get("target") == "eflawjosub")
+    assert josub_call["JO"] == "000300"
+    assert josub_call["HANG"] == "000100"
+    assert josub_call["HO"] == "000200"
+    assert josub_call["MOK"] == "다"
