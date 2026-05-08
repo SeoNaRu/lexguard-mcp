@@ -367,6 +367,7 @@ class PrecedentRepository(BaseLawRepository):
                 "query": query,
                 "date_from": date_from,
                 "date_to": date_to,
+                "api_url": result.get("api_url"),
                 "strategy": "original",
                 "total": result.get("total", 0),
                 "success": result.get("total", 0) > 0 and "error" not in result
@@ -436,6 +437,7 @@ class PrecedentRepository(BaseLawRepository):
                     "query": keyword_query,
                     "date_from": None,
                     "date_to": None,
+                    "api_url": result.get("api_url"),
                     "strategy": "keyword_only",
                     "total": result.get("total", 0),
                     "success": result.get("total", 0) > 0 and "error" not in result
@@ -459,6 +461,7 @@ class PrecedentRepository(BaseLawRepository):
                 "per_page": per_page,
                 "total": 0,
                 "precedents": [],
+                "api_url": attempts[-1].get("api_url") if attempts else None,
                 "normalized_results": [],
                 "query_plan": query_plan,
                 "attempts": attempts,
@@ -491,6 +494,7 @@ class PrecedentRepository(BaseLawRepository):
             )
             attempts.append({
                 "step": "B", "query": q, "date_from": date_from, "date_to": date_to,
+                "api_url": result.get("api_url"),
                 "strategy": q_plan.get("strategy", "unknown"),
                 "total": result.get("total", 0),
                 "success": result.get("total", 0) > 0 and "error" not in result,
@@ -527,6 +531,7 @@ class PrecedentRepository(BaseLawRepository):
                 attempts.append({
                     "step": "C", "query": original_query,
                     "date_from": expanded_from, "date_to": expanded_to,
+                    "api_url": result.get("api_url"),
                     "strategy": f"date_expansion_step_{step}",
                     "total": result.get("total", 0),
                     "success": result.get("total", 0) > 0 and "error" not in result,
