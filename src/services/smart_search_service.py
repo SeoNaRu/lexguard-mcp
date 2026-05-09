@@ -545,7 +545,7 @@ class SmartSearchService(LookupMethodsMixin):
 
             elif search_type == "ordinance":
                 result = await self.ordinance_repo.search_local_ordinance(
-                    query, None, 1, max_results, arguments,
+                    query, None, None, 1, max_results, arguments,
                 )
 
             elif search_type == "rule":

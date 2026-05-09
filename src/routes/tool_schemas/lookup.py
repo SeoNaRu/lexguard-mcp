@@ -183,7 +183,8 @@ SCHEMAS = [
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "조례명 또는 검색 키워드"},
-                "local_government": {"type": "string", "description": "지방자치단체 명칭 필터 (예: 서울시, 부산시)"},
+                "local_government": {"type": "string", "description": "광역자치단체 명칭 필터 (예: 서울, 경기도, 부산광역시)"},
+                "sub_local_government": {"type": "string", "description": "시·군·구 명칭 필터 (예: 구로구). local_government와 함께 사용"},
                 "page": {"type": "integer", "default": 1, "minimum": 1},
                 "per_page": {"type": "integer", "default": 20, "minimum": 1, "maximum": 50},
             },
