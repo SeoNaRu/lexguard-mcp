@@ -98,6 +98,7 @@ async def handle_local_ordinance(arguments: dict, services: dict) -> dict:
     return await services["smart_search"].local_ordinance_lookup(
         query=arguments.get("query"),
         local_government=arguments.get("local_government"),
+        sub_local_government=arguments.get("sub_local_government"),
         page=int(arguments.get("page", 1)),
         per_page=per_page,
         arguments=arguments,
