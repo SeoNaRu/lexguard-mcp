@@ -86,11 +86,11 @@ class TestMaskApiKey:
 class TestParseArticleNumber:
     def test_simple_article(self, repo):
         result = repo.parse_article_number("제1조")
-        assert result == "000001"
+        assert result == "000100"
 
     def test_two_digit_article(self, repo):
         result = repo.parse_article_number("제23조")
-        assert result == "000023"
+        assert result == "002300"
 
     def test_article_with_sub(self, repo):
         result = repo.parse_article_number("제10조의2")
@@ -106,8 +106,8 @@ class TestParseArticleNumber:
 
     def test_int_article_number(self, repo):
         """MCP JSON에서 article_number가 숫자 타입으로 올 때"""
-        assert repo.parse_article_number(50) == "000050"
-        assert repo.parse_article_number(1) == "000001"
+        assert repo.parse_article_number(50) == "005000"
+        assert repo.parse_article_number(1) == "000100"
 
     def test_none_returns_zeroes(self, repo):
         assert repo.parse_article_number(None) == "000000"
