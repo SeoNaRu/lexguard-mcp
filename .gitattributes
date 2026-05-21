@@ -1,0 +1,29 @@
+# Normalize line endings to LF for all text files.
+# Resolves persistent "modified" status on Windows/WSL crossings due to CRLF↔LF.
+*               text=auto eol=lf
+
+# Explicit text declarations for source files.
+*.py            text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.toml          text eol=lf
+*.cfg           text eol=lf
+*.ini           text eol=lf
+*.txt           text eol=lf
+*.example       text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.editorconfig   text eol=lf
+
+# Binary files — do not normalize.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.pdf           binary
+*.zip           binary
+*.gz            binary
+*.tar           binary
