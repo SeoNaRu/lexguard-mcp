@@ -32,18 +32,30 @@ class LookupMethodsMixin:
         arguments: Optional[dict] = None,
     ) -> dict:
         """판례만 검색 (사건번호 또는 키워드). 통합 legal_qa_tool과 구분해 에이전트가 선택하기 쉽게 함."""
-        q = (case_number or "").strip() or (keyword or "").strip()
-        if not q:
+        raw_case = (case_number or "").strip()
+        raw_keyword = (keyword or "").strip()
+        if not raw_case and not raw_keyword:
             return {
                 "error_code": "INVALID_INPUT",
                 "error": "사건번호 또는 검색 키워드 중 하나는 필요합니다.",
                 "recovery_guide": "case_number(예: 2023다12345) 또는 keyword를 입력하세요.",
             }
+
+        if raw_case:
+            search_query = raw_case
+        else:
+            if not date_from and not date_to:
+                time_cond = self.parse_time_condition(raw_keyword)
+                if time_cond:
+                    date_from = time_cond["date_from"]
+                    date_to = time_cond["date_to"]
+            search_query = self.clean_precedent_query(raw_keyword) or raw_keyword
+
         result = await self.precedent_repo.search_precedent(
-            q, page, per_page, court, date_from, date_to, arguments,
+            search_query, page, per_page, court, date_from, date_to, arguments,
         )
         if isinstance(result, dict):
-            self._apply_rerank_lists(q, result)
+            self._apply_rerank_lists(search_query, result)
         return result
 
     async def interpretation_lookup(

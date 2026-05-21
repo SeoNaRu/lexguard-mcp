@@ -3,6 +3,7 @@
 apis 폴더의 response_fields를 기반으로 구조화
 """
 import json
+import urllib.parse
 from typing import Any, Dict, Optional
 
 import httpx
@@ -10,19 +11,49 @@ import httpx
 from .document_issue_prompts import get_document_issue_review_instruction
 
 
+def mask_oc_in_url(url: Any) -> Any:
+    """URL에 포함된 OC 파라미터(API 키)를 마스킹한다.
+
+    MCP 응답으로 노출되는 api_url 평문 키를 가리기 위한 목적. 비문자열·None 등
+    예상 외 입력은 변형 없이 그대로 반환한다.
+    """
+    if not isinstance(url, str) or "OC=" not in url:
+        return url
+    try:
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+        if "OC" not in query:
+            return url
+        oc = query["OC"][0] if query["OC"] else ""
+        if oc:
+            masked = oc[:4] + "****" + oc[-4:] if len(oc) > 8 else oc[:2] + "****" + oc[-2:]
+            query["OC"] = [masked]
+        new_query = urllib.parse.urlencode(query, doseq=True, safe="*")
+        return urllib.parse.urlunparse(parsed._replace(query=new_query))
+    except Exception:
+        return url
+
+
 def sanitize_for_mcp_json(obj: Any) -> Any:
     """
     Repository 등에서 httpx.Response.url(httpx.URL)이 그대로 들어오면
     json.dumps가 실패하므로 MCP 직렬화 직전에 문자열로 정리한다.
+    또한 응답에 노출되는 `api_url` 키 값은 OC API 키를 마스킹한다.
     """
     if isinstance(obj, httpx.URL):
-        return str(obj)
+        return mask_oc_in_url(str(obj))
     mod = getattr(type(obj), "__module__", "") or ""
     name = getattr(type(obj), "__name__", "") or ""
     if name == "URL" and ("httpx" in mod or mod == "yarl"):
-        return str(obj)
+        return mask_oc_in_url(str(obj))
     if isinstance(obj, dict):
-        return {k: sanitize_for_mcp_json(v) for k, v in obj.items()}
+        sanitized = {}
+        for k, v in obj.items():
+            sv = sanitize_for_mcp_json(v)
+            if k == "api_url" and isinstance(sv, str):
+                sv = mask_oc_in_url(sv)
+            sanitized[k] = sv
+        return sanitized
     if isinstance(obj, list):
         return [sanitize_for_mcp_json(v) for v in obj]
     if isinstance(obj, tuple):
@@ -303,14 +334,27 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
             "api_url": result.get("api_url")
         }
 
-    elif tool_name == "compare_laws_tool":
-        return {
-            "success": True,
+    elif tool_name in ("compare_laws_tool", "law_comparison_tool"):
+        comparison = result.get("comparison")
+        is_empty = (
+            comparison is None
+            or (isinstance(comparison, dict) and len(comparison) == 0)
+            or (isinstance(comparison, list) and len(comparison) == 0)
+        )
+        response = {
+            "success": not is_empty,
             "law_name": result.get("law_name"),
             "compare_type": result.get("compare_type"),
-            "comparison": result.get("comparison"),
-            "api_url": result.get("api_url")
+            "comparison": comparison,
+            "api_url": result.get("api_url"),
         }
+        if is_empty:
+            response["missing_reason"] = "EMPTY_COMPARISON"
+            response["recovery_guide"] = (
+                "해당 법령의 비교 결과를 API에서 받지 못했습니다. "
+                "compare_type을 다르게 시도하거나 다른 법령명으로 재시도하세요."
+            )
+        return response
 
     elif tool_name == "search_local_ordinance_tool":
         return {
