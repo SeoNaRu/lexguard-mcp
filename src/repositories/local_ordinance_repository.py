@@ -17,6 +17,10 @@ from .base import (
 
 # 광역자치단체 이름 → org 코드 (law.go.kr DRF API 기준)
 # org 코드 예시: 서울특별시=6110000 (API 문서 확인값)
+#
+# Source: law.go.kr DRF Open API 코드표 + PR #16(2026-05-21) 검증.
+# Last verified: 2026-05-21 (서울/부산/경기/제주 라이브 호출에서 정상 매칭 확인).
+# 갱신 시 단위 테스트(tests/test_local_ordinance_codes.py) 회귀 확인 필수.
 _ORG_CODE_MAP: dict[str, str] = {
     "서울특별시": "6110000", "서울시": "6110000", "서울": "6110000",
     "부산광역시": "6260000", "부산시": "6260000", "부산": "6260000",
@@ -40,7 +44,12 @@ _ORG_CODE_MAP: dict[str, str] = {
 
 # 시·군·구 이름 → sborg 코드
 # 구조: {org_code: {district_name: sborg_code}}
-# "중구" 등 동명 구가 여러 시에 존재하므로 org_code를 키로 중첩 구성
+# "중구" 등 동명 구가 여러 시에 존재하므로 org_code를 키로 중첩 구성.
+#
+# Source: PR #16(2026-05-21) 도입. 일부 데이터는 약 10년 전 자료 기반이므로
+# 행정구역 신설/개편 발생 시 갱신 필요(예: 미추홀구 신설 등). 갱신 시
+# tests/test_local_ordinance_codes.py 회귀 확인 필수.
+# Last verified: 2026-05-21.
 _SBORG_CODE_MAP: dict[str, dict[str, str]] = {
     "6110000": {  # 서울특별시
         "종로구": "3000000",
@@ -367,6 +376,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
                     params["org"] = org_code
                 else:
                     return {
+                        "error_code": "INVALID_INPUT",
                         "error": f"지원하지 않는 지자체 명칭입니다: '{local_government}'",
                         "recovery_guide": "광역자치단체 명칭을 사용하세요. 예: 서울, 경기도, 부산광역시",
                     }
@@ -377,11 +387,13 @@ class LocalOrdinanceRepository(BaseLawRepository):
                         params["sborg"] = sborg_code
                     else:
                         return {
+                            "error_code": "INVALID_INPUT",
                             "error": f"지원하지 않는 시·군·구 명칭입니다: '{sub_local_government}'",
                             "recovery_guide": "시·군·구 명칭 또는 sborg 코드를 직접 입력하세요. 예: 구로구, 3160000",
                         }
             elif sub_local_government:
                 return {
+                    "error_code": "INVALID_INPUT",
                     "error": "sub_local_government를 사용하려면 local_government(광역자치단체)도 함께 지정해야 합니다.",
                     "recovery_guide": "예: local_government='서울', sub_local_government='구로구'",
                 }
