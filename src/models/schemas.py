@@ -158,7 +158,8 @@ class CompareLawsRequest(BaseModel):
 class SearchLocalOrdinanceRequest(BaseModel):
     """자치법규 검색 요청 모델"""
     query: Optional[str] = Field(None, description="검색어 (조례명 또는 키워드)")
-    local_government: Optional[str] = Field(None, description="지방자치단체명 (예: '서울시', '부산시')")
+    local_government: Optional[str] = Field(None, description="광역자치단체명 (예: '서울', '경기도')")
+    sub_local_government: Optional[str] = Field(None, description="시·군·구명 (예: '구로구'). local_government 필수")
     page: int = Field(1, description="페이지 번호", ge=1)
     per_page: int = Field(20, description="페이지당 결과 수", ge=1, le=100)
 
