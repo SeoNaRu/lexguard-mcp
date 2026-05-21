@@ -24,6 +24,7 @@ class LocalOrdinanceService:
             return await self.repository.search_local_ordinance(
                 req.query,
                 req.local_government,
+                req.sub_local_government,
                 req.page,
                 req.per_page,
                 arguments
