@@ -210,6 +210,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
     if "error" in result:
         return {
             "success": False,
+            "error_code": result.get("error_code"),
             "error": result["error"],
             "recovery_guide": result.get("recovery_guide"),
             "note": result.get("note"),
@@ -575,6 +576,7 @@ def format_search_response(result: Dict[str, Any], tool_name: str) -> Dict[str, 
         if "error" in result:
             return {
                 "success": False,
+                "error_code": result.get("error_code"),
                 "error": result["error"],
                 "recovery_guide": result.get("recovery_guide"),
                 "api_url": result.get("api_url"),

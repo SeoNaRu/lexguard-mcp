@@ -54,7 +54,22 @@
       "Bash(curl -sS \"https://www.law.go.kr/DRF/lawService.do?target=eflawjosub&type=JSON&MST=284415&efYd=20260317&JO=075000&OC=LexGuardKey\" --max-time 6)",
       "Bash(pytest tests/test_fixture_regression.py tests/test_article_unit_selection.py -v --tb=short)",
       "Bash(curl -sS \"https://www.law.go.kr/DRF/lawService.do?target=eflawjosub&type=JSON&MST=265959&efYd=20251023&JO=005000&OC=LexGuardKey\" --max-time 6)",
-      "Bash(curl -sL https://github.com/SeoNaRu/lexguard-mcp/pull/16.diff)"
+      "Bash(curl -sL https://github.com/SeoNaRu/lexguard-mcp/pull/16.diff)",
+      "Bash(git diff *)",
+      "Bash(git merge *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git merge-tree *)",
+      "mcp__lexguard__local_ordinance_tool",
+      "mcp__lexguard__interpretation_tool",
+      "Bash(curl -sS \"https://www.law.go.kr/DRF/lawSearch.do?target=ordin&type=JSON&page=1&display=2&query=%EC%B2%AD%EC%86%8C%EB%85%84&org=6110000&OC=LexGuardKey\" --max-time 6)",
+      "Bash(pytest tests/test_local_ordinance_parsing.py -v --tb=short)",
+      "Bash(git branch *)",
+      "Bash(pytest tests/test_response_formatter_meta.py -v --tb=short)",
+      "Bash(pytest tests/test_local_ordinance_codes.py -v --tb=short)",
+      "Bash(pytest tests/test_local_ordinance_codes.py tests/test_local_ordinance_parsing.py --tb=short)",
+      "Bash(pytest tests/test_law_comparison_history_html.py -v --tb=short)"
     ]
   }
 }
