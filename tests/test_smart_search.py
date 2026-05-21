@@ -358,6 +358,21 @@ class TestExtractParameters:
         assert "agency" in result
         assert "고용노동부" in result["agency"]
 
+    def test_extracts_comparison_history_type(self, service):
+        result = service.extract_parameters("민법 연혁 조회", "comparison")
+        assert result["law_name"] == "민법"
+        assert result["compare_type"] == "연혁"
+
+    def test_extracts_comparison_three_way_type(self, service):
+        result = service.extract_parameters("형법 3단 비교 보여줘", "comparison")
+        assert result["law_name"] == "형법"
+        assert result["compare_type"] == "3단비교"
+
+    def test_extracts_comparison_default_type(self, service):
+        result = service.extract_parameters("근로기준법 신구법 비교 보여줘", "comparison")
+        assert result["law_name"] == "근로기준법"
+        assert result["compare_type"] == "신구법"
+
 
 # ---------------------------------------------------------------------------
 # plan_queries — 다단계 쿼리 계획
