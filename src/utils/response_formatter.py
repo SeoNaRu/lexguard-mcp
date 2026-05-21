@@ -83,6 +83,7 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         return formatted
 
     # 툴별 응답 타입 결정
+    # 옛 이름(search_*/get_*/compare_*)과 현재 MCP 이름(*_lookup_tool/*_tool) 모두 매핑.
     response_type_map = {
         "search_law_tool": "law_list",
         "get_law_tool": "law_detail",
@@ -101,6 +102,22 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "compare_laws_tool": "law_comparison",
         "search_local_ordinance_tool": "ordinance_list",
         "search_administrative_rule_tool": "rule_list",
+        # 현재 MCP tool 이름
+        "legal_qa_tool": "integrated_search",
+        "precedent_lookup_tool": "precedent_list",
+        "interpretation_tool": "interpretation_list",
+        "ministry_interpretation_tool": "interpretation_list",
+        "administrative_appeal_tool": "administrative_appeal_list",
+        "special_administrative_appeal_tool": "special_appeal_list",
+        "constitutional_decision_tool": "constitutional_decision_list",
+        "committee_decision_tool": "committee_decision_list",
+        "local_ordinance_tool": "ordinance_list",
+        "administrative_rule_tool": "rule_list",
+        "law_comparison_tool": "law_comparison",
+        "law_history_tool": "law_history",
+        "law_info_tool": "law_info",
+        "law_form_tool": "law_form",
+        "law_link_tool": "law_link",
         "smart_search_tool": "integrated_search",
         "situation_guidance_tool": "situation_guidance",
         "document_issue_tool": "document_issue",
@@ -110,18 +127,22 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
     meta["response_type"] = response_type_map.get(tool_name, "unknown")
 
     # 주요 필드 목록 추출
+    # 에러 판정은 명시적 신호로만: success=False 거나 error 키가 있을 때.
+    # success 필드가 없는 응답(레거시 raw return 등)은 success로 간주한다.
+    is_error_response = (
+        formatted.get("success") is False
+        or "error" in formatted
+        or "error_code" in formatted
+    )
     fields = []
-    if formatted.get("success"):
-        # 성공 응답의 주요 필드
+    if not is_error_response:
         for key in formatted.keys():
             if key not in ["success", "api_url", "_meta"]:
                 fields.append(key)
-        # 법적 근거 블록은 최상단 고정
         if "legal_basis_block" in fields:
             fields.remove("legal_basis_block")
             fields.insert(0, "legal_basis_block")
     else:
-        # 에러 응답의 주요 필드
         fields = ["error", "recovery_guide"]
 
     meta["fields"] = fields[:10]  # 최대 10개 필드만
@@ -149,6 +170,10 @@ def add_metadata(formatted: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
         "situation_guidance": "results.guidance 배열에 단계별 가이드가 있습니다. results.laws, results.precedents, results.interpretations에 관련 법적 정보가 있습니다.",
         "document_issue": "results.document_analysis에 조항별 이슈와 근거 조회 힌트가 있습니다.",
         "law_article": "results.content에 조문 내용이 있습니다.",
+        "law_history": "results.history 배열에 법령 연혁이 있습니다.",
+        "law_info": "results.info 객체에 법령 기본 정보가 있습니다.",
+        "law_form": "results.forms 배열에 법령 서식 목록이 있습니다.",
+        "law_link": "results.links 배열에 위임 관계 링크가 있습니다.",
         "clarification_needed": "results.possible_intents 배열에 가능한 의도 후보가 있습니다. results.suggestion을 참고하여 사용자에게 질문하세요."
     }
 
