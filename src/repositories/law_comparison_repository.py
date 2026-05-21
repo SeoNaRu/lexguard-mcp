@@ -123,6 +123,24 @@ class LawComparisonRepository(BaseLawRepository):
 
             invalid_response = self.validate_drf_response(response)
             if invalid_response:
+                # 연혁 API(lsHistory)는 법령에 따라 HTML 안내 페이지를 반환하는 사례가
+                # 빈번하다. 기본 메시지는 "API 키/정책 확인"이라 사용자에게 혼동을 주므로
+                # 연혁+HTML 조합일 때만 더 정확한 안내로 교체한다.
+                if (
+                    compare_type == "연혁"
+                    and invalid_response.get("error_code") == "API_ERROR_HTML"
+                ):
+                    invalid_response = dict(invalid_response)
+                    invalid_response["error"] = (
+                        "법령 연혁 API가 HTML 안내 페이지를 반환했습니다 "
+                        "(법령에 따라 연혁 API가 지원되지 않거나 일시 응답 불가)."
+                    )
+                    invalid_response["recovery_guide"] = (
+                        "compare_type을 '신구법' 또는 '3단비교'로 시도하거나 "
+                        "law_history_tool로 별도 조회해보세요."
+                    )
+                    invalid_response["law_name"] = law_name
+                    invalid_response["compare_type"] = compare_type
                 return invalid_response
             response.raise_for_status()
 
