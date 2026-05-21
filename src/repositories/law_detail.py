@@ -156,6 +156,38 @@ class LawDetailRepository(BaseLawRepository):
         return None
 
     @staticmethod
+    def _select_article_unit(
+        josub_unit: Any,
+    ) -> Optional[dict[str, Any]]:
+        """eflawjosub `조문단위` 응답에서 실제 조 본문 원소를 선택.
+
+        장의 첫 조항을 조회하면 API가 [장 헤더(조문여부=전문, 항 없음), 조 본문] 형태로
+        배열을 반환한다. 첫 원소를 그대로 쓰면 장 헤더만 잡혀 본문이 비어 보이므로,
+        항이 있거나 비어있지 않은 조문내용을 가진 원소를 우선 선택한다.
+        """
+        if isinstance(josub_unit, dict):
+            return josub_unit
+        if not isinstance(josub_unit, list) or not josub_unit:
+            return None
+
+        dict_units = [u for u in josub_unit if isinstance(u, dict)]
+        if not dict_units:
+            return None
+
+        for unit in dict_units:
+            if unit.get("항") or unit.get("paragraphs"):
+                return unit
+
+        for unit in dict_units:
+            if str(unit.get("조문여부") or "").strip() == "전문":
+                continue
+            content = unit.get("조문내용") or unit.get("내용") or unit.get("articleContent")
+            if content and str(content).strip():
+                return unit
+
+        return dict_units[0]
+
+    @staticmethod
     def _find_hang_item(
         hang_items: list[dict[str, Any]], hang: Optional[str]
     ) -> Optional[dict[str, Any]]:
@@ -932,11 +964,13 @@ class LawDetailRepository(BaseLawRepository):
                     )
 
                 if not article_content and isinstance(root, dict):
-                    josub_info = root.get("조문정보") or root.get("articleInfo")
+                    josub_info = (
+                        root.get("조문정보")
+                        or root.get("조문")
+                        or root.get("articleInfo")
+                    )
                     if isinstance(josub_info, dict):
-                        josub_unit = josub_info.get("조문단위")
-                        if isinstance(josub_unit, list):
-                            josub_unit = josub_unit[0] if josub_unit else None
+                        josub_unit = self._select_article_unit(josub_info.get("조문단위"))
                         if isinstance(josub_unit, dict):
                             article_title = article_title or josub_unit.get("조문제목")
                             if hang or ho or mok:
@@ -954,6 +988,11 @@ class LawDetailRepository(BaseLawRepository):
                                         article_content = self._render_ho_text(m_ho)
                                     elif hang:
                                         article_content = self._render_hang_text(m_hang)
+                            else:
+                                # hang/ho/mok 미지정 + 항 배열 존재 → 항 합치기 우선
+                                # (조문내용 필드가 제목 정도만 담는 응답이 많아 항이 진짜 본문)
+                                if josub_unit.get("항") or josub_unit.get("paragraphs"):
+                                    article_content = self._render_article_text(josub_unit)
                             if not (article_content and str(article_content).strip()):
                                 article_content = (
                                     josub_unit.get("조문내용")
@@ -988,13 +1027,12 @@ class LawDetailRepository(BaseLawRepository):
                                 )
 
                             if not article_content and isinstance(lawjosub_root, dict):
-                                josub_info = lawjosub_root.get("조문정보")
+                                josub_info = (
+                                    lawjosub_root.get("조문정보")
+                                    or lawjosub_root.get("조문")
+                                )
                                 if isinstance(josub_info, dict):
-                                    josub_unit = josub_info.get("조문단위")
-                                    if isinstance(josub_unit, list):
-                                        josub_unit = (
-                                            josub_unit[0] if josub_unit else None
-                                        )
+                                    josub_unit = self._select_article_unit(josub_info.get("조문단위"))
                                     if isinstance(josub_unit, dict):
                                         article_title = article_title or josub_unit.get("조문제목")
                                         if hang or ho or mok:
@@ -1012,6 +1050,9 @@ class LawDetailRepository(BaseLawRepository):
                                                     article_content = self._render_ho_text(m_ho)
                                                 elif hang:
                                                     article_content = self._render_hang_text(m_hang)
+                                        else:
+                                            if josub_unit.get("항") or josub_unit.get("paragraphs"):
+                                                article_content = self._render_article_text(josub_unit)
                                         if not (article_content and str(article_content).strip()):
                                             article_content = josub_unit.get("조문내용") or josub_unit.get("내용")
 
