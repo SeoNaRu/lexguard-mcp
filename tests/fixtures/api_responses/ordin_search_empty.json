@@ -1,0 +1,9 @@
+{
+  "OrdinSearch": {
+    "resultMsg": "success",
+    "resultCode": "00",
+    "target": "ordin",
+    "totalCnt": "0",
+    "page": "1"
+  }
+}

@@ -429,7 +429,9 @@ class LocalOrdinanceRepository(BaseLawRepository):
             }
 
             if isinstance(data, dict):
-                # 자치법규는 OrdinSearch 래퍼 사용
+                # 자치법규 응답은 항목 배열의 키가 일관되지 않다.
+                # 실측: OrdinSearch.law 사용. 일부 응답에서는 ordin 사용.
+                # 양쪽 모두 fallback으로 탐색한다.
                 if "OrdinSearch" in data:
                     ordin_search = data["OrdinSearch"]
                     if isinstance(ordin_search, dict):
@@ -438,23 +440,24 @@ class LocalOrdinanceRepository(BaseLawRepository):
                             result["total"] = int(total_raw)
                         except (TypeError, ValueError):
                             result["total"] = 0
-                        ordinances = ordin_search.get("ordin", [])
+                        ordinances = (
+                            ordin_search.get("law")
+                            or ordin_search.get("ordin")
+                            or []
+                        )
                     else:
                         ordinances = []
-                elif "ordin" in data:
-                    total_raw = data.get("totalCnt", 0)
-                    try:
-                        result["total"] = int(total_raw)
-                    except (TypeError, ValueError):
-                        result["total"] = 0
-                    ordinances = data.get("ordin", [])
                 else:
                     total_raw = data.get("totalCnt", 0)
                     try:
                         result["total"] = int(total_raw)
                     except (TypeError, ValueError):
                         result["total"] = 0
-                    ordinances = data.get("ordin", [])
+                    ordinances = (
+                        data.get("law")
+                        or data.get("ordin")
+                        or []
+                    )
 
                 if not isinstance(ordinances, list):
                     ordinances = [ordinances] if ordinances else []
@@ -463,7 +466,7 @@ class LocalOrdinanceRepository(BaseLawRepository):
 
             # total은 있는데 목록이 비어 있는 경우 메타 정보 추가
             if result["total"] and not result["ordinances"]:
-                result["note"] = "API 응답에서 totalCnt는 있으나 자치법규 목록(ordin)이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
+                result["note"] = "API 응답에서 totalCnt는 있으나 자치법규 목록이 비어 있습니다. 국가법령정보센터 응답 구조를 확인하세요."
 
             search_cache[cache_key] = result
             return result
