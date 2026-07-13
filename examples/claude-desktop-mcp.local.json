@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:9099/mcp"]
+    }
+  }
+}

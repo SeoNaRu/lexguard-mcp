@@ -10,18 +10,24 @@
 >
 > 국가법령정보센터(Open Law) 공식 데이터를 기반으로, 법령·조문·판례·법령해석·행정심판·헌재결정을 **하나의 질문 흐름**으로 제공합니다.
 
-- **MCP Endpoint**: [https://lexguard-mcp.onrender.com/mcp](https://lexguard-mcp.onrender.com/mcp)
-- **Health Check**: [https://lexguard-mcp.onrender.com/health](https://lexguard-mcp.onrender.com/health)
+- **실행 방식**: 본인의 국가법령정보센터 API 키로 직접 실행하는 **self-host** MCP 서버 (별도 호스팅 서비스 없음)
 - **GitHub**: [https://github.com/SeoNaRu/lexguard-mcp](https://github.com/SeoNaRu/lexguard-mcp)
 
-### 빠른 연결 (복붙)
+### 빠른 시작 (5분)
 
-원격 MCP만 쓸 때는 아래 JSON을 클라이언트 설정에 그대로 넣을 수 있습니다.
+1. **API 키 발급** — [open.law.go.kr](https://open.law.go.kr)에서 무료 발급. 신청 시 **본인 IP 등록** 필수 (아래 [API Key 발급](#api-key-발급-필수) 참고)
+2. **서버 실행**
 
-- Cursor: [`examples/cursor-mcp.remote.json`](examples/cursor-mcp.remote.json) 내용을 `.cursor/mcp.json` 등에 병합
-- Claude Desktop: [`examples/claude-desktop-mcp.remote.json`](examples/claude-desktop-mcp.remote.json) → `claude_desktop_config.json`의 `mcpServers`에 병합
+   ```bash
+   git clone https://github.com/SeoNaRu/lexguard-mcp
+   cd lexguard-mcp
+   cp .env.example .env        # LAW_API_KEY=발급키 설정
+   docker compose up --build   # 또는: pip install -r requirements.txt && python -m src.main
+   ```
 
-**한 줄 로컬 실행 (Docker):** 저장소 루트에서 `docker compose up --build` 후 MCP URL은 `http://localhost:9099/mcp` 입니다. (API 키: `LAW_API_KEY=발급키 docker compose up --build`)
+3. **클라이언트 연결** — MCP URL: `http://localhost:9099/mcp`
+   - Cursor: [`examples/cursor-mcp.local.json`](examples/cursor-mcp.local.json) 내용을 `.cursor/mcp.json`에 병합
+   - Claude Desktop: [`examples/claude-desktop-mcp.local.json`](examples/claude-desktop-mcp.local.json) → `claude_desktop_config.json`의 `mcpServers`에 병합 (Node.js 필요)
 
 마켓플레이스·크롤러용 정적 메타: [`mcp/manifest.json`](mcp/manifest.json) · 프롬프트 색인 [`prompts/`](prompts/) · 리소스 URI 안내 [`resources/README.md`](resources/README.md) · Cursor 개발 스킬 [`.cursor/skills/lexguard-mcp-dev/SKILL.md`](.cursor/skills/lexguard-mcp-dev/SKILL.md)
 
@@ -52,11 +58,11 @@
 | **조문 정밀 조회** | 법령명 + 조문번호로 특정 조항 직접 조회 |
 | **문서·계약서 분석** | 계약서·약관 붙여넣기만으로 조항별 법적 이슈 자동 감지 |
 | **판례 번호 직접 감지** | `2023다12345`, `2021헌마123` 형식 자동 인식 후 즉시 검색 |
-| **도메인 자동 분류** | 노동·개인정보·부동산·소비자·세금·금융 등 13개 법률 도메인 |
+| **도메인 자동 분류** | 노동·개인정보·부동산·소비자·세금·금융 등 10개 법률 도메인 |
 | **자연어 시간 조건** | "최근 3년", "2023년 이후" 등 자연어 시간 표현 자동 파싱 |
 | **Reranker 파이프라인** | 검색 결과를 쿼리 적합도(BM25 + Keyword Hybrid) 기준으로 재정렬 |
 | **병렬 검색** | `asyncio.gather` 기반 멀티 API 동시 호출로 응답 속도 최소화 |
-| **Rate Limiting** | IP당 60 req/min 제한으로 남용 방지 |
+| **Rate Limiting** | IP당 600 req/min 제한 (기본값, `LEXGUARD_MCP_RATE_LIMIT`로 조정) |
 
 ---
 
@@ -68,7 +74,7 @@
 
 **Capabilities**
 
-- 13개 도메인 자동 분류
+- 10개 도메인 자동 분류
 - 질문 의도(Intent) 다중 감지 및 우선순위 정렬
 - 법령 → 판례 → 해석 → 위원회 병렬 탐색
 - 자연어 시간 조건 필터링 (`date_from` / `date_to` 자동 변환)
@@ -327,41 +333,46 @@ docker build -t lexguard-mcp .
 docker run -p 9099:9099 -e LAW_API_KEY=your_key lexguard-mcp
 ```
 
-### Method 4. Remote MCP (호스팅 URL)
+### 클라이언트 연결
 
-**Claude Desktop** (`claude_desktop_config.json`)
+서버가 로컬에서 실행 중일 때 MCP URL은 `http://localhost:9099/mcp` 입니다.
 
-```json
-{
-  "mcpServers": {
-    "lexguard-mcp": {
-      "url": "https://lexguard-mcp.onrender.com/mcp"
-    }
-  }
-}
-```
-
-**Cursor** (`.cursor/mcp.json`)
-
-[`examples/cursor-mcp.remote.json`](examples/cursor-mcp.remote.json) 파일과 동일:
+**Cursor** (`.cursor/mcp.json`) — [`examples/cursor-mcp.local.json`](examples/cursor-mcp.local.json) 파일과 동일:
 
 ```json
 {
   "mcpServers": {
     "lexguard-mcp": {
-      "url": "https://lexguard-mcp.onrender.com/mcp"
+      "url": "http://localhost:9099/mcp"
     }
   }
 }
 ```
 
-### API Key 발급
+**Claude Desktop** (`claude_desktop_config.json`) — [`examples/claude-desktop-mcp.local.json`](examples/claude-desktop-mcp.local.json) 파일과 동일. Claude Desktop은 로컬 HTTP URL을 직접 지원하지 않으므로 `mcp-remote` 브리지를 사용합니다 (Node.js 필요):
 
-국가법령정보센터 Open API 키가 필요합니다.
+```json
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:9099/mcp"]
+    }
+  }
+}
+```
+
+> **claude.ai 웹 커넥터 안내**: 웹 커넥터는 공개 HTTPS URL이 필요하므로 로컬 실행 서버에는 연결할 수 없습니다. Claude Desktop 또는 Cursor 사용을 권장합니다. 웹에서 꼭 사용해야 한다면 본인 소유 서버(고정 IP + HTTPS)에 직접 배포한 뒤 그 IP를 open.law.go.kr에 등록하세요.
+
+### API Key 발급 (필수)
+
+국가법령정보센터 Open API 키가 필요합니다. 발급과 사용 모두 무료입니다.
 
 1. [https://open.law.go.kr](https://open.law.go.kr) 회원가입
-2. API 활용 신청
+2. OPEN API 활용 신청 — 이때 **요청을 보낼 서버(본인 PC)의 IP 또는 도메인을 등록**해야 합니다. law.go.kr는 등록된 IP에서 온 요청만 허용합니다.
 3. `.env`에 `LAW_API_KEY=발급받은키` 설정
+
+> **유동 IP 주의**: 일반 가정 회선은 IP가 바뀔 수 있습니다. `"사용자 정보 검증에 실패하였습니다"` 오류가 나오면 [open.law.go.kr → API인증키관리]에서 현재 IP로 재등록하세요.
 
 ### DRF scheme 선택
 
@@ -386,7 +397,7 @@ Client (Cursor / Claude)
     │ JSON-RPC 2.0 over SSE
     ▼
 FastAPI  (/mcp POST)
-    │ Rate Limiting (slowapi, 60 req/min/IP)
+    │ Rate Limiting (slowapi, 600 req/min/IP 기본값)
     ▼
 MCP Routes  (tools/call · prompts/get · resources/read)
     │

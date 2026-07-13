@@ -69,7 +69,8 @@
       "Bash(pytest tests/test_response_formatter_meta.py -v --tb=short)",
       "Bash(pytest tests/test_local_ordinance_codes.py -v --tb=short)",
       "Bash(pytest tests/test_local_ordinance_codes.py tests/test_local_ordinance_parsing.py --tb=short)",
-      "Bash(pytest tests/test_law_comparison_history_html.py -v --tb=short)"
+      "Bash(pytest tests/test_law_comparison_history_html.py -v --tb=short)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

@@ -5,8 +5,8 @@
 > **한국 법률·판례·법령해석을 AI가 이해하기 쉬운 형태로 연결하는 MCP 서버**
 > 국가법령정보센터(Open Law) 공식 데이터를 기반으로, 법령·조문·판례·법령해석·행정심판·헌재결정을 **하나의 질문 흐름**으로 제공합니다.
 
-- 🌐 **MCP Endpoint**: [https://lexguard-mcp.onrender.com/mcp](https://lexguard-mcp.onrender.com/mcp)
-- ❤️ **Health Check**: [https://lexguard-mcp.onrender.com/health](https://lexguard-mcp.onrender.com/health)
+- 🏠 **실행 방식**: 본인의 국가법령정보센터 API 키로 직접 실행하는 **self-host** MCP 서버 (MCP URL: `http://localhost:9099/mcp`)
+- 🔑 **API 키**: [open.law.go.kr](https://open.law.go.kr)에서 무료 발급 (신청 시 본인 IP 등록 필수)
 - 📦 **GitHub Repo**: [https://github.com/SeoNaRu/lexguard-mcp](https://github.com/SeoNaRu/lexguard-mcp)
 
 ---
@@ -36,12 +36,12 @@
   계약서·약관을 붙여넣으면 조항별 법적 이슈 자동 감지
 
 - 🧠 **도메인 자동 분류**
-  노동 / 개인정보 / 부동산 / 소비자 / 세금 / 금융 등 13개 법률 도메인
+  노동 / 개인정보 / 부동산 / 소비자 / 세금 / 금융 등 10개 법률 도메인
 
 - ⏰ **자연어 시간 조건 파싱**
   “최근 3년”, “2023년 이후” 같은 표현 자동 처리
 
-- 🚀 **172개 국가법령정보센터 DRF API 완전 통합**
+- 🚀 **국가법령정보센터 DRF API 159개 엔트리(88개 unique target) 통합**
 
 ---
 
@@ -136,10 +136,13 @@ case://대법원-2019다12345
 
 ## 📦 Installation
 
+> 먼저 [open.law.go.kr](https://open.law.go.kr)에서 API 키를 발급받고, 신청 시 본인 IP를 등록하세요.
+
 ### ✅ Method 1. Local (Python)
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env   # LAW_API_KEY=발급키 설정
 python -m src.main
 ```
 
@@ -149,36 +152,43 @@ python -m src.main
 
 ```bash
 docker build -t lexguard-mcp .
-docker run -p 9099:9099 lexguard-mcp
+docker run -p 9099:9099 -e LAW_API_KEY=발급키 lexguard-mcp
 ```
 
 ---
 
-### ✅ Method 3. MCP Client (One‑click)
+### ✅ Method 3. MCP Client 연결
 
-#### Claude Desktop
+서버 실행 후 MCP URL은 `http://localhost:9099/mcp` 입니다.
 
-```json
-{
-  "mcpServers": {
-    "lexguard-mcp": {
-      "url": "https://lexguard-mcp.onrender.com/mcp"
-    }
-  }
-}
-```
-
-#### Cursor
+#### Cursor (`.cursor/mcp.json`)
 
 ```json
 {
   "mcpServers": {
     "lexguard-mcp": {
-      "url": "https://lexguard-mcp.onrender.com/mcp"
+      "url": "http://localhost:9099/mcp"
     }
   }
 }
 ```
+
+#### Claude Desktop (`claude_desktop_config.json`)
+
+로컬 HTTP URL을 직접 지원하지 않으므로 `mcp-remote` 브리지를 사용합니다 (Node.js 필요):
+
+```json
+{
+  "mcpServers": {
+    "lexguard-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:9099/mcp"]
+    }
+  }
+}
+```
+
+> claude.ai **웹 커넥터**는 공개 HTTPS URL이 필요해 로컬 서버에 연결할 수 없습니다. Claude Desktop 또는 Cursor를 사용하세요.
 
 ---
 

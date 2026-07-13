@@ -1,3 +1,7 @@
+# 본인 Render 계정에 직접 배포하려는 경우를 위한 템플릿입니다. (공식 호스팅 없음)
+# - 무료 티어는 15분 무트래픽 시 스핀다운되어 MCP 클라이언트 연결이 타임아웃될 수 있습니다.
+# - 배포 후 Render 대시보드의 Outbound IP 주소들을 open.law.go.kr [API인증키관리]에 등록해야
+#   "사용자 정보 검증에 실패하였습니다" 오류 없이 조회가 동작합니다.
 services:
   - type: web
     name: lexguard-mcp
