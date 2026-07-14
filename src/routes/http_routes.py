@@ -173,7 +173,7 @@ def register_http_routes(api: FastAPI, law_service: LawService, health_service: 
                     return await coro_func
 
             if tool_name == "health":
-                return await health_service.check_health()
+                return await health_service.check_health(deep=True)
 
             if tool_name == "search_law_tool":
                 query = request_data.get("query")

@@ -5,7 +5,7 @@ logger = logging.getLogger("lexguard-mcp")
 
 
 async def handle_health(services: dict) -> dict:
-    return await services["health"].check_health()
+    return await services["health"].check_health(deep=True)
 
 
 async def handle_legal_qa(arguments: dict, services: dict) -> dict:
