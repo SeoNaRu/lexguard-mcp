@@ -1,4 +1,4 @@
-[![MCP Badge](https://lobehub.com/badge/mcp-full/seonaru-lexguard-mcp)](https://lobehub.com/mcp/seonaru-lexguard-mcp)
+[![MCP Badge](https://lobehub.com/badge/mcp/seonaru-lexguard-mcp)](https://lobehub.com/mcp/seonaru-lexguard-mcp)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
